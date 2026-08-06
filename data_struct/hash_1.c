@@ -229,7 +229,6 @@ int Hash_Insert(Hash_map**hm,Hash_map* h,char* url,Handler func)
 }
  
 
-
 static unsigned long hash(const char *str, unsigned long salt) {
     unsigned long h = 5381 ^ salt;
     int c;
@@ -246,81 +245,4 @@ unsigned long random_salt() {
 int bucket_site(int bucket_size,const char* url)
 {
     return hash(url, salt) % bucket_size;
-}
-
-struct Request{
-    int a;
-};
-struct Response{
-    int a;
-};
-
-void home_handler(Request * a, Response * b){
-   a->a=1;
-   b->a=1;
-}
-void users_handler(Request *a, Response * b) 
-{
-    a->a=1;
-    b->a=1;
-}
-
-int main(){
-
-   
-    int e=1;
-    Hash_map* h=Hash_Init(&e,2);
-
-    
-    Hash_Insert(&h,h, "/",home_handler);
-    Hash_Insert(&h,h, "/users",users_handler);
-    Hash_Insert(&h,h, "/users/fsa",users_handler);
-    Hash_Insert(&h,h, "/users/xsadq",users_handler);
-    Hash_Insert(&h,h, "/users/qfwqerf",users_handler);
-    Hash_Insert(&h,h, "/users/q",users_handler);
-    Hash_Insert(&h,h, "/users/nnn",users_handler);
-    Hash_Insert(&h,h, "/users/nnn/sff", users_handler);
-    Hash_Insert(&h,h, "/w",home_handler);
-    Hash_Insert(&h,h, "/usesads", users_handler);
-    Hash_Insert(&h,h, "/usegggrs/fsa", users_handler);
-    Hash_Insert(&h,h, "/uslfghers", users_handler);
-    Hash_Insert(&h,h, "/users/qfwqe/rf",users_handler);
-    Hash_Insert(&h,h, "/users/q/gh/", users_handler);
-    Hash_Insert(&h,h, "/users/nnnsdgd", users_handler);
-    Hash_Insert(&h,h, "/usebbvbbbrs/nnn/sff", users_handler);
-
-    Entry* m=NULL;
-
-    m=Hash_Find(h, "/",&e);
-    m=Hash_Find(h, "/users",&e);
-    m=Hash_Find(h, "/users/fsa", &e);
-    m=Hash_Find(h, "/users/xsadq",&e);
-    m=Hash_Find(h, "/users/qfwqerf",&e);
-    m=Hash_Find(h, "/users/q",&e);
-    m=Hash_Find(h, "/users/nnn",&e);
-    m=Hash_Find(h, "/u/nnn/sff",&e);
-    m=Hash_Find(h, "/w",&e);
-    m=Hash_Find(h, "/usesads", &e);
-    m=Hash_Find(h, "/usegggrs/fsa",&e);
-    m=Hash_Find(h, "/uslfghers",&e);
-    m=Hash_Find(h, "/users/qfwqe/rf",&e);
-    m=Hash_Find(h, "/users/q/gh/",&e);
-    m=Hash_Find(h, "/usebbvbbbrs/nnn/sff",&e);
-
-
-     Request a;
-     Response b;
-
-    Handler func=m->value;
-    func(&a,&b);
-    
-
-    
-
-  
-
-
-    return 0;
-
-
 }
