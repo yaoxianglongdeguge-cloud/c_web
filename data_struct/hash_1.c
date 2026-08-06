@@ -1,7 +1,7 @@
 #include "hash_1.h"
 
 
-Entry* Entry_Creat(char* key,uintptr_t value)
+Entry* Entry_Creat(char* key,Handler value)
 {
     Entry* e=(Entry*)malloc(sizeof(Entry));
     if(e==NULL)
@@ -23,16 +23,16 @@ Entry* Entry_Find(Entry* head,char* url,int* Error)
     {
         if(strcmp(h->next->key,url)==0)
         {
+            *Error=1;
             return h;
         }
         h=h->next;
     }
 
-    *Error=1;
     return h;
 }
 
-int Entry_Insert(Entry* head,char* url,uintptr_t func)//返回1插入成功，0已经有该节点，-1过程中失败
+int Entry_Insert(Entry* head,char* url,Handler func)//返回1插入成功，0已经有该节点，-1过程中失败
 {
     int e;
     Entry* i=Entry_Find(head,url,&e);
@@ -78,7 +78,7 @@ int Hash_Allocate(Hash_map* h,int size_h)
     for(int i=0;i<size_h;i++)
     {
         h->Elem[i].key="woc";
-        h->Elem[i].value=0;
+        h->Elem[i].value=NULL;
         h->Elem[i].next=NULL;
 
     }
@@ -86,7 +86,7 @@ int Hash_Allocate(Hash_map* h,int size_h)
     return 1;
 }
 
-Hash_map* Hash_Init(int* Error)//1成功，0已存在，-1过程错误
+Hash_map* Hash_Init(int* Error,int init)//1成功，0已存在，-1过程错误
 {
     *Error=0;
     Hash_map* h;
@@ -97,7 +97,9 @@ Hash_map* Hash_Init(int* Error)//1成功，0已存在，-1过程错误
         *Error=-1;
     }
 
-    int a=Hash_Allocate(h,7);
+    int bu_size=PRIME_BUCKET_SIZES[init-1];
+
+    int a=Hash_Allocate(h,bu_size);
     if(a==-1)
     {
         *Error=-1;
@@ -107,7 +109,7 @@ Hash_map* Hash_Init(int* Error)//1成功，0已存在，-1过程错误
         *Error=0;
     }
 
-    h->bu_num=7;
+    h->bu_num=bu_size;
     h->elem_num=0;
 
     salt=random_salt();
@@ -122,7 +124,7 @@ int Hash_Expend(Hash_map** h)
 {
     Hash_map* m;
     m=(Hash_map*)malloc(sizeof(Hash_map));
-    int a=Hash_Allocate(m,PRIME_BUCKET_SIZES[nidex+1]);
+    int a=Hash_Allocate(m,PRIME_BUCKET_SIZES[PRIME_BUCKET_SIZES_nidex+1]);
     if(a==-1)
     {
         return -1;
@@ -131,14 +133,32 @@ int Hash_Expend(Hash_map** h)
     {
         return 0;
     }
-    m->bu_num=PRIME_BUCKET_SIZES[nidex+1];
+    m->bu_num=PRIME_BUCKET_SIZES[PRIME_BUCKET_SIZES_nidex+1];
     m->elem_num=(*h)->elem_num;
 
-    nidex++;
+    PRIME_BUCKET_SIZES_nidex++;
 
     for(int i=0;i<(*h)->bu_num;i++)\
     {
-        m->Elem[i]=(*h)->Elem[i];
+        Entry* n=(*h)->Elem[i].next;
+
+        if(n==NULL)
+        {
+            continue;
+        }
+        else
+        {
+            while(n!=NULL)
+        {
+
+            char* url=n->key;
+            Handler func=n->value;
+            Hash_Insert(&m,m,url,func);
+            n=n->next;
+
+        }
+
+        }
     }
 
     free(*h);
@@ -168,10 +188,10 @@ const Entry* Hash_Find(Hash_map* h,char* url,int* Error)//-1为过程错误，�
 
     Entry* p=Entry_Find(head,url,&e);
 
-    if(e==1&&p!=NULL&&strcmp(p->key,url)==0)
+    if(e==1&&p->next!=NULL&&strcmp(p->next->key,url)==0)
     {
         *Error=1;
-        return p;
+        return p->next;
     }
     else
     {
@@ -182,7 +202,7 @@ const Entry* Hash_Find(Hash_map* h,char* url,int* Error)//-1为过程错误，�
 
 }
 
-int Hash_Insert(Hash_map* h,char* url,uintptr_t func)
+int Hash_Insert(Hash_map**hm,Hash_map* h,char* url,Handler func)
 {
 
     int b_site=bucket_site(h->bu_num,url);
@@ -200,7 +220,7 @@ int Hash_Insert(Hash_map* h,char* url,uintptr_t func)
 
     if(h->elem_num>h->bu_num*2)
     {
-        Hash_Expend(&h);
+        Hash_Expend(hm);
     }
 
     return 1;
@@ -228,37 +248,75 @@ int bucket_site(int bucket_size,const char* url)
     return hash(url, salt) % bucket_size;
 }
 
+struct Request{
+    int a;
+};
+struct Response{
+    int a;
+};
 
-int home_handler(int a,int b){
-return a+b;
+void home_handler(Request * a, Response * b){
+   a->a=1;
+   b->a=1;
 }
-int users_handler(int a,int c) {
-return a-c;
+void users_handler(Request *a, Response * b) 
+{
+    a->a=1;
+    b->a=1;
 }
 
 int main(){
 
    
     int e=1;
-    Hash_map* h=Hash_Init(&e);
+    Hash_map* h=Hash_Init(&e,2);
 
     
-    Hash_Insert(h, "/",(uintptr_t)home_handler);
-    Hash_Insert(h, "/users", (uintptr_t)users_handler);
-    Hash_Insert(h, "/users/fsa", (uintptr_t)users_handler);
-    Hash_Insert(h, "/users/xsadq",(uintptr_t) users_handler);
-    Hash_Insert(h, "/users/qfwqerf",(uintptr_t) users_handler);
-    Hash_Insert(h, "/users/q",(uintptr_t) users_handler);
-    Hash_Insert(h, "/users/nnn",(uintptr_t) users_handler);
-    Hash_Insert(h, "/users/nnn/sff",(uintptr_t) users_handler);
-    Hash_Insert(h, "/w",(uintptr_t)home_handler);
-    Hash_Insert(h, "/usesads", (uintptr_t)users_handler);
-    Hash_Insert(h, "/usegggrs/fsa", (uintptr_t)users_handler);
-    Hash_Insert(h, "/uslfghers",(uintptr_t) users_handler);
-    Hash_Insert(h, "/users/qfwqe/rf",(uintptr_t) users_handler);
-    Hash_Insert(h, "/users/q/gh/",(uintptr_t) users_handler);
-    Hash_Insert(h, "/users/nnnsdgd",(uintptr_t) users_handler);
-    Hash_Insert(h, "/usebbvbbbrs/nnn/sff",(uintptr_t) users_handler);
+    Hash_Insert(&h,h, "/",home_handler);
+    Hash_Insert(&h,h, "/users",users_handler);
+    Hash_Insert(&h,h, "/users/fsa",users_handler);
+    Hash_Insert(&h,h, "/users/xsadq",users_handler);
+    Hash_Insert(&h,h, "/users/qfwqerf",users_handler);
+    Hash_Insert(&h,h, "/users/q",users_handler);
+    Hash_Insert(&h,h, "/users/nnn",users_handler);
+    Hash_Insert(&h,h, "/users/nnn/sff", users_handler);
+    Hash_Insert(&h,h, "/w",home_handler);
+    Hash_Insert(&h,h, "/usesads", users_handler);
+    Hash_Insert(&h,h, "/usegggrs/fsa", users_handler);
+    Hash_Insert(&h,h, "/uslfghers", users_handler);
+    Hash_Insert(&h,h, "/users/qfwqe/rf",users_handler);
+    Hash_Insert(&h,h, "/users/q/gh/", users_handler);
+    Hash_Insert(&h,h, "/users/nnnsdgd", users_handler);
+    Hash_Insert(&h,h, "/usebbvbbbrs/nnn/sff", users_handler);
+
+    Entry* m=NULL;
+
+    m=Hash_Find(h, "/",&e);
+    m=Hash_Find(h, "/users",&e);
+    m=Hash_Find(h, "/users/fsa", &e);
+    m=Hash_Find(h, "/users/xsadq",&e);
+    m=Hash_Find(h, "/users/qfwqerf",&e);
+    m=Hash_Find(h, "/users/q",&e);
+    m=Hash_Find(h, "/users/nnn",&e);
+    m=Hash_Find(h, "/u/nnn/sff",&e);
+    m=Hash_Find(h, "/w",&e);
+    m=Hash_Find(h, "/usesads", &e);
+    m=Hash_Find(h, "/usegggrs/fsa",&e);
+    m=Hash_Find(h, "/uslfghers",&e);
+    m=Hash_Find(h, "/users/qfwqe/rf",&e);
+    m=Hash_Find(h, "/users/q/gh/",&e);
+    m=Hash_Find(h, "/usebbvbbbrs/nnn/sff",&e);
+
+
+     Request a;
+     Response b;
+
+    Handler func=m->value;
+    func(&a,&b);
+    
+
+    
+
   
 
 
