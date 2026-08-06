@@ -143,7 +143,7 @@ int Hash_Expend(Hash_map** h)
 
     free(*h);
 
-    **h=*m;
+    *h=m;
 
 
 
