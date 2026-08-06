@@ -134,7 +134,6 @@ int Hash_Expend(Hash_map** h)
         return 0;
     }
     m->bu_num=PRIME_BUCKET_SIZES[PRIME_BUCKET_SIZES_nidex+1];
-    m->elem_num=(*h)->elem_num;
 
     PRIME_BUCKET_SIZES_nidex++;
 
@@ -176,7 +175,7 @@ const Entry* Hash_Find(Hash_map* h,char* url,int* Error)//-1为过程错误，�
     *Error=0;
     if(h==NULL||h->Elem==NULL)
     {
-        Error=0;
+        *Error=0;
         return NULL;
     }
 
