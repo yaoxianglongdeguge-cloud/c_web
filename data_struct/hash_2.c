@@ -80,7 +80,16 @@ int Hash_Allocate(Hash_map* h,int size_h,int type,void* pool)
     {
         return 0;
     }
-    h->Elem=(Entry*)malloc(sizeof(Entry)*size_h);
+
+    switch (type)
+    {
+    case 1:
+        h->Elem=M_pool_1_alloc(pool,sizeof(Entry)*size_h);
+        break;
+    
+    default:
+        break;
+    }
 
     if(h->Elem==NULL)
     {
@@ -133,11 +142,15 @@ Hash_map* Hash_Init(int* Error,int init)//1成功，0已存在，-1过程错误
 
 }
 
-int Hash_Expend(Hash_map** h)
+int Hash_Expend(Hash_map** h,int type,void* pool)
 {
+
+    
+
+
     Hash_map* m;
-    m=(Hash_map*)malloc(sizeof(Hash_map));
-    int a=Hash_Allocate(m,PRIME_BUCKET_SIZES[PRIME_BUCKET_SIZES_nidex+1]);
+    m=(Hash_map*)malloc(sizeof(Hash_map));//虽然这里还是对表本身进行了申请和释放内存，但是这种操作很少，所以没必要专门做内存池
+    int a=Hash_Allocate(m,PRIME_BUCKET_SIZES[PRIME_BUCKET_SIZES_nidex+1],type,pool);
     if(a==-1)
     {
         return -1;
@@ -164,7 +177,7 @@ int Hash_Expend(Hash_map** h)
         {
 
             char* url=n->key;
-            Handler func=n->value;
+            void* func=n->value;
             Hash_Insert(&m,m,url,func);
             n=n->next;
 
@@ -214,14 +227,14 @@ const Entry* Hash_Find(Hash_map* h,char* url,int* Error)//-1为过程错误，�
 
 }
 
-int Hash_Insert(Hash_map**hm,Hash_map* h,char* url,Handler func)
+int Hash_Insert(Hash_map**hm,Hash_map* h,char* url,void* func,int type,void* pool)
 {
 
     int b_site=bucket_site(h->bu_num,url);
 
     Entry* head=&(h->Elem[b_site]);
 
-    int e=Entry_Insert(head,url,func);
+    int e=Entry_Insert(head,url,func,type,pool);
 
     if(e!=1)
     {
@@ -232,7 +245,7 @@ int Hash_Insert(Hash_map**hm,Hash_map* h,char* url,Handler func)
 
     if(h->elem_num>h->bu_num*2)
     {
-        Hash_Expend(hm);
+        Hash_Expend(hm,type,pool);
     }
 
     return 1;
