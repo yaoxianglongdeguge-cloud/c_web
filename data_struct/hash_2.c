@@ -1,17 +1,19 @@
 #include "data_struct/hash_2.h"
 #include"memory_pool/memory_pool_1.h"
 
+int Hash_map;
+
 //type -1是在栈上，0是在堆上，经过内核态，更大的数字就是表明哪种内存池
 //上面是错的，在栈上分配的函数结束就释放了，有问题
 
-Entry* Entry_Creat(char* key,void* value,int type,void* pool)
+Hash2_Entry_2* Hash2_Entry_Creat(char* key,void* value,int type,void* pool)
 {
-    Entry* e;
+    Hash2_Entry_2* e;
 
     switch (type)
     {    
     case 1:
-        e=M_pool_1_alloc(pool,sizeof(Entry));
+        e=M_pool_1_alloc(pool,sizeof(Hash2_Entry_2));
         break;
     
     default:
@@ -29,9 +31,9 @@ Entry* Entry_Creat(char* key,void* value,int type,void* pool)
     return e;
 }
 
-Entry* Entry_Find(Entry* head,char* url,int* Error)
+Hash2_Entry_2* Hash2_Entry_Find(Hash2_Entry_2* head,char* url,int* Error)
 {
-    Entry* h=head;
+    Hash2_Entry_2* h=head;
     *Error=0;
     while(h->next!=NULL)
     {
@@ -46,14 +48,14 @@ Entry* Entry_Find(Entry* head,char* url,int* Error)
     return h;
 }
 
-int Entry_Insert(Entry* head,char* url,void* func,int type,void* pool)//返回1插入成功，0已经有该节点，-1过程中失败
+int Hash2_Entry_Insert(Hash2_Entry_2* head,char* url,void* func,int type,void* pool)//返回1插入成功，0已经有该节点，-1过程中失败
 {
     int e;
-    Entry* i=Entry_Find(head,url,&e);
+    Hash2_Entry_2* i=Hash2_Entry_Find(head,url,&e);
     
     if(i->next==NULL)
     {
-        i->next=Entry_Creat(url,func,type,pool);
+        i->next=Hash2_Entry_Creat(url,func,type,pool);
         if(i->next!=NULL)
         {
             return 1;
@@ -76,7 +78,7 @@ int Entry_Insert(Entry* head,char* url,void* func,int type,void* pool)//返回1�
     return -1;
 }
 
-int Hash_Allocate(Hash_map* h,int size_h,int type,void* pool)
+int Hash2_Allocate(Hash_map_2* h,int size_h,int type,void* pool)
 {
     if(h->Elem!=NULL)
     {
@@ -86,7 +88,7 @@ int Hash_Allocate(Hash_map* h,int size_h,int type,void* pool)
     switch (type)
     {
     case 1:
-        h->Elem=M_pool_1_alloc(pool,sizeof(Entry)*size_h);
+        h->Elem=M_pool_1_alloc(pool,sizeof(Hash2_Entry_2)*size_h);
         break;
     
     default:
@@ -110,12 +112,12 @@ int Hash_Allocate(Hash_map* h,int size_h,int type,void* pool)
     return 1;
 }
 
-Hash_map* Hash_Init(int* Error,int init,int type,void* pool)//1成功，0已存在，-1过程错误,init是哈希表初始大小
+Hash_map_2* Hash2_Init(int* Error,int init,int type,void* pool)//1成功，0已存在，-1过程错误,init是哈希表初始大小
 {
     *Error=0;
-    Hash_map* h;
+    Hash_map_2* h;
 
-    h=(Hash_map*)malloc(sizeof(Hash_map));
+    h=(Hash_map_2*)malloc(sizeof(Hash_map_2));
     if(h==NULL)
     {
         *Error=-1;
@@ -123,7 +125,7 @@ Hash_map* Hash_Init(int* Error,int init,int type,void* pool)//1成功，0已存�
 
     int bu_size=PRIME_BUCKET_SIZES[init-1];
 
-    int a=Hash_Allocate(h,bu_size,type,pool);
+    int a=Hash2_Allocate(h,bu_size,type,pool);
     if(a==-1)
     {
         *Error=-1;
@@ -138,7 +140,7 @@ Hash_map* Hash_Init(int* Error,int init,int type,void* pool)//1成功，0已存�
 
     if(salt_2==0)
     {
-        salt_2=random_salt();
+        salt_2=random_salt_2();
     }
 
     *Error=1;
@@ -147,7 +149,7 @@ Hash_map* Hash_Init(int* Error,int init,int type,void* pool)//1成功，0已存�
 
 }
 
-const Entry* Hash_Find(Hash_map* h,char* url,int* Error)//-1为过程错误，用来指示中间调用函数出现错误
+const Hash2_Entry_2* Hash2_Find(Hash_map_2* h,char* url,int* Error)//-1为过程错误，用来指示中间调用函数出现错误
 {
     *Error=0;
     if(h==NULL||h->Elem==NULL)
@@ -156,13 +158,13 @@ const Entry* Hash_Find(Hash_map* h,char* url,int* Error)//-1为过程错误，�
         return NULL;
     }
 
-    int b_site=bucket_site(h->bu_num,url);
+    int b_site=bucket_site_2(h->bu_num,url);
 
-    Entry* head=&(h->Elem[b_site]);
+    Hash2_Entry_2* head=&(h->Elem[b_site]);
 
     int e=0;
 
-    Entry* p=Entry_Find(head,url,&e);
+    Hash2_Entry_2* p=Hash2_Entry_Find(head,url,&e);
 
     if(e==1&&p->next!=NULL&&strcmp(p->next->key,url)==0)
     {
@@ -178,14 +180,14 @@ const Entry* Hash_Find(Hash_map* h,char* url,int* Error)//-1为过程错误，�
 
 }
 
-int Hash_Insert(Hash_map**hm,Hash_map* h,char* url,void* func,int type,void* pool)
+int Hash2_Insert(Hash_map_2**hm,Hash_map_2* h,char* url,void* func,int type,void* pool)
 {
 
-    int b_site=bucket_site(h->bu_num,url);
+    int b_site=bucket_site_2(h->bu_num,url);
 
-    Entry* head=&(h->Elem[b_site]);
+    Hash2_Entry_2* head=&(h->Elem[b_site]);
 
-    int e=Entry_Insert(head,url,func,type,pool);
+    int e=Hash2_Entry_Insert(head,url,func,type,pool);
 
     if(e!=1)
     {
@@ -200,20 +202,22 @@ int Hash_Insert(Hash_map**hm,Hash_map* h,char* url,void* func,int type,void* poo
 }
  
 
-static unsigned long hash(const char *str, unsigned long salt) {
-    unsigned long h = 5381 ^ salt;
+static unsigned long hash_2(const char *str, unsigned long salt) {
+    unsigned long h = 5381 ^ salt_2;
     int c;
     while ((c = *str++))
         h = h * 33 + c;
     return h;
 }
 
-unsigned long random_salt() {
+unsigned long random_salt_2() {
     srand(time(NULL) ^ getpid());
     return (unsigned long)rand() * rand();
 }
 
-int bucket_site(int bucket_size,const char* url)
+int bucket_site_2(int bucket_size,const char* url)
 {
-    return hash(url, salt_2) % bucket_size;
+    return hash_2(url, salt_2) % bucket_size;
 }
+
+//由于这个表代码是复制的上一个哈希表然后改的，所以有些url，func这种残留不必在意
