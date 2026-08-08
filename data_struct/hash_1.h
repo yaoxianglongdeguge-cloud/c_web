@@ -32,28 +32,14 @@ typedef struct Hash_map
 
 unsigned long salt=0;//随机数防止攻击者发送特定信息都哈希选进一个桶里
 
-Entry* Entry_Creat(char* key,Handler value);//创建节点
 
-Entry* Entry_Find(Entry* head,char* url,int* Error);//查找一个链表内节点，并且返回指向那个节点的指针，如果为NULL则说明节点不存在
-
-int Entry_Insert(Entry* head,char* url,Handler func);//插入节点，head为一个链表开头，之后查找，没找到就插入
-
-int Hash_Allocate(Hash_map* h,int size_h);//分配特定大小内存
 
 Hash_map* Hash_Init(int* Error,int init);//初始化
-
-int Hash_Expend(Hash_map** h);//扩容
 
 int Hash_Insert(Hash_map**hm,Hash_map* h,char* url,Handler func);//插入
 
 const Entry* Hash_Find(Hash_map* h,char* url,int* Error);//查找
 
-
-static unsigned long hash(const char *str, unsigned long salt);//哈希函数：DJB2 + 盐值
-
-unsigned long random_salt();//salt生成，服务器启动时生成一次
-
-int bucket_site(int bucket_size,const char* url);//桶位置计算
 
 
 

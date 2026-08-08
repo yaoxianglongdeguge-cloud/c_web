@@ -27,13 +27,7 @@ typedef struct Hash_map
 
 unsigned long salt_2=0;//随机数防止攻击者发送特定信息都哈希选进一个桶里
 
-Hash2_Entry_2* Hash2_Entry_Creat(char* key,void* value,int type,void* pool);//创建节点,要指明用哪个类型内存池
 
-Hash2_Entry_2* Hash2_Entry_Find(Hash2_Entry_2* head,char* url,int* Error);//查找一个链表内节点，并且返回指向那个节点的指针，如果为NULL则说明节点不存在
-
-int Hash2_Entry_Insert(Hash2_Entry_2* head,char* url,void* func,int type,void* pool);//插入节点，head为一个链表开头，之后查找，没找到就插入.要指明用哪个类型内存池
-
-int Hash2_Allocate(Hash_map_2* h,int size_h,int type,void* pool);//分配特定大小内存.要指明用哪个类型内存池
 
 Hash_map_2* Hash2_Init(int* Error,int init,int type,void* pool);//初始化.但这个最开始的哈希表没必要放到内存池，因为是这样，先是一个指针h，指向一个哈希表，这个表是用来存储本身信息和指向
 //键值对块的指针的，而存储键值对块的内存块放到内存池里。因为需要时常修改。而这个表本身大小和位置不会变，生命周期也很长，所以没必要放到内存池，每次和其他的一起注册。
@@ -41,13 +35,6 @@ Hash_map_2* Hash2_Init(int* Error,int init,int type,void* pool);//初始化.但�
 int Hash2_Insert(Hash_map_2**hm,Hash_map_2* h,char* url,void* func,int type,void* pool);//插入.要指明用哪个类型内存池
 
 const Hash2_Entry_2* Hash2_Find(Hash_map_2* h,char* url,int* Error);//查找
-
-
-static unsigned long hash(const char *str, unsigned long salt);//哈希函数：DJB2 + 盐值
-
-unsigned long random_salt();//salt生成，服务器启动时生成一次
-
-int bucket_site(int bucket_size,const char* url);//桶位置计算
 
 
 

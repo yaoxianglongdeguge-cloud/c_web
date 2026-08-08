@@ -6,6 +6,25 @@ int Hash_map;
 //type -1是在栈上，0是在堆上，经过内核态，更大的数字就是表明哪种内存池
 //上面是错的，在栈上分配的函数结束就释放了，有问题
 
+
+Hash2_Entry_2* Hash2_Entry_Creat(char* key,void* value,int type,void* pool);//创建节点,要指明用哪个类型内存池
+
+Hash2_Entry_2* Hash2_Entry_Find(Hash2_Entry_2* head,char* url,int* Error);//查找一个链表内节点，并且返回指向那个节点的指针，如果为NULL则说明节点不存在
+
+int Hash2_Entry_Insert(Hash2_Entry_2* head,char* url,void* func,int type,void* pool);//插入节点，head为一个链表开头，之后查找，没找到就插入.要指明用哪个类型内存池
+
+int Hash2_Allocate(Hash_map_2* h,int size_h,int type,void* pool);//分配特定大小内存.要指明用哪个类型内存池
+
+static unsigned long hash_2(const char *str, unsigned long salt);//哈希函数：DJB2 + 盐值
+
+unsigned long random_salt_2();//salt生成，服务器启动时生成一次
+
+int bucket_site_2(int bucket_size,const char* url);//桶位置计算
+
+
+
+
+
 Hash2_Entry_2* Hash2_Entry_Creat(char* key,void* value,int type,void* pool)
 {
     Hash2_Entry_2* e;

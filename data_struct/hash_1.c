@@ -1,6 +1,26 @@
 #include "data_struct/hash_1.h"
 
 
+Entry* Entry_Creat(char* key,Handler value);//创建节点
+
+Entry* Entry_Find(Entry* head,char* url,int* Error);//查找一个链表内节点，并且返回指向那个节点的指针，如果为NULL则说明节点不存在
+
+int Entry_Insert(Entry* head,char* url,Handler func);//插入节点，head为一个链表开头，之后查找，没找到就插入
+
+int Hash_Allocate(Hash_map* h,int size_h);//分配特定大小内存
+
+int Hash_Expend(Hash_map** h);//扩容
+
+static unsigned long hash(const char *str, unsigned long salt);//哈希函数：DJB2 + 盐值
+
+unsigned long random_salt();//salt生成，服务器启动时生成一次
+
+int bucket_site(int bucket_size,const char* url);//桶位置计算
+
+
+
+
+
 Entry* Entry_Creat(char* key,Handler value)
 {
     Entry* e=(Entry*)malloc(sizeof(Entry));
