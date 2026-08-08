@@ -25,6 +25,9 @@ int Web_Driver_Main(char* IP,int PORT,route_1* ROUTE)
    while(1)
    {
       int client=accept(server_fd,NULL,NULL);
+      char* store[8092];
+
+      
       
    }
 

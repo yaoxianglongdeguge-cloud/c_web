@@ -27,8 +27,13 @@ int Http_analysis_init(Http_analysis_1* h)//我认为可以分配一次多次利
     return 1;
 }
 
-int Http_analysis_receive(Http_analysis_1* h,char* http_request,m_pool_1* store)
+
+
+int Http_analysis_receive(Http_analysis_1* h,char* http_request,int len,m_pool_1* store)
 {
+    char* r_end=http_request+len;
+    *r_end='\0';
+    
     char *body_start = strstr(http_request, "\r\n\r\n");
     if (!body_start) return 0;
 
@@ -37,11 +42,29 @@ int Http_analysis_receive(Http_analysis_1* h,char* http_request,m_pool_1* store)
 
     int a1=Http_analysis_head(h,http_request,store);
 
+    int a2=0;
+    char* n=Hash2_Find(h->Headers,"Content-Type",a2);
+    if(a2!=1)
+    {
+        return -1;
+    }
 
+    int body_type=0;
+
+    if(strcmp(n, "application/x-www-form-urlencoded") == 0)
+    {
+        body_type=1;
+    }
+    int a3=0;
+    int a3=Http_analysis_body(h,body_start,store,body_type);
+    if(a3!=1)
+    {
+        return -1;
+    }
+
+    return 1;
 
 }
-
-
 
 int Http_analysis_head(Http_analysis_1* h,char* http_head,m_pool_1* store)
 {
@@ -49,11 +72,40 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head,m_pool_1* store)
     char *line = strtok_r(http_head, "\r\n", &save);//切出第一行，save指向剩下的
     if (!line) return -1;
 
+    //处理头部，放入键值对
     char* method;
     char* path;//包含url和查询条件
     char* version;
-
+    
     sscanf(line, "%s %s %s", method, path, version);
+    
+    int e0=0;
+    h->Headers=Hash2_Init(&e0,2,1,store);
+    if(e0!=1)
+    {
+        return -1;
+    }
+
+    
+    
+    while (line != NULL) {
+
+        line = strtok_r(NULL, "\r\n", &save);
+
+        char* m=strchr(line,":");
+        if(m)
+        {
+        *m='\0';
+        int e1=0;
+        e1=Hash2_Insert(&(h->Headers),h->Headers,line,m+1,1,store);
+        if(e1!=0)
+        {
+            return -1;
+        }
+        }
+        // 处理 line，按 : 切键和值
+     }
+
 
     //处理查询条件，放入键值对
     char* path_cut=strchr(path,"?");
@@ -61,23 +113,100 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head,m_pool_1* store)
     char* query_ing=NULL;
     if(path_cut)
     {
-        url=path_cut;
-        
+        *path_cut='\0';
+        query_ing=path_cut+1;
+        url=path;
     }
 
+    h->Method=method;
+    h->Url=url;
+    h->Version=version;
+
+    int e2=0;
+    h->Query=Hash2_Init(&e2,2,1,store);
+    if(e2!=1)
+    {
+        return -1;
+    }
+    
+    //开始切查询条件
+    char *save2;
+    char* line2 = strtok_r(query_ing, "&", &save2);
 
 
-    //处理头部，放入键值对
-    while (line != NULL) {
-    // 处理 line，按 : 切键和值
-    line = strtok_r(NULL, "\r\n", &save);    // 下一行
+    while (line2 != NULL) {
 
+        // 处理 line2，按 = 切键和值
+        char* m=strchr(line2,"=");
+        if(m)
+        {
+            *m='\0';
+            int e1=0;
+            e1=Hash2_Insert(&(h->Query),h->Query,line2,m+1,1,store);
+            if(e1!=0)
+            {
+                return -1;
+            }
+        }
+
+        line2 = strtok_r(NULL, "&", &save2);
      }
 
+     return 1;
+
 }
 
-int int Http_analysis_body(Http_analysis_1* h,char* http_body,m_pool_1* store,int type)
+int Http_analysis_body(Http_analysis_1* h,char* http_body,m_pool_1* store,int type)
 {
+    switch (type)
+    {
+    case 1:
+
+    int e0=Http_analysis_body_1(h,http_body,store);
+    if(e0!=1)
+    {
+        return -1;
+    }
+
+    break;
+    
+    default:
+    break;
+}
+     return 1;
 
 }
-int Http_analysis_body_1();
+
+int Http_analysis_send(Http_analysis_1* h,char* http_response,m_pool_1* store);
+
+int Http_analysis_body_1(Http_analysis_1* h,char* http_body,m_pool_1* store)
+{
+    int e0=0;
+    h->Body=Hash2_Init(e0,2,1,store);
+
+    char *save2;
+    char* line2 = strtok_r(http_body, "&", &save2);
+
+    while (line2 != NULL) {
+
+        // 处理 line2，按 = 切键和值
+        
+        char* m=strchr(line2,"=");
+        if(m)
+        {
+            *m='\0';
+            int e1=0;
+            e1=Hash2_Insert(&(h->Body),h->Body,line2,m+1,1,store);
+            if(e1!=0)
+            {
+                return -1;
+            }
+        }
+
+        line2 = strtok_r(NULL, "&", &save2);
+     }
+
+     return 1;
+}
+
+
