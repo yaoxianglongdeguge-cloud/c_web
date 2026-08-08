@@ -1,4 +1,4 @@
-#include "data_struct/hash_1.h"
+#include "data_struct/hash_2.h"
 
 
 Entry* Entry_Creat(char* key,Handler value)
