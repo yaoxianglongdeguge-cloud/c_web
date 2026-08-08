@@ -1,5 +1,12 @@
 #include "memory_pool/memory_pool_1.h"
 
+
+int M_pool_1_expend(m_pool_1** pm);//扩容
+
+int M_pool_1_narrow(m_pool_1** pm);//缩容
+
+
+
 int  M_pool_1_init(m_pool_1* p,int size,int count)
 {
     p=(m_pool_1*)malloc(sizeof(m_pool_1));

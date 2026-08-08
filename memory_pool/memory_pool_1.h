@@ -24,7 +24,6 @@ void* M_pool_1_alloc(m_pool_1** p,int size);//分配内存
 
 int M_pool_1_recycle(m_pool_1** p);//回收内存
 
-int M_pool_1_expend(m_pool_1** pm);//扩容
 
-int M_pool_1_narrow(m_pool_1** pm);//缩容
+
 

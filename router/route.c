@@ -2,8 +2,10 @@
 
 int route_1_init(route_1* r)
 {
-    r->Hrt=(Hash_map*)mallloc(sizeof(Hash_map));
-    if(r->Hrt==NULL)
+    int e=0;
+    r->Hrt=Hash_Init(e,2);
+
+    if(e!=1)
     {
         return -1;
     }

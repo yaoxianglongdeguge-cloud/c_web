@@ -15,7 +15,3 @@ typedef struct Web_Driver_1{
 
 int Web_Driver_Main(char* IP,int PORT,route_1* ROUTE);
 
-int Open_Listen(char* IP,int PORT);
-
-Web_Driver_1* Web_Driver_Listen(char* IP,int PORT,route_1* ROUTE);
-
