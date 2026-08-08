@@ -1,13 +1,15 @@
 #include "data_struct/hash_2.h"
 #include"memory_pool/memory_pool_1.h"
 
+//type -1是在栈上，0是在堆上，经过内核态，更大的数字就是表明哪种内存池
+//上面是错的，在栈上分配的函数结束就释放了，有问题
 
 Entry* Entry_Creat(char* key,void* value,int type,void* pool)
 {
     Entry* e;
 
     switch (type)
-    {
+    {    
     case 1:
         e=M_pool_1_alloc(pool,sizeof(Entry));
         break;
@@ -108,7 +110,7 @@ int Hash_Allocate(Hash_map* h,int size_h,int type,void* pool)
     return 1;
 }
 
-Hash_map* Hash_Init(int* Error,int init)//1成功，0已存在，-1过程错误
+Hash_map* Hash_Init(int* Error,int init,int type,void* pool)//1成功，0已存在，-1过程错误,init是哈希表初始大小
 {
     *Error=0;
     Hash_map* h;
@@ -121,7 +123,7 @@ Hash_map* Hash_Init(int* Error,int init)//1成功，0已存在，-1过程错误
 
     int bu_size=PRIME_BUCKET_SIZES[init-1];
 
-    int a=Hash_Allocate(h,bu_size);
+    int a=Hash_Allocate(h,bu_size,type,pool);
     if(a==-1)
     {
         *Error=-1;
@@ -134,65 +136,14 @@ Hash_map* Hash_Init(int* Error,int init)//1成功，0已存在，-1过程错误
     h->bu_num=bu_size;
     h->elem_num=0;
 
-    salt=random_salt();
+    if(salt_2==0)
+    {
+        salt_2=random_salt();
+    }
 
     *Error=1;
 
     return h;
-
-}
-
-int Hash_Expend(Hash_map** h,int type,void* pool)
-{
-
-    
-
-
-    Hash_map* m;
-    m=(Hash_map*)malloc(sizeof(Hash_map));//虽然这里还是对表本身进行了申请和释放内存，但是这种操作很少，所以没必要专门做内存池
-    int a=Hash_Allocate(m,PRIME_BUCKET_SIZES[PRIME_BUCKET_SIZES_nidex+1],type,pool);
-    if(a==-1)
-    {
-        return -1;
-    }
-    else if(a==0)
-    {
-        return 0;
-    }
-    m->bu_num=PRIME_BUCKET_SIZES[PRIME_BUCKET_SIZES_nidex+1];
-
-    PRIME_BUCKET_SIZES_nidex++;
-
-    for(int i=0;i<(*h)->bu_num;i++)\
-    {
-        Entry* n=(*h)->Elem[i].next;
-
-        if(n==NULL)
-        {
-            continue;
-        }
-        else
-        {
-            while(n!=NULL)
-        {
-
-            char* url=n->key;
-            void* func=n->value;
-            Hash_Insert(&m,m,url,func);
-            n=n->next;
-
-        }
-
-        }
-    }
-
-    free(*h);
-
-    *h=m;
-
-
-
-    return 1;
 
 }
 
@@ -243,11 +194,6 @@ int Hash_Insert(Hash_map**hm,Hash_map* h,char* url,void* func,int type,void* poo
 
     h->elem_num++;
 
-    if(h->elem_num>h->bu_num*2)
-    {
-        Hash_Expend(hm,type,pool);
-    }
-
     return 1;
 
 
@@ -269,5 +215,5 @@ unsigned long random_salt() {
 
 int bucket_site(int bucket_size,const char* url)
 {
-    return hash(url, salt) % bucket_size;
+    return hash(url, salt_2) % bucket_size;
 }
