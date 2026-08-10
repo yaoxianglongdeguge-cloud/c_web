@@ -62,7 +62,7 @@ int Memory_pool_init(memory_pool* memo,int max_size)
 
 }
 
-int 
+int Memory_pool_alloc(memory_pool* memo,)
 
 
 
