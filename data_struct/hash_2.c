@@ -1,5 +1,5 @@
 #include "data_struct/hash_2.h"
-#include"memory_pool/memory_pool_1.h"
+#include"memory_pool/memory_pool.h"
 
 int Hash_map;
 
@@ -22,6 +22,25 @@ unsigned long random_salt_2();//salt生成，服务器启动时生成一次
 int bucket_site_2(int bucket_size,const char* url);//桶位置计算
 
 
+typedef struct Entry{
+    
+    char* key;//键
+    void* value;//值
+    struct Entry* next;//指向下一个元素
+
+}Hash2_Entry_2;
+
+typedef struct Hash_map
+{
+   int bu_num;
+   int elem_num;
+   Hash2_Entry_2* Elem;
+
+}Hash_map_2;
+
+unsigned long salt_2=0;//随机数防止攻击者发送特定信息都哈希选进一个桶里
+
+
 
 
 
@@ -32,7 +51,7 @@ Hash2_Entry_2* Hash2_Entry_Creat(char* key,void* value,int type,void* pool)
     switch (type)
     {    
     case 1:
-        e=M_pool_1_alloc(pool,sizeof(Hash2_Entry_2));
+        e=Memory_pool_alloc(pool,sizeof(Hash2_Entry_2));
         break;
     
     default:
@@ -107,7 +126,7 @@ int Hash2_Allocate(Hash_map_2* h,int size_h,int type,void* pool)
     switch (type)
     {
     case 1:
-        h->Elem=M_pool_1_alloc(pool,sizeof(Hash2_Entry_2)*size_h);
+        h->Elem=Memory_pool_alloc(pool,sizeof(Hash2_Entry_2)*size_h);
         break;
     
     default:
@@ -135,8 +154,16 @@ Hash_map_2* Hash2_Init(int* Error,int init,int type,void* pool)//1成功，0已�
 {
     *Error=0;
     Hash_map_2* h;
+     switch (type)
+    {    
+    case 1:
+        h=Memory_pool_alloc(pool,sizeof(Hash2_Entry_2));
+        break;
+    
+    default:
+        break;
+    }
 
-    h=(Hash_map_2*)malloc(sizeof(Hash_map_2));
     if(h==NULL)
     {
         *Error=-1;
@@ -220,6 +247,10 @@ int Hash2_Insert(Hash_map_2**hm,Hash_map_2* h,char* url,void* func,int type,void
 
 }
  
+int Hash2_Free(Hash_map_2* h)
+{
+    
+}
 
 static unsigned long hash_2(const char *str, unsigned long salt) {
     unsigned long h = 5381 ^ salt_2;
@@ -240,3 +271,13 @@ int bucket_site_2(int bucket_size,const char* url)
 }
 
 //由于这个表代码是复制的上一个哈希表然后改的，所以有些url，func这种残留不必在意
+
+static const int PRIME_BUCKET_SIZES[15] = {
+    7,
+    17,     // 起点
+    31,     // 1.82x
+    59,     // 1.90x
+    113,    // 1.92x
+
+};//用于哈希表扩容
+

@@ -9,24 +9,9 @@
 //内存池分配专用哈希表
 
 
-typedef struct Entry{
-    
-    char* key;//键
-    void* value;//值
-    struct Entry* next;//指向下一个元素
+typedef struct Entry Hash2_Entry_2;
 
-}Hash2_Entry_2;
-
-typedef struct Hash_map
-{
-   int bu_num;
-   int elem_num;
-   Hash2_Entry_2* Elem;
-
-}Hash_map_2;
-
-unsigned long salt_2=0;//随机数防止攻击者发送特定信息都哈希选进一个桶里
-
+typedef struct Hash_map Hash_map_2;
 
 
 Hash_map_2* Hash2_Init(int* Error,int init,int type,void* pool);//初始化.但这个最开始的哈希表没必要放到内存池，因为是这样，先是一个指针h，指向一个哈希表，这个表是用来存储本身信息和指向
@@ -42,14 +27,6 @@ const Hash2_Entry_2* Hash2_Find(Hash_map_2* h,char* url,int* Error);//查找
 //表插入函数不调用表查找函数，因为表查找函数返回的是只读。主要为了隔绝表外部查找操作意外修改。
 //并且这个表和进程生命周期相同，所以没有特意回收内存.
 
-static const int PRIME_BUCKET_SIZES[15] = {
-    7,
-    17,     // 起点
-    31,     // 1.82x
-    59,     // 1.90x
-    113,    // 1.92x
-
-};//用于哈希表扩容
 
 
 
