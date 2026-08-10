@@ -15,9 +15,7 @@ int Hash2_Entry_Insert(Hash2_Entry_2* head,char* url,void* func,void* ptr);//插
 
 int Hash2_Allocate(Hash_map_2* h,int size_h);//分配特定大小内存.要指明用哪个类型内存池
 
-static unsigned long hash_2(const char *str, unsigned long salt);//哈希函数：DJB2 + 盐值
-
-unsigned long random_salt_2();//salt生成，服务器启动时生成一次
+static unsigned long hash_2(const char *str);//哈希函数：DJB2 + 盐值
 
 int bucket_site_2(int bucket_size,const char* url);//桶位置计算
 
@@ -35,11 +33,11 @@ typedef struct Hash_map
    int bu_num;
    int elem_num;
    void* ptr;//为了让整个哈希表能顺序存储，更适应同时分配同时回收的特点，加一个下一个分配内存的指针
+   void* end;//能分配的最远地方，主要是用来适配统一释放这个问题，这样可以直接操纵从哪里释放到哪里
    Hash2_Entry_2* Elem;
 
 }Hash_map_2;
 
-unsigned long salt_2=0;//随机数防止攻击者发送特定信息都哈希选进一个桶里
 
 
 
@@ -129,7 +127,7 @@ int Hash2_Allocate(Hash_map_2* h,int size_h)
     return 1;
 }
 
-Hash_map_2* Hash2_Init(int* Error,int init,void* ptr)//1成功，0已存在，-1过程错误,init是哈希表初始大小
+Hash_map_2* Hash2_Init(int* Error,int init,void* ptr,void* end)//1成功，0已存在，-1过程错误,init是哈希表初始大小
 {
     *Error=0;
     Hash_map_2* h;
@@ -141,6 +139,7 @@ Hash_map_2* Hash2_Init(int* Error,int init,void* ptr)//1成功，0已存在，-1
         *Error=-1;
     }
     h->ptr=h;
+    h->end=end;
 
     int bu_size=PRIME_BUCKET_SIZES[init-1];
 
@@ -159,10 +158,6 @@ Hash_map_2* Hash2_Init(int* Error,int init,void* ptr)//1成功，0已存在，-1
     h->bu_num=bu_size;
     h->elem_num=0;
 
-    if(salt_2==0)
-    {
-        salt_2=random_salt_2();
-    }
 
     *Error=1;
 
@@ -229,7 +224,7 @@ int Hash2_Free(Hash_map_2* h,int type,void* pool)
      switch (type)
     {    
     case 1:
-        int a=Memory_pool_free(pool,h);
+        int a=Memory_pool_free(pool,h,h->end);
         if(a!=1)
         {
             return -1;
@@ -244,22 +239,17 @@ int Hash2_Free(Hash_map_2* h,int type,void* pool)
     return 1;
 }
 
-static unsigned long hash_2(const char *str, unsigned long salt) {
-    unsigned long h = 5381 ^ salt_2;
+static unsigned long hash_2(const char *str) {
+    unsigned long h = 5381;
     int c;
     while ((c = *str++))
         h = h * 33 + c;
     return h;
 }
 
-unsigned long random_salt_2() {
-    srand(time(NULL) ^ getpid());
-    return (unsigned long)rand() * rand();
-}
-
 int bucket_site_2(int bucket_size,const char* url)
 {
-    return hash_2(url, salt_2) % bucket_size;
+    return hash_2(url) % bucket_size;
 }
 
 //由于这个表代码是复制的上一个哈希表然后改的，所以有些url，func这种残留不必在意
