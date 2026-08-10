@@ -7,13 +7,13 @@ int Hash_map;
 //上面是错的，在栈上分配的函数结束就释放了，有问题
 
 
-Hash2_Entry_2* Hash2_Entry_Creat(char* key,void* value,int type,void* pool);//创建节点,要指明用哪个类型内存池
+Hash2_Entry_2* Hash2_Entry_Creat(char* key,void* value,void* ptr);//创建节点,要指明用哪个类型内存池
 
 Hash2_Entry_2* Hash2_Entry_Find(Hash2_Entry_2* head,char* url,int* Error);//查找一个链表内节点，并且返回指向那个节点的指针，如果为NULL则说明节点不存在
 
-int Hash2_Entry_Insert(Hash2_Entry_2* head,char* url,void* func,int type,void* pool);//插入节点，head为一个链表开头，之后查找，没找到就插入.要指明用哪个类型内存池
+int Hash2_Entry_Insert(Hash2_Entry_2* head,char* url,void* func,void* ptr);//插入节点，head为一个链表开头，之后查找，没找到就插入.要指明用哪个类型内存池
 
-int Hash2_Allocate(Hash_map_2* h,int size_h,int type,void* pool);//分配特定大小内存.要指明用哪个类型内存池
+int Hash2_Allocate(Hash_map_2* h,int size_h);//分配特定大小内存.要指明用哪个类型内存池
 
 static unsigned long hash_2(const char *str, unsigned long salt);//哈希函数：DJB2 + 盐值
 
@@ -34,6 +34,7 @@ typedef struct Hash_map
 {
    int bu_num;
    int elem_num;
+   void* ptr;//为了让整个哈希表能顺序存储，更适应同时分配同时回收的特点，加一个下一个分配内存的指针
    Hash2_Entry_2* Elem;
 
 }Hash_map_2;
@@ -44,24 +45,11 @@ unsigned long salt_2=0;//随机数防止攻击者发送特定信息都哈希选�
 
 
 
-Hash2_Entry_2* Hash2_Entry_Creat(char* key,void* value,int type,void* pool)
+Hash2_Entry_2* Hash2_Entry_Creat(char* key,void* value,void* ptr)
 {
     Hash2_Entry_2* e;
-
-    switch (type)
-    {    
-    case 1:
-        e=Memory_pool_alloc(pool,sizeof(Hash2_Entry_2));
-        break;
+    e=ptr;
     
-    default:
-        break;
-    }
-    
-    if(e==NULL)
-    {
-        return NULL;
-    }
     e->key=key;
     e->value=value;
     e->next=NULL;
@@ -86,16 +74,17 @@ Hash2_Entry_2* Hash2_Entry_Find(Hash2_Entry_2* head,char* url,int* Error)
     return h;
 }
 
-int Hash2_Entry_Insert(Hash2_Entry_2* head,char* url,void* func,int type,void* pool)//返回1插入成功，0已经有该节点，-1过程中失败
+int Hash2_Entry_Insert(Hash2_Entry_2* head,char* url,void* func,void* ptr)//返回1插入成功，0已经有该节点，-1过程中失败
 {
     int e;
     Hash2_Entry_2* i=Hash2_Entry_Find(head,url,&e);
     
     if(i->next==NULL)
     {
-        i->next=Hash2_Entry_Creat(url,func,type,pool);
+        i->next=Hash2_Entry_Creat(url,func,ptr);
         if(i->next!=NULL)
         {
+
             return 1;
         }
         else
@@ -116,22 +105,10 @@ int Hash2_Entry_Insert(Hash2_Entry_2* head,char* url,void* func,int type,void* p
     return -1;
 }
 
-int Hash2_Allocate(Hash_map_2* h,int size_h,int type,void* pool)
+int Hash2_Allocate(Hash_map_2* h,int size_h)
 {
-    if(h->Elem!=NULL)
-    {
-        return 0;
-    }
 
-    switch (type)
-    {
-    case 1:
-        h->Elem=Memory_pool_alloc(pool,sizeof(Hash2_Entry_2)*size_h);
-        break;
-    
-    default:
-        break;
-    }
+    h->Elem=h->ptr;
 
     if(h->Elem==NULL)
     {
@@ -147,6 +124,8 @@ int Hash2_Allocate(Hash_map_2* h,int size_h,int type,void* pool)
 
     }
 
+    h->ptr=h->ptr+size_h*(sizeof(Hash2_Entry_2));
+
     return 1;
 }
 
@@ -158,6 +137,7 @@ Hash_map_2* Hash2_Init(int* Error,int init,int type,void* pool)//1成功，0已�
     {    
     case 1:
         h=Memory_pool_alloc(pool,sizeof(Hash2_Entry_2));
+    
         break;
     
     default:
@@ -168,10 +148,13 @@ Hash_map_2* Hash2_Init(int* Error,int init,int type,void* pool)//1成功，0已�
     {
         *Error=-1;
     }
+    h->ptr=h;
 
     int bu_size=PRIME_BUCKET_SIZES[init-1];
 
-    int a=Hash2_Allocate(h,bu_size,type,pool);
+    h->ptr=h->ptr+sizeof(*h);
+
+    int a=Hash2_Allocate(h,bu_size);
     if(a==-1)
     {
         *Error=-1;
@@ -226,19 +209,21 @@ const Hash2_Entry_2* Hash2_Find(Hash_map_2* h,char* url,int* Error)//-1为过程
 
 }
 
-int Hash2_Insert(Hash_map_2**hm,Hash_map_2* h,char* url,void* func,int type,void* pool)
+int Hash2_Insert(Hash_map_2**hm,Hash_map_2* h,char* url,void* func)
 {
 
     int b_site=bucket_site_2(h->bu_num,url);
 
     Hash2_Entry_2* head=&(h->Elem[b_site]);
 
-    int e=Hash2_Entry_Insert(head,url,func,type,pool);
+    int e=Hash2_Entry_Insert(head,url,func,h->ptr);
 
     if(e!=1)
     {
         return -1;
     }
+
+    h->ptr=h->ptr+sizeof(Hash2_Entry_2);
 
     h->elem_num++;
 
@@ -247,9 +232,24 @@ int Hash2_Insert(Hash_map_2**hm,Hash_map_2* h,char* url,void* func,int type,void
 
 }
  
-int Hash2_Free(Hash_map_2* h)
+int Hash2_Free(Hash_map_2* h,int type,void* pool)
 {
+     switch (type)
+    {    
+    case 1:
+        int a=Memory_pool_free(pool,h);
+        if(a!=1)
+        {
+            return -1;
+        }
     
+        break;
+    
+    default:
+        break;
+    }
+    
+    return 1;
 }
 
 static unsigned long hash_2(const char *str, unsigned long salt) {
