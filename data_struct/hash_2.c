@@ -129,20 +129,12 @@ int Hash2_Allocate(Hash_map_2* h,int size_h)
     return 1;
 }
 
-Hash_map_2* Hash2_Init(int* Error,int init,int type,void* pool)//1成功，0已存在，-1过程错误,init是哈希表初始大小
+Hash_map_2* Hash2_Init(int* Error,int init,void* ptr)//1成功，0已存在，-1过程错误,init是哈希表初始大小
 {
     *Error=0;
     Hash_map_2* h;
-     switch (type)
-    {    
-    case 1:
-        h=Memory_pool_alloc(pool,sizeof(Hash2_Entry_2));
-    
-        break;
-    
-    default:
-        break;
-    }
+
+    h=ptr;
 
     if(h==NULL)
     {
@@ -248,7 +240,7 @@ int Hash2_Free(Hash_map_2* h,int type,void* pool)
     default:
         break;
     }
-    
+
     return 1;
 }
 

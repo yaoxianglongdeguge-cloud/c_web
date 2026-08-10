@@ -14,7 +14,7 @@ typedef struct Entry Hash2_Entry_2;
 typedef struct Hash_map Hash_map_2;
 
 
-Hash_map_2* Hash2_Init(int* Error,int init,int type,void* pool);//初始化.但这个最开始的哈希表没必要放到内存池，因为是这样，先是一个指针h，指向一个哈希表，这个表是用来存储本身信息和指向
+Hash_map_2* Hash2_Init(int* Error,int init,void* ptr);//初始化.但这个最开始的哈希表没必要放到内存池，因为是这样，先是一个指针h，指向一个哈希表，这个表是用来存储本身信息和指向
 //键值对块的指针的，而存储键值对块的内存块放到内存池里。因为需要时常修改。而这个表本身大小和位置不会变，生命周期也很长，所以没必要放到内存池，每次和其他的一起注册。
 
 int Hash2_Insert(Hash_map_2**hm,Hash_map_2* h,char* url,void* func);//插入.要指明用哪个类型内存池
