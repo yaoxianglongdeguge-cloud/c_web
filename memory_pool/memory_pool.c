@@ -22,16 +22,47 @@ typedef struct Page{
     int p_size;
     int use;//使用情况
 
-}Page;//这个页不仅是最小分配单元页，而且也可以指高级页表指向的一整块更大的页，而每次分配页，都要向上反馈，对保有内存进行调整
+}Page;//最小分配单元页
 
-typedef struct Page_table{
-
-    Page* Next_page;//指向下级页表或页的数组指针
-
-}Page_table;
+typedef Page* Page_table;
 
 
-int Memory_pool_init(memory_pool* memo,int max_size,int )
+int Memory_pool_init(memory_pool* memo,int max_size)
+{
+    int Bytes_size=max_size*1024;
+    memo->All_begin=NULL;
+    memo->All_end=NULL;
+    memo->m_size=max_size;
+    memo->All_begin=malloc(Bytes_size);
+    if(memo->All_begin==NULL)
+    {
+        return -1;
+    }
+
+    memo->All_end=memo->All_begin+Bytes_size;
+
+    //写入页表
+    Page_table p1=memo->All_begin;
+    int table_num=max_size/4;
+    for(int i=0;i<table_num;i++)
+    {
+        p1[i].p_size=4;
+        p1[i].Page_begin=i*4*1024+memo->All_begin;//计算每一页的虚拟地址位置
+        p1[i].use=0;//0代表没有被利用
+    }
+    //计算一个页表表项大小，后面要确定哪些表被占用了
+    int page_table_size=sizeof(Page)/1024;
+    int used_page=table_num*page_table_size/4;
+    for(int i=0;i<used_page;i++)
+    {
+        p1[i].use=1;
+    }
+
+    return 1;
+
+}
+
+int 
 
 
 
