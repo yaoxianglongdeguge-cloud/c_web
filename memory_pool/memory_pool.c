@@ -4,15 +4,15 @@
 //做一个单级页表的内存池。一个页控制在4kb。
 //由于是用户态的组件，所以也没有考虑崩溃，写入不一致等问题
 
-#define Max_size 1024
-#define Max_Page_level 2
+//每页大小灵活一些，因为不同地方可能数据分散度不同
 
 
 typedef struct memory_pool{
 
     char* All_begin;//内存池起始位置
     char* All_end;
-    int m_size;//内存池总大小
+    int m_size;//内存池总大小,单位是kb
+    int Page_size;
 
 }memory_pool;
 
@@ -22,17 +22,18 @@ typedef struct Page{
     int p_size;
     int use;//使用情况
 
-}Page;//最小分配单元页
+}Page;//最小分配单元页的表项，这个并不是指向页本身，里面的指针才是指向页本身
 
 typedef Page* Page_table;
 
 
-int Memory_pool_init(memory_pool* memo,int max_size)
+int Memory_pool_init(memory_pool* memo,int max_size,int Page_size)//这里的size单位是kb
 {
     int Bytes_size=max_size*1024;
     memo->All_begin=NULL;
     memo->All_end=NULL;
     memo->m_size=max_size;
+    memo->Page_size=Page_size;
     memo->All_begin=malloc(Bytes_size);
     if(memo->All_begin==NULL)
     {
@@ -43,16 +44,16 @@ int Memory_pool_init(memory_pool* memo,int max_size)
 
     //写入页表
     Page_table p1=memo->All_begin;
-    int table_num=max_size/4;
+    int table_num=max_size/Page_size;
     for(int i=0;i<table_num;i++)
     {
         p1[i].p_size=4;
-        p1[i].Page_begin=i*4*1024+memo->All_begin;//计算每一页的虚拟地址位置
+        p1[i].Page_begin=i*Page_size*1024+memo->All_begin;//计算每一页的虚拟地址位置
         p1[i].use=0;//0代表没有被利用
     }
     //计算一个页表表项大小，后面要确定哪些表被占用了
     int page_table_size=sizeof(Page)/1024;
-    int used_page=table_num*page_table_size/4;
+    int used_page=table_num*page_table_size/Page_size;
     for(int i=0;i<used_page;i++)
     {
         p1[i].use=1;
@@ -62,7 +63,70 @@ int Memory_pool_init(memory_pool* memo,int max_size)
 
 }
 
-int Memory_pool_alloc(memory_pool* memo,)
+void* Memory_pool_alloc(memory_pool* memo,int alloc_size)//这里的size是字节
+{
+    int table_num=memo->m_size/memo->Page_size;
+    void* j0=NULL;
+    if(alloc_size<=memo->Page_size*1024)
+    {
+        for(int i=0;i<table_num;i++)
+        {
+            Page* p0=memo->All_begin+i*sizeof(Page);
+            if(p0->use==0)
+            {
+                j0=p0->Page_begin;
+                p0->use=1;
+            }
+
+        }
+    }
+    else if(alloc_size>memo->Page_size*1*1024&&alloc_size<=memo->Page_size*2*1024)//如果有需要，也可以连续分配三个甚至更多
+    {
+        int i0=0;
+        int i1=1;
+        
+        while(i1<table_num)
+        {
+            Page* p0=memo->All_begin+i0*sizeof(Page);
+            Page* p1=memo->All_begin+i1*sizeof(Page);
+            if(p0->use==0&&p1->use==0)
+            {
+                j0=p0->Page_begin;
+                p0->use=1;
+                p1->use=1;
+            }
+
+            i0++;
+            i1++;
+            
+        }
+    }
+    else if(alloc_size>memo->Page_size*2*1024)
+    {
+        j0=malloc(alloc_size);
+    }
+
+    return j0;
+
+}
+
+int Memory_pool_free(memory_pool* memo,void* p)
+{
+    int table_num=memo->m_size/memo->Page_size;
+    char* ptr=p;
+    int p_table=(ptr-memo->All_begin)/1024/memo->Page_size;
+    if(p_table<0||p_table>=table_num)//p不在内存池里
+    {
+        free(ptr);
+    }
+    else
+    {
+        Page* which_table=memo->All_begin+p_table*sizeof(Page);//p的表项
+        which_table->use=0;
+    }
+
+    return 1;
+}
 
 
 
