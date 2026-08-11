@@ -28,18 +28,6 @@ typedef struct Entry{
 
 }Hash2_Entry_2;
 
-typedef struct Hash_map
-{
-   int bu_num;
-   int elem_num;
-   void* ptr;//为了让整个哈希表能顺序存储，更适应同时分配同时回收的特点，加一个下一个分配内存的指针
-   void* end;//能分配的最远地方，主要是用来适配统一释放这个问题，这样可以直接操纵从哪里释放到哪里
-   Hash2_Entry_2* Elem;
-
-}Hash_map_2;
-
-
-
 
 
 
