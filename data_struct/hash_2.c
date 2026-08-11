@@ -1,3 +1,4 @@
+#include "hash_2.h"
 #include <stdio.h>
 #include<stdint.h>
 #include<string.h>
@@ -5,12 +6,11 @@
 #include <time.h>
 #include <unistd.h>
 
-
-#include "data_struct/hash_2.h"
-#include"memory_pool/memory_pool.h"
-#include "http_analysis/http_analysis.h"
+#include"../memory_pool/memory_pool.h"
+#include "../http_analysis/http_analysis.h"
 
 int Hash_map;
+static const int PRIME_BUCKET_SIZES_2[15];
 
 //type -1是在栈上，0是在堆上，经过内核态，更大的数字就是表明哪种内存池
 //上面是错的，在栈上分配的函数结束就释放了，有问题
@@ -120,6 +120,10 @@ int Hash2_Allocate(Hash_map_2* h,int size_h,Http_analysis_1* Http)
     }
 
     Http->ptr=Http->ptr+size_h*(sizeof(Hash2_Entry_2));
+    if(Http->ptr>=Http->end)
+    {
+        return 0;
+    }
 
     return 1;
 }
@@ -129,9 +133,13 @@ int Hash2_Init(Http_analysis_1* Http, int init)//1成功，0已存在，-1过程
     Hash_map_2* h;
     h=Http->ptr;
 
-    int bu_size=PRIME_BUCKET_SIZES[init-1];
+    int bu_size=PRIME_BUCKET_SIZES_2[init-1];
 
     Http->ptr=Http->ptr+sizeof(*h);
+    if(Http->ptr>=Http->end)
+    {
+        return 0;
+    }
 
     int a=Hash2_Allocate(h,bu_size,Http);
     if(a==-1)
@@ -151,7 +159,7 @@ int Hash2_Init(Http_analysis_1* Http, int init)//1成功，0已存在，-1过程
 
 }
 
-const Hash2_Entry_2* Hash2_Find(Hash_map_2* h,char* url,int* Error)//-1为过程错误，用来指示中间调用函数出现错误
+char* Hash2_Find(Hash_map_2* h,char* url,int* Error)//-1为过程错误，用来指示中间调用函数出现错误
 {
     *Error=0;
     if(h==NULL||h->Elem==NULL)
@@ -171,7 +179,7 @@ const Hash2_Entry_2* Hash2_Find(Hash_map_2* h,char* url,int* Error)//-1为过程
     if(e==1&&p->next!=NULL&&strcmp(p->next->key,url)==0)
     {
         *Error=1;
-        return p->next;
+        return p->next->value;
     }
     else
     {
@@ -197,6 +205,10 @@ int Hash2_Insert(Hash_map_2* h,Http_analysis_1* Http, char* url,void* func)
     }
 
     Http->ptr=Http->ptr+sizeof(Hash2_Entry_2);
+    if(Http->ptr>=Http->end)
+    {
+        return 0;
+    }
 
     h->elem_num++;
 
@@ -221,7 +233,7 @@ int bucket_site_2(int bucket_size,const char* url)
 
 //由于这个表代码是复制的上一个哈希表然后改的，所以有些url，func这种残留不必在意
 
-static const int PRIME_BUCKET_SIZES[15] = {
+static const int PRIME_BUCKET_SIZES_2[15] = {
     7,
     17,     // 起点
     31,     // 1.82x

@@ -1,4 +1,34 @@
-#include "data_struct/hash_1.h"
+#include "hash_1.h"
+#include <stdio.h>
+#include<stdint.h>
+#include<string.h>
+#include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
+
+
+unsigned long salt=0;//随机数防止攻击者发送特定信息都哈希选进一个桶里
+
+static const int PRIME_BUCKET_SIZES[15] = {
+    7,
+    17,     // 起点
+    31,     // 1.82x
+    59,     // 1.90x
+    113,    // 1.92x
+    211,    // 1.87x
+    409,    // 1.94x
+    797,    // 1.95x
+    1597,   // 2.00x
+    3191,   // 2.00x
+    6373,   // 2.00x
+    12757,  // 2.00x
+    25523,  // 2.00x
+    51047,  // 2.00x
+    102107, // 2.00x
+};//用于哈希表扩容
+
+int PRIME_BUCKET_SIZES_nidex=0;
+
 
 
 Entry* Entry_Creat(char* key,Handler value);//创建节点
@@ -190,7 +220,7 @@ int Hash_Expend(Hash_map** h)
 
 }
 
-const Entry* Hash_Find(Hash_map* h,char* url,int* Error)//-1为过程错误，用来指示中间调用函数出现错误
+Entry* Hash_Find(Hash_map* h,char* url,int* Error)//-1为过程错误，用来指示中间调用函数出现错误
 {
     *Error=0;
     if(h==NULL||h->Elem==NULL)

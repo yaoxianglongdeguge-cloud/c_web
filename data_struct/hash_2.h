@@ -1,6 +1,8 @@
 //内存池分配专用哈希表
 
 
+typedef struct Http_analysis_1 Http_analysis_1;
+
 typedef struct Entry Hash2_Entry_2;
 
 typedef struct Hash_map
@@ -17,7 +19,7 @@ int Hash2_Init(Http_analysis_1* Http, int init);//初始化.但这个最开始�
 
 int Hash2_Insert(Hash_map_2* h,Http_analysis_1* Http, char* url,void* func);//插入.要指明用哪个类型内存池
 
-const Hash2_Entry_2* Hash2_Find(Hash_map_2* h,char* url,int* Error);//查找
+char* Hash2_Find(Hash_map_2* h,char* url,int* Error);//查找
 
 int Hash2_Free(Hash_map_2* h,int type,void* pool);
 
