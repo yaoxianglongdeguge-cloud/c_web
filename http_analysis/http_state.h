@@ -1,0 +1,13 @@
+typedef struct http_state{
+
+    int h_method;//请求方法，0表示还没有找到
+    int h_rnrn;//请求头分隔符，0表示还没有找到
+    int h_body_length;//请求体长度，如果为零，就说明没有请求体
+
+}http_state;
+
+int http_state_init(http_state* h);
+
+char* http_state_judge(http_ed_store* hs,int* error);
+
+int http_state_reset(http_ed_store* hs);

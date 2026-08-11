@@ -3,46 +3,31 @@
 #include <stdlib.h>
 #include"data_struct/hash_2.h"
 #include "memory_pool/memory_pool.h"
+#include "http_ed_store.h"
+#include "http_state.h"
 
 
-int Http_analysis_body(Http_analysis_1* h,char* http_request,memory_pool* store,int type);//type用来判断请求体的格式
+int Http_analysis_body(Http_analysis_1* h,char* http_request);//type用来判断请求体的格式
 
-int Http_analysis_body_1();//x-www-form-urlencode类型
+int Http_analysis_body_1(Http_analysis_1* h,char* http_body);//x-www-form-urlencode类型
 
-int Http_analysis_head(Http_analysis_1* h,char* http_request,memory_pool* store);
-
-typedef struct Http_analysis_1{
-
-    char* Method;
-    char* Url;
-    char* Version;
-    Hash_map_2* Query;
-    Hash_map_2* Headers;
-    Hash_map_2* Body;
-    int Error_h;
-    void* ptr;//下一个可用内存开头数据，用来连续存储内存和一次性释放内存
-    void* end;//能分配的最远地方，主要是用来适配统一释放这个问题，这样可以直接操纵从哪里释放到哪里
-
-}Http_analysis_1;
+int Http_analysis_head(Http_analysis_1* h,char* http_request);
 
 
-int Http_analysis_init(Http_analysis_1* h,int type,memory_pool* pool,int h_size)
+
+int Http_analysis_init(Http_analysis_1* h,memory_pool* pool,int h_size)
 {
-    switch (type)
-    {    
-    case 1:
+
         h=Memory_pool_alloc(pool,h_size);
+
         if(h==NULL)
         {
             return -1;
         }
+
         h->ptr=h+sizeof(Http_analysis_1);
         h->end=h+h_size;
-        break;
-    
-    default:
-        break;
-    }
+
 
     if(h==NULL)
     {
@@ -60,11 +45,8 @@ int Http_analysis_init(Http_analysis_1* h,int type,memory_pool* pool,int h_size)
     return 1;
 }
 
-
-int Http_analysis_receive(Http_analysis_1* h,char* http_request,memory_pool* store)
+int Http_analysis_receive(Http_analysis_1* h,char* http_request)
 {
-    char* r_end=http_request;
-    *r_end='\0';
     
     char *body_start = strstr(http_request, "\r\n\r\n");
     if (!body_start) return 0;
@@ -72,7 +54,7 @@ int Http_analysis_receive(Http_analysis_1* h,char* http_request,memory_pool* sto
     *body_start = '\0';       // 切断头部
     body_start += 4;          // 跳过 \r\n\r\n
 
-    int a1=Http_analysis_head(h,http_request,store);
+    int a1=Http_analysis_head(h,http_request);
 
     int a2=0;
     char* n=Hash2_Find(h->Headers,"Content-Type",a2);
@@ -88,7 +70,7 @@ int Http_analysis_receive(Http_analysis_1* h,char* http_request,memory_pool* sto
         body_type=1;
     }
     int a3=0;
-    int a3=Http_analysis_body(h,body_start,store,body_type);
+    int a3=Http_analysis_body(h,body_start);
     if(a3!=1)
     {
         return -1;
@@ -98,7 +80,7 @@ int Http_analysis_receive(Http_analysis_1* h,char* http_request,memory_pool* sto
 
 }
 
-int Http_analysis_head(Http_analysis_1* h,char* http_head,memory_pool* store)
+int Http_analysis_head(Http_analysis_1* h,char* http_head)
 {
     char *save;
     char *line = strtok_r(http_head, "\r\n", &save);//切出第一行，save指向剩下的
@@ -110,15 +92,13 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head,memory_pool* store)
     char* version;
     
     sscanf(line, "%s %s %s", method, path, version);
-    
-    int e0=0;
-    h->Headers=Hash2_Init(&e0,2,1,store);
+     
+    h->Headers=h->ptr;
+    int e0=Hash2_Init(h,2);
     if(e0!=1)
     {
         return -1;
     }
-
-    
     
     while (line != NULL) {
 
@@ -129,7 +109,7 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head,memory_pool* store)
         {
         *m='\0';
         int e1=0;
-        e1=Hash2_Insert(&(h->Headers),h->Headers,line,m+1,1,store);
+        e1=Hash2_Insert(h->Headers,h,line,m+1);
         if(e1!=0)
         {
             return -1;
@@ -154,8 +134,9 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head,memory_pool* store)
     h->Url=url;
     h->Version=version;
 
-    int e2=0;
-    h->Query=Hash2_Init(&e2,2,1,store);
+    h->Query=h->ptr;
+    int e2=Hash2_Init(h,2);
+
     if(e2!=1)
     {
         return -1;
@@ -174,7 +155,7 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head,memory_pool* store)
         {
             *m='\0';
             int e1=0;
-            e1=Hash2_Insert(&(h->Query),h->Query,line2,m+1,1,store);
+            e1=Hash2_Insert(h->Query,h,line2,m+1);
             if(e1!=0)
             {
                 return -1;
@@ -188,39 +169,30 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head,memory_pool* store)
 
 }
 
-int Http_analysis_body(Http_analysis_1* h,char* http_body,memory_pool* store,int type)
+int Http_analysis_body(Http_analysis_1* h,char* http_body)
 {
-    switch (type)
-    {
-    case 1:
-
-    int e0=Http_analysis_body_1(h,http_body,store);
+    int e0=Http_analysis_body_1(h,http_body);
     if(e0!=1)
     {
         return -1;
     }
 
-    break;
-    
-    default:
-    break;
-}
-     return 1;
-
+    return 1;
 }
 
-int Http_analysis_send(Http_analysis_1* h,char* http_response,memory_pool* store);
 
-int Http_analysis_body_1(Http_analysis_1* h,char* http_body,memory_pool* store)
+
+
+int Http_analysis_body_1(Http_analysis_1* h,char* http_body)
 {
     int e0=0;
-    h->Body=Hash2_Init(e0,2,1,store);
-
+    h->Body=Hash2_Init(e0,2);
+    
     char *save2;
     char* line2 = strtok_r(http_body, "&", &save2);
-
+    
     while (line2 != NULL) {
-
+        
         // 处理 line2，按 = 切键和值
         
         char* m=strchr(line2,"=");
@@ -228,19 +200,18 @@ int Http_analysis_body_1(Http_analysis_1* h,char* http_body,memory_pool* store)
         {
             *m='\0';
             int e1=0;
-            e1=Hash2_Insert(&(h->Body),h->Body,line2,m+1,1,store);
+            e1=Hash2_Insert(h->Body,h,line2,m+1);
             if(e1!=0)
             {
                 return -1;
             }
         }
-
+        
         line2 = strtok_r(NULL, "&", &save2);
-     }
-
-     return 1;
+    }
+    
+    return 1;
 }
 
 
-
- 
+int Http_analysis_send(Http_analysis_1* h,char* http_response,memory_pool* store);
