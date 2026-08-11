@@ -1,16 +1,49 @@
 #include "http_analysis/http_analysis.h"
+#include <string.h>
+#include <stdlib.h>
+#include"data_struct/hash_2.h"
+#include "memory_pool/memory_pool.h"
 
 
-int Http_analysis_body(Http_analysis_1* h,char* http_request,m_pool_1* store,int type);//type用来判断请求体的格式
+int Http_analysis_body(Http_analysis_1* h,char* http_request,memory_pool* store,int type);//type用来判断请求体的格式
 
 int Http_analysis_body_1();//x-www-form-urlencode类型
 
-int Http_analysis_head(Http_analysis_1* h,char* http_request,m_pool_1* store);
+int Http_analysis_head(Http_analysis_1* h,char* http_request,memory_pool* store);
+
+typedef struct Http_analysis_1{
+
+    char* Method;
+    char* Url;
+    char* Version;
+    Hash_map_2* Query;
+    Hash_map_2* Headers;
+    Hash_map_2* Body;
+    int Error_h;
+    void* ptr;//下一个可用内存开头数据，用来连续存储内存和一次性释放内存
+    void* end;//能分配的最远地方，主要是用来适配统一释放这个问题，这样可以直接操纵从哪里释放到哪里
+
+}Http_analysis_1;
 
 
-int Http_analysis_init(Http_analysis_1* h)//我认为可以分配一次多次利用不释放。
+int Http_analysis_init(Http_analysis_1* h,int type,memory_pool* pool,int h_size)
 {
-    h=(Http_analysis_1*)malloc(sizeof(Http_analysis_1));
+    switch (type)
+    {    
+    case 1:
+        h=Memory_pool_alloc(pool,h_size);
+        if(h==NULL)
+        {
+            return -1;
+        }
+        h->ptr=h+sizeof(Http_analysis_1);
+        h->end=h+h_size;
+        break;
+    
+    default:
+        break;
+    }
+
     if(h==NULL)
     {
         return -1;
@@ -28,10 +61,9 @@ int Http_analysis_init(Http_analysis_1* h)//我认为可以分配一次多次利
 }
 
 
-
-int Http_analysis_receive(Http_analysis_1* h,char* http_request,int len,m_pool_1* store)
+int Http_analysis_receive(Http_analysis_1* h,char* http_request,memory_pool* store)
 {
-    char* r_end=http_request+len;
+    char* r_end=http_request;
     *r_end='\0';
     
     char *body_start = strstr(http_request, "\r\n\r\n");
@@ -66,7 +98,7 @@ int Http_analysis_receive(Http_analysis_1* h,char* http_request,int len,m_pool_1
 
 }
 
-int Http_analysis_head(Http_analysis_1* h,char* http_head,m_pool_1* store)
+int Http_analysis_head(Http_analysis_1* h,char* http_head,memory_pool* store)
 {
     char *save;
     char *line = strtok_r(http_head, "\r\n", &save);//切出第一行，save指向剩下的
@@ -156,7 +188,7 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head,m_pool_1* store)
 
 }
 
-int Http_analysis_body(Http_analysis_1* h,char* http_body,m_pool_1* store,int type)
+int Http_analysis_body(Http_analysis_1* h,char* http_body,memory_pool* store,int type)
 {
     switch (type)
     {
@@ -177,9 +209,9 @@ int Http_analysis_body(Http_analysis_1* h,char* http_body,m_pool_1* store,int ty
 
 }
 
-int Http_analysis_send(Http_analysis_1* h,char* http_response,m_pool_1* store);
+int Http_analysis_send(Http_analysis_1* h,char* http_response,memory_pool* store);
 
-int Http_analysis_body_1(Http_analysis_1* h,char* http_body,m_pool_1* store)
+int Http_analysis_body_1(Http_analysis_1* h,char* http_body,memory_pool* store)
 {
     int e0=0;
     h->Body=Hash2_Init(e0,2,1,store);
@@ -208,6 +240,7 @@ int Http_analysis_body_1(Http_analysis_1* h,char* http_body,m_pool_1* store)
 
      return 1;
 }
+
 
 
  

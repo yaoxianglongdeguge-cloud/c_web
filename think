@@ -1,0 +1,46 @@
+最后决定用多工作线程，每个有一个epoll实例，然后直接由内核来唤醒工作线程，因为如果是一个分发线程先拿到新连接然后分发的话就需要轮询工作线程找空闲的，那太浪费了，而且这个分发线程容易成为瓶颈我认为。而内核来直接唤醒有个惊群的问题，不过4.5后面的linux版本好像解决了这个问题。这样的话就是每个工作线程先把监听fd注册，然后epoll等待，等来了新连接，内核分发进行接收，然后注册进自己的epoll，之后来数据就接收数据，然后进行解析，之后根据路由把业务函数和request，response参数打包放入任务队列，然后业务线程池抢任务，处理后用response的函数写出，然后打包到对应工作线程的完成队列，然后处理发回。业务层也可以考虑调用其它语言的进程，当然这还比较远。”
+[main 6f2728f] “最后决定用多工作线程，每个有一个epoll实例，然后直接由内核来唤醒工作线程，因为如果是一个分发线程先拿到新连接然后分发的话就需要轮询工作线程找空闲的，那太浪费了，而且这个分发线程容易成为瓶颈我认为。而内核来直接唤醒有个惊群的问题，不过4.5后面的linux版本好像解决了这个问题。这样的话就是每个工作线程先把监听fd注册，然后epoll等待，等来了新连接，内核分发进行接收，然后注册进自己的epoll，之后来数据就接收数据，然后进行解析，之后根据路由把业务函数和request，response参数打包放入任务队列，然后业务线程池抢任务，处理后用response的函数写出，然后打包到对应工作线程的完成队列，然后处理发回。业务层也可以考虑调用其它语言的进程，当然这还比较远。”
+ 1 file changed, 1 insertion(+)
+yaoxianglongde@yaoxianglongde-VMware-Virtual-Platform:~/c_code/c_web$ git add .
+yaoxianglongde@yaoxianglongde-VMware-Virtual-Platform:~/c_code/c_web$ git commit -m "其实一开始我也想在工作线程那里用这种连接的任务队列，但这样的话，一是需要一个入队线程，负责接收 连接然后入队，可能成为瓶颈。二是，如果一个工作线程只对接一个连接然后等断连，那太浪费了，如果想对接多个连接，那就需要在一定时间后把当前这个连接再入队，那等这个要被处理就需要等之后某次再抢一次，也就是说老是需要多线程抢，太浪费了。而且问题是抢到也不一定有数据，那就又要重复。
+> "
+位于分支 main
+您的分支领先 'origin/main' 共 1 个提交。
+  （使用 "git push" 来发布您的本地提交）
+
+无文件要提交，工作区干净
+yaoxianglongde@yaoxianglongde-VMware-Virtual-Platform:~/c_code/c_web$ git add .
+yaoxianglongde@yaoxianglongde-VMware-Virtual-Platform:~/c_code/c_web$ git commit -m "刚才学到短连接只发一个请求，所以其实我可以只给长连接上http状态机，不过短连接还是要超时处理，在 请求处理方面，处理一次直接挂起等返回消息不用超时，而长连接就需要返回继续处理，知道没有数据等待超时。然后断连方面，短连接返回了消息就断开，而长连接的话是长时间没有消息就断开。然后就是还想到一个问题，就是如果业务方迟迟不返回数据，那其实可以维护一个计时线程负责所有业务线程的处理计时，如果长时间不发，就由计时线程给工作线程插入超时包，然后业务线程每次发包要检查计时器是否超时，如果超时就不发了。"
+位于分支 main
+您的分支领先 'origin/main' 共 1 个提交。
+  （使用 "git push" 来发布您的本地提交）
+
+无文件要提交，工作区干净
+yaoxianglongde@yaoxianglongde-VMware-Virtual-Platform:~/c_code/c_web$ git add .
+yaoxianglongde@yaoxianglongde-VMware-Virtual-Platform:~/c_code/c_web$ git commit -m "还有一个问题，就是我又发现长连接是有顺序的，那也要顺序返回，那一个问题是返回包要顺序，另一个是 如果有的返回包缺失，后者的话由于有超时包所以不用担心，而前者的话我也想到一种解决策略。就是这样，利用数组o（1）的索引速度，顺序循环的存入要接受的返回包的信息，然后用一个指针指向下一个要发送的包的位置，如果来了就发，发了之后指针移动如果还有就继续发，然后循环指向，并且由于o1所以可以把业务层返回回来的包直接用指针挂载在数组上，而包本身可以用一个内存池。这个策略是tcp协议那个可靠的策略启发的，之前实现过这个可靠协议."
+位于分支 main
+您的分支领先 'origin/main' 共 1 个提交。
+  （使用 "git push" 来发布您的本地提交）
+
+无文件要提交，工作区干净
+yaoxianglongde@yaoxianglongde-VMware-Virtual-Platform:~/c_code/c_web$ git add .
+yaoxianglongde@yaoxianglongde-VMware-Virtual-Platform:~/c_code/c_web$ git commit -m "."
+位于分支 main
+您的分支领先 'origin/main' 共 1 个提交。
+  （使用 "git push" 来发布您的本地提交）
+
+无文件要提交，工作区干净
+yaoxianglongde@yaoxianglongde-VMware-Virtual-Platform:~/c_code/c_web$ git push
+枚举对象中: 7, 完成.
+对象计数中: 100% (7/7), 完成.
+使用 2 个线程进行压缩
+压缩对象中: 100% (4/4), 完成.
+写入对象中: 100% (4/4), 954 字节 | 954.00 KiB/s, 完成.
+Total 4 (delta 2), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (2/2), completed with 2 local objects.
+To https://github.com/yaoxianglongdeguge-cloud/c_web.git
+   8331658..6f2728f  main -> main
+yaoxianglongde@yaoxianglongde-VMware-Virtual-Platform:~/c_code/c_web$ git add .
+yaoxianglongde@yaoxianglongde-VMware-Virtual-Platform:~/c_code/c_web$ git commit -m "我又想到一个问题，因为刚才想总结一下工作流程，发现，其实那个挂起的超时没必要，只要在收数据的时 候发现这次没收到或者没收满，那就说明暂时没数据发过来，可以直接挂起来，然后那个断开的计时，可以在每次数据一来就刷新，就是epoll提醒的时候就刷新计时器，这样的话影响断开的就只有数据是 否发来了，而这个长时间没数据发来就是我们要解决的问题。这个当然有可能会出现返回信息还没处理完发过去就断连了，但那只能说明业务处理太慢了，或者超时设置太短，但我们要解决的主要还是永远不断连的问题，或者如果是在这一批数据收完之后再刷新，那有可能还没接受完就超时了，但问题是我们关注的标准只是是否长时间没数据发来，这个并不能很好的满足我们的监视条件。"
+位于分支 main
+您的分支与上游分支 'origin/main' 一致。

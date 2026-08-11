@@ -110,19 +110,31 @@ void* Memory_pool_alloc(memory_pool* memo,int alloc_size)//这里的size是字�
 
 }
 
-int Memory_pool_free(memory_pool* memo,void* p)
+int Memory_pool_free(memory_pool* memo,void* p,void* end)//end是为了能自主设定把哪一页到哪一页全部释放，完全符合符合顺序操作的目的
 {
     int table_num=memo->m_size/memo->Page_size;
     char* ptr=p;
+
     int p_table=(ptr-memo->All_begin)/1024/memo->Page_size;
+    int end_table=(ptr-memo->All_begin)/1024/memo->Page_size;
+
     if(p_table<0||p_table>=table_num)//p不在内存池里
     {
         free(ptr);
     }
+    else if(end_table<0||end_table>=table_num)
+    {
+        return 0;
+    }
     else
     {
         Page* which_table=memo->All_begin+p_table*sizeof(Page);//p的表项
-        which_table->use=0;
+        int gap=end_table-p_table+1;//从p页到end页都释放掉
+
+        for(int i=0;i<gap;i++)
+        {
+            which_table[i].use=0;
+        }
     }
 
     return 1;
