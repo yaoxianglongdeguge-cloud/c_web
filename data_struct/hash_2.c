@@ -1,5 +1,14 @@
+#include <stdio.h>
+#include<stdint.h>
+#include<string.h>
+#include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
+
+
 #include "data_struct/hash_2.h"
 #include"memory_pool/memory_pool.h"
+#include "http_analysis/http_analysis.h"
 
 int Hash_map;
 
@@ -13,7 +22,7 @@ Hash2_Entry_2* Hash2_Entry_Find(Hash2_Entry_2* head,char* url,int* Error);//查�
 
 int Hash2_Entry_Insert(Hash2_Entry_2* head,char* url,void* func,void* ptr);//插入节点，head为一个链表开头，之后查找，没找到就插入.要指明用哪个类型内存池
 
-int Hash2_Allocate(Hash_map_2* h,int size_h);//分配特定大小内存.要指明用哪个类型内存池
+int Hash2_Allocate(Hash_map_2* h,int size_h,Http_analysis_1* Http);//分配特定大小内存.要指明用哪个类型内存池
 
 static unsigned long hash_2(const char *str);//哈希函数：DJB2 + 盐值
 
@@ -91,10 +100,10 @@ int Hash2_Entry_Insert(Hash2_Entry_2* head,char* url,void* func,void* ptr)//返�
     return -1;
 }
 
-int Hash2_Allocate(Hash_map_2* h,int size_h)
+int Hash2_Allocate(Hash_map_2* h,int size_h,Http_analysis_1* Http)
 {
 
-    h->Elem=h->ptr;
+    h->Elem=Http->ptr;
 
     if(h->Elem==NULL)
     {
@@ -110,46 +119,35 @@ int Hash2_Allocate(Hash_map_2* h,int size_h)
 
     }
 
-    h->ptr=h->ptr+size_h*(sizeof(Hash2_Entry_2));
+    Http->ptr=Http->ptr+size_h*(sizeof(Hash2_Entry_2));
 
     return 1;
 }
 
-Hash_map_2* Hash2_Init(int* Error,int init,void* ptr,void* end)//1成功，0已存在，-1过程错误,init是哈希表初始大小
+int Hash2_Init(Http_analysis_1* Http, int init)//1成功，0已存在，-1过程错误,init是哈希表初始大小
 {
-    *Error=0;
     Hash_map_2* h;
-
-    h=ptr;
-
-    if(h==NULL)
-    {
-        *Error=-1;
-    }
-    h->ptr=h;
-    h->end=end;
+    h=Http->ptr;
 
     int bu_size=PRIME_BUCKET_SIZES[init-1];
 
-    h->ptr=h->ptr+sizeof(*h);
+    Http->ptr=Http->ptr+sizeof(*h);
 
-    int a=Hash2_Allocate(h,bu_size);
+    int a=Hash2_Allocate(h,bu_size,Http);
     if(a==-1)
     {
-        *Error=-1;
+        return -1;
     }
     else if(a==0)
     {
-        *Error=0;
+        return 0;
     }
 
     h->bu_num=bu_size;
     h->elem_num=0;
 
 
-    *Error=1;
-
-    return h;
+    return 1;
 
 }
 
@@ -184,21 +182,21 @@ const Hash2_Entry_2* Hash2_Find(Hash_map_2* h,char* url,int* Error)//-1为过程
 
 }
 
-int Hash2_Insert(Hash_map_2**hm,Hash_map_2* h,char* url,void* func)
+int Hash2_Insert(Hash_map_2* h,Http_analysis_1* Http, char* url,void* func)
 {
 
     int b_site=bucket_site_2(h->bu_num,url);
 
     Hash2_Entry_2* head=&(h->Elem[b_site]);
 
-    int e=Hash2_Entry_Insert(head,url,func,h->ptr);
+    int e=Hash2_Entry_Insert(head,url,func,Http->ptr);
 
     if(e!=1)
     {
         return -1;
     }
 
-    h->ptr=h->ptr+sizeof(Hash2_Entry_2);
+    Http->ptr=Http->ptr+sizeof(Hash2_Entry_2);
 
     h->elem_num++;
 
@@ -207,25 +205,6 @@ int Hash2_Insert(Hash_map_2**hm,Hash_map_2* h,char* url,void* func)
 
 }
  
-int Hash2_Free(Hash_map_2* h,int type,void* pool)
-{
-     switch (type)
-    {    
-    case 1:
-        int a=Memory_pool_free(pool,h,h->end);
-        if(a!=1)
-        {
-            return -1;
-        }
-    
-        break;
-    
-    default:
-        break;
-    }
-
-    return 1;
-}
 
 static unsigned long hash_2(const char *str) {
     unsigned long h = 5381;
