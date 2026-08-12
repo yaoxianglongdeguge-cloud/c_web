@@ -15,32 +15,32 @@ int Http_analysis_head(Http_analysis_1* h,char* http_request);
 
 
 
-int Http_analysis_init(Http_analysis_1* h,memory_pool* pool,int h_size)
+int Http_analysis_init(Http_analysis_1** h,memory_pool* pool,int h_size)
 {
 
-        h=Memory_pool_alloc(pool,h_size);
+        (*h)=Memory_pool_alloc(pool,h_size);
 
-        if(h==NULL)
+        if((*h)==NULL)
         {
             return -1;
         }
 
-        h->ptr=h+sizeof(Http_analysis_1);
-        h->end=h+h_size;
+        (*h)->ptr=((char*)(*h))+sizeof(Http_analysis_1);
+        (*h)->end=(*h)+h_size;
 
 
-    if(h==NULL)
+    if((*h)==NULL)
     {
         return -1;
     }
 
-    h->Method=NULL;
-    h->Url=NULL;
-    h->Version=NULL;
-    h->Query=NULL;
-    h->Headers=NULL;
-    h->Body=NULL;
-    h->Error_h=0;
+    (*h)->Method=NULL;
+    (*h)->Url=NULL;
+    (*h)->Version=NULL;
+    (*h)->Query=NULL;
+    (*h)->Headers=NULL;
+    (*h)->Body=NULL;
+    (*h)->Error_h=0;
 
     return 1;
 }
