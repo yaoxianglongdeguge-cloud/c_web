@@ -6,6 +6,7 @@
 #include "../memory_pool/memory_pool.h"
 #include "http_ed_store.h"
 #include "http_state.h"
+#include "../data_struct/hash_2.h"
 
 int Http_analysis_body(Http_analysis_1* h,char* http_request);//type用来判断请求体的格式
 
@@ -26,7 +27,12 @@ int Http_analysis_init(Http_analysis_1** h,memory_pool* pool,int h_size)
         }
 
         (*h)->ptr=((char*)(*h))+sizeof(Http_analysis_1);
-        (*h)->end=(*h)+h_size;
+        (*h)->end=((char*)(*h))+h_size;
+
+        if((*h)->ptr>=(*h)->end)
+        {
+            return 0;
+        }
 
 
     if((*h)==NULL)
@@ -49,26 +55,29 @@ int Http_analysis_receive(Http_analysis_1* h,char* http_request)
 {
     
     char *body_start = strstr(http_request, "\r\n\r\n");
-    if (!body_start) return 0;
+    if (!body_start) 
+    {
+       int a1=Http_analysis_head(h,http_request);
+       if(a1!=1)
+      {
+        return -1;
+      }
 
-    *body_start = '\0';       // 切断头部
-    body_start += 4;          // 跳过 \r\n\r\n
+      return 1;
+    }
+    else 
+    {  
+       *body_start = '\0';       // 切断头部
+       body_start += 4;          // 跳过 \r\n\r\n
+    } 
 
     int a1=Http_analysis_head(h,http_request);
 
-    int a2=0;
-    char* n=Hash2_Find(h->Headers,"Content-Type",&a2);
-    if(a2!=1)
+    if(a1!=1)
     {
         return -1;
     }
 
-    int body_type=0;
-
-    if(strcmp(n, "application/x-www-form-urlencoded") == 0)
-    {
-        body_type=1;
-    }
 
     int a3=Http_analysis_body(h,body_start);
     if(a3!=1)
@@ -91,35 +100,46 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head)
     char* path;//包含url和查询条件
     char* version;
     
-    sscanf(line, "%s %s %s", method, path, version);
-     
-    h->Headers=h->ptr;
+    char *save_p;
+    method = strtok_r(line, " ", &save_p);
+    path = strtok_r(NULL, " ", &save_p);
+    version= strtok_r(NULL, " ", &save_p);
+    
+    h->Method=method;
+    h->Version=version;
+
+    //处理header
+    h->Headers=(Hash_map_2*)h->ptr;
     int e0=Hash2_Init(h,2);
     if(e0!=1)
     {
         return -1;
     }
-    
+
+    line = strtok_r(NULL, "\r\n", &save);
     while (line != NULL) {
 
-        line = strtok_r(NULL, "\r\n", &save);
-
+        
         char* m=strchr(line,':');
         if(m)
         {
-        *m='\0';
-        int e1=0;
-        e1=Hash2_Insert(h->Headers,h,line,m+1);
-        if(e1!=0)
-        {
-            return -1;
-        }
+            *m='\0';
+            int e1=0;
+            e1=Hash2_Insert(h->Headers,h,line,m+1);
+            if(e1!=1)
+            {
+                return -1;
+            }
         }
         // 处理 line，按 : 切键和值
-     }
+        line = strtok_r(NULL, "\r\n", &save);//如果放到循环上面会导致循环条件改变后无法立刻检测
+
+    }
 
 
     //处理查询条件，放入键值对
+
+    //处理url
     char* path_cut=strchr(path,'?');
     char* url=NULL;
     char* query_ing=NULL;
@@ -130,11 +150,9 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head)
         url=path;
     }
 
-    h->Method=method;
     h->Url=url;
-    h->Version=version;
 
-    h->Query=h->ptr;
+    h->Query=(Hash_map_2*)h->ptr;
     int e2=Hash2_Init(h,2);
 
     if(e2!=1)
@@ -156,7 +174,7 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head)
             *m='\0';
             int e1=0;
             e1=Hash2_Insert(h->Query,h,line2,m+1);
-            if(e1!=0)
+            if(e1!=1)
             {
                 return -1;
             }
@@ -171,45 +189,72 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head)
 
 int Http_analysis_body(Http_analysis_1* h,char* http_body)
 {
-    int e0=Http_analysis_body_1(h,http_body);
-    if(e0!=1)
-    {
-        return -1;
-    }
+    h->Body=http_body;
 
     return 1;
 }
 
 
-
-
-int Http_analysis_body_1(Http_analysis_1* h,char* http_body)
+char* Http_analysis_get(Http_analysis_1* h,char* get1,char* get2)//二是1的子
 {
-    h->Body=h->ptr;
-    int e0=Hash2_Init(h,2);
-    
-    char *save2;
-    char* line2 = strtok_r(http_body, "&", &save2);
-    
-    while (line2 != NULL) {
-        
-        // 处理 line2，按 = 切键和值
-        
-        char* m=strchr(line2,'=');
-        if(m)
+    if(strcmp(get1,"Headers")==0)
+    {
+        int e0=0;
+        if(get2==NULL)
         {
-            *m='\0';
-            int e1=0;
-            e1=Hash2_Insert(h->Body,h,line2,m+1);
-            if(e1!=0)
-            {
-                return -1;
-            }
+            return NULL;
         }
-        
-        line2 = strtok_r(NULL, "&", &save2);
+
+        char* Headers = Hash2_Find(h->Headers,get2,&e0);
+        if(e0!=1)
+        {
+            return NULL;
+        }
+
+        return Headers;
     }
-    
-    return 1;
+
+    if(strcmp(get1,"Query")==0)
+    {
+        int e0=0;
+        if(get2==NULL)
+        {
+            return NULL;
+        }
+        char* Query = Hash2_Find(h->Query,get2,&e0);
+        if(e0!=1)
+        {
+            return NULL;
+        }
+
+        return Query;
+    }
+
+
+    if(strcmp(get1,"Url")==0)
+    {
+        return h->Url;
+    }
+
+    if(strcmp(get1,"Method")==0)
+    {
+        return h->Method;
+    }
+
+    if(strcmp(get1,"Version")==0)
+    {
+        return h->Version;
+    }
+
+    if(strcmp(get1,"Body")==0)
+    {
+        return h->Body;
+    }
+
+   return NULL;
+
+  
 }
+
+
 
