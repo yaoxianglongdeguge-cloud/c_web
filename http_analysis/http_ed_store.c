@@ -17,7 +17,7 @@ int Http_ed_store_init(http_ed_store** h,int size)//分配整个存储大小，�
     (*h)->ptr_e=(*h)->begin;
 
     http_state* ht;
-    int a=http_state_init(ht);
+    int a=http_state_init(&ht);
     if(a!=1)
     {
         return -1;
