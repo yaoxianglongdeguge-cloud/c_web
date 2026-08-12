@@ -1,6 +1,6 @@
-#include "server/server.h"
+#include "server.h"
+#include <stdlib.h>
 
-int Open_Listen(char* IP,int PORT);
 
 int Open_Listen(char* IP,int PORT){
 

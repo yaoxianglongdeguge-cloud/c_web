@@ -6,7 +6,9 @@ typedef struct http_state{
 
 }http_state;
 
-int http_state_init(http_state* h);
+typedef struct http_ed_store http_ed_store;
+
+int http_state_init(http_state** h);
 
 char* http_state_judge(http_ed_store* hs,int* error);
 

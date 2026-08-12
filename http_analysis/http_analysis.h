@@ -1,4 +1,4 @@
-#include <stdio.h>
+
 
 /*> GET / HTTP/1.1          
 > Host: www.baidu.com     
@@ -6,6 +6,9 @@
 > Accept: * */
 
 //到时候，这个表本身不在内存池，长期存在，表存储的数据放到内存池，处理一个请求有一次申请和一次释放。
+
+typedef struct Hash_map Hash_map_2;
+typedef struct memory_pool memory_pool;
 
 typedef struct Http_analysis_1{
 
@@ -20,6 +23,7 @@ typedef struct Http_analysis_1{
     void* end;//能分配的最远地方，主要是用来适配统一释放这个问题，这样可以直接操纵从哪里释放到哪里
 
 }Http_analysis_1;
+
 
 
 int Http_analysis_init(Http_analysis_1* h,memory_pool* pool,int h_size);

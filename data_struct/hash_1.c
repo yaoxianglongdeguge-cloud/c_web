@@ -30,7 +30,6 @@ static const int PRIME_BUCKET_SIZES[15] = {
 int PRIME_BUCKET_SIZES_nidex=0;
 
 
-
 Entry* Entry_Creat(char* key,Handler value);//创建节点
 
 Entry* Entry_Find(Entry* head,char* url,int* Error);//查找一个链表内节点，并且返回指向那个节点的指针，如果为NULL则说明节点不存在

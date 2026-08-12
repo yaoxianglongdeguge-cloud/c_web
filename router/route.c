@@ -1,9 +1,11 @@
 #include"route.h"
+#include <stdlib.h>
+
 
 int route_1_init(route_1* r)
 {
     int e=0;
-    r->Hrt=Hash_Init(e,2);
+    r->Hrt=Hash_Init(&e,2);
 
     if(e!=1)
     {
@@ -27,7 +29,7 @@ int Handler_append(route_1* r,char* url,Handler func)
 Handler Handler_Find(route_1* r,char* url)
 {
     int error=0;
-    Entry* e=Hash_Find(r->Hrt,url,error);
+    Entry* e=Hash_Find(r->Hrt,url,&error);
     if(error!=1)
     {
         return NULL;

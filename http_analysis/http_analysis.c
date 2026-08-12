@@ -1,11 +1,11 @@
-#include "http_analysis/http_analysis.h"
-#include <string.h>
+#include "http_analysis.h"
+#include <stdio.h>
+ #include <string.h>
 #include <stdlib.h>
-#include"data_struct/hash_2.h"
-#include "memory_pool/memory_pool.h"
+#include"../data_struct/hash_2.h"
+#include "../memory_pool/memory_pool.h"
 #include "http_ed_store.h"
 #include "http_state.h"
-
 
 int Http_analysis_body(Http_analysis_1* h,char* http_request);//type用来判断请求体的格式
 
@@ -57,7 +57,7 @@ int Http_analysis_receive(Http_analysis_1* h,char* http_request)
     int a1=Http_analysis_head(h,http_request);
 
     int a2=0;
-    char* n=Hash2_Find(h->Headers,"Content-Type",a2);
+    char* n=Hash2_Find(h->Headers,"Content-Type",&a2);
     if(a2!=1)
     {
         return -1;
@@ -69,7 +69,7 @@ int Http_analysis_receive(Http_analysis_1* h,char* http_request)
     {
         body_type=1;
     }
-    int a3=0;
+
     int a3=Http_analysis_body(h,body_start);
     if(a3!=1)
     {
@@ -104,7 +104,7 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head)
 
         line = strtok_r(NULL, "\r\n", &save);
 
-        char* m=strchr(line,":");
+        char* m=strchr(line,':');
         if(m)
         {
         *m='\0';
@@ -120,7 +120,7 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head)
 
 
     //处理查询条件，放入键值对
-    char* path_cut=strchr(path,"?");
+    char* path_cut=strchr(path,'?');
     char* url=NULL;
     char* query_ing=NULL;
     if(path_cut)
@@ -150,7 +150,7 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head)
     while (line2 != NULL) {
 
         // 处理 line2，按 = 切键和值
-        char* m=strchr(line2,"=");
+        char* m=strchr(line2,'=');
         if(m)
         {
             *m='\0';
@@ -185,8 +185,8 @@ int Http_analysis_body(Http_analysis_1* h,char* http_body)
 
 int Http_analysis_body_1(Http_analysis_1* h,char* http_body)
 {
-    int e0=0;
-    h->Body=Hash2_Init(e0,2);
+    h->Body=h->ptr;
+    int e0=Hash2_Init(h,2);
     
     char *save2;
     char* line2 = strtok_r(http_body, "&", &save2);
@@ -195,7 +195,7 @@ int Http_analysis_body_1(Http_analysis_1* h,char* http_body)
         
         // 处理 line2，按 = 切键和值
         
-        char* m=strchr(line2,"=");
+        char* m=strchr(line2,'=');
         if(m)
         {
             *m='\0';
@@ -213,5 +213,3 @@ int Http_analysis_body_1(Http_analysis_1* h,char* http_body)
     return 1;
 }
 
-
-int Http_analysis_send(Http_analysis_1* h,char* http_response,memory_pool* store);

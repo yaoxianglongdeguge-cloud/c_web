@@ -1,20 +1,13 @@
-#include "memory_pool/memory_pool.h"
+#include "memory_pool.h"
+#include <stdlib.h>
+#include <stdio.h>
+
 
 
 //做一个单级页表的内存池。一个页控制在4kb。
 //由于是用户态的组件，所以也没有考虑崩溃，写入不一致等问题
 
 //每页大小灵活一些，因为不同地方可能数据分散度不同
-
-
-typedef struct memory_pool{
-
-    char* All_begin;//内存池起始位置
-    char* All_end;
-    int m_size;//内存池总大小,单位是kb
-    int Page_size;
-
-}memory_pool;
 
 typedef struct Page{
 
@@ -27,28 +20,29 @@ typedef struct Page{
 typedef Page* Page_table;
 
 
-int Memory_pool_init(memory_pool* memo,int max_size,int Page_size)//这里的size单位是kb
+int Memory_pool_init(memory_pool** memo,int max_size,int Page_size)//这里的size单位是kb
 {
+    (*memo)=(memory_pool*)malloc(sizeof(memory_pool));
     int Bytes_size=max_size*1024;
-    memo->All_begin=NULL;
-    memo->All_end=NULL;
-    memo->m_size=max_size;
-    memo->Page_size=Page_size;
-    memo->All_begin=malloc(Bytes_size);
-    if(memo->All_begin==NULL)
+     (*memo)->All_begin=NULL;
+     (*memo)->All_end=NULL;
+     (*memo)->m_size=max_size;
+     (*memo)->Page_size=Page_size;
+     (*memo)->All_begin=malloc(Bytes_size);
+    if( (*memo)->All_begin==NULL)
     {
         return -1;
     }
 
-    memo->All_end=memo->All_begin+Bytes_size;
+     (*memo)->All_end= (*memo)->All_begin+Bytes_size;
 
     //写入页表
-    Page_table p1=memo->All_begin;
+    Page_table p1=(Page_table) (*memo)->All_begin;
     int table_num=max_size/Page_size;
     for(int i=0;i<table_num;i++)
     {
         p1[i].p_size=4;
-        p1[i].Page_begin=i*Page_size*1024+memo->All_begin;//计算每一页的虚拟地址位置
+        p1[i].Page_begin=i*Page_size*1024+ (*memo)->All_begin;//计算每一页的虚拟地址位置
         p1[i].use=0;//0代表没有被利用
     }
     //计算一个页表表项大小，后面要确定哪些表被占用了
@@ -71,7 +65,7 @@ void* Memory_pool_alloc(memory_pool* memo,int alloc_size)//这里的size是字�
     {
         for(int i=0;i<table_num;i++)
         {
-            Page* p0=memo->All_begin+i*sizeof(Page);
+            Page* p0=(Page_table)(memo->All_begin+i*sizeof(Page));
             if(p0->use==0)
             {
                 j0=p0->Page_begin;
@@ -87,8 +81,8 @@ void* Memory_pool_alloc(memory_pool* memo,int alloc_size)//这里的size是字�
         
         while(i1<table_num)
         {
-            Page* p0=memo->All_begin+i0*sizeof(Page);
-            Page* p1=memo->All_begin+i1*sizeof(Page);
+            Page* p0=(Page_table)(memo->All_begin+i0*sizeof(Page));
+            Page* p1=(Page_table)(memo->All_begin+i1*sizeof(Page));
             if(p0->use==0&&p1->use==0)
             {
                 j0=p0->Page_begin;
@@ -128,7 +122,7 @@ int Memory_pool_free(memory_pool* memo,void* p,void* end)//end是为了能自主
     }
     else
     {
-        Page* which_table=memo->All_begin+p_table*sizeof(Page);//p的表项
+        Page* which_table=(Page_table)(memo->All_begin+p_table*sizeof(Page));//p的表项
         int gap=end_table-p_table+1;//从p页到end页都释放掉
 
         for(int i=0;i<gap;i++)
