@@ -38,16 +38,22 @@ int Memory_pool_init(memory_pool** memo,int max_size,int Page_size)//这里的si
 
     //写入页表
     Page_table p1=(Page_table) (*memo)->All_begin;
-    int table_num=max_size/Page_size;
+    int table_num=max_size/Page_size;//页表项的个数
     for(int i=0;i<table_num;i++)
     {
         p1[i].p_size=4;
         p1[i].Page_begin=i*Page_size*1024+ (*memo)->All_begin;//计算每一页的虚拟地址位置
         p1[i].use=0;//0代表没有被利用
     }
-    //计算一个页表表项大小，后面要确定哪些表被占用了
-    int page_table_size=sizeof(Page)/1024;
-    int used_page=table_num*page_table_size/Page_size;
+    //计算一个页表表项大小kb，后面要确定哪些表被占用了
+
+    //int page_table_size=sizeof(Page)/1024;//页表项最多0.几kb，这里用整数类型导致变成了0，就导致了下面计算
+    //结果成了0
+    //int used_page=table_num*page_table_size/Page_size;//用来存储页表项的页数
+
+    int page_table_size=sizeof(Page);
+    int used_page=(table_num*page_table_size/((Page_size)*1024))+1;//要向上取整
+
     for(int i=0;i<used_page;i++)
     {
         p1[i].use=1;
@@ -65,11 +71,12 @@ void* Memory_pool_alloc(memory_pool* memo,int alloc_size)//这里的size是字�
     {
         for(int i=0;i<table_num;i++)
         {
-            Page* p0=(Page_table)(memo->All_begin+i*sizeof(Page));
+            Page_table p0=(Page_table)(memo->All_begin+i*sizeof(Page));
             if(p0->use==0)
             {
                 j0=p0->Page_begin;
                 p0->use=1;
+                break;
             }
 
         }
@@ -88,6 +95,7 @@ void* Memory_pool_alloc(memory_pool* memo,int alloc_size)//这里的size是字�
                 j0=p0->Page_begin;
                 p0->use=1;
                 p1->use=1;
+                break;
             }
 
             i0++;
