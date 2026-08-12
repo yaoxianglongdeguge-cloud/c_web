@@ -58,17 +58,22 @@ int Http_ed_store_copy(http_ed_store* h,char*end,char* target)//把一整个请�
     }
     int copy_num=end-h->begin+1;
     memcpy(target, h->begin, copy_num);
+    target[copy_num]='\0';
 
-    h->ptr_b=h->begin+copy_num;
+    h->ptr_b=h->begin+copy_num;//指针指向剩下的，也就是
 
-    int copy_num2=h->ptr_e-h->ptr_b;
-
+    
     if(h->ptr_b[0]=='\r'&&h->ptr_b[1]=='\n'&&h->ptr_b[2]=='\r'&&h->ptr_b[3]=='\n')
     {
-        h->ptr_b=h->ptr_b+4;//防止复制后参与分隔符
+        h->ptr_b=h->ptr_b+3;//防止复制后参与分隔符
     }
-
-    memcpy(h->begin,h->ptr_b,copy_num2);
+    
+    int copy_num2=h->ptr_e-h->ptr_b;
+    if(copy_num2!=0)
+    {
+        memcpy(h->begin,h->ptr_b,copy_num2);
+    }
+    
     h->ptr_b=h->begin;
     h->ptr_e=h->ptr_b+copy_num2;
 

@@ -103,11 +103,17 @@ int Hash2_Entry_Insert(Hash2_Entry_2* head,char* url,void* func,void* ptr)//返�
 int Hash2_Allocate(Hash_map_2* h,int size_h,Http_analysis_1* Http)
 {
 
-    h->Elem=Http->ptr;
+    h->Elem=(Hash2_Entry_2*)(Http->ptr);
 
     if(h->Elem==NULL)
     {
         return -1;
+    }
+
+    Http->ptr=Http->ptr+size_h*(sizeof(Hash2_Entry_2));
+    if(Http->ptr>=Http->end)
+    {
+        return 0;
     }
 
     for(int i=0;i<size_h;i++)
@@ -119,11 +125,6 @@ int Hash2_Allocate(Hash_map_2* h,int size_h,Http_analysis_1* Http)
 
     }
 
-    Http->ptr=Http->ptr+size_h*(sizeof(Hash2_Entry_2));
-    if(Http->ptr>=Http->end)
-    {
-        return 0;
-    }
 
     return 1;
 }
@@ -131,7 +132,7 @@ int Hash2_Allocate(Hash_map_2* h,int size_h,Http_analysis_1* Http)
 int Hash2_Init(Http_analysis_1* Http, int init)//1成功，0已存在，-1过程错误,init是哈希表初始大小
 {
     Hash_map_2* h;
-    h=Http->ptr;
+    h=(Hash_map_2*)Http->ptr;
 
     int bu_size=PRIME_BUCKET_SIZES_2[init-1];
 
@@ -197,6 +198,11 @@ int Hash2_Insert(Hash_map_2* h,Http_analysis_1* Http, char* url,void* func)
 
     Hash2_Entry_2* head=&(h->Elem[b_site]);
 
+    Http->ptr=Http->ptr+sizeof(Hash2_Entry_2);
+    if(Http->ptr>=Http->end)
+    {
+        return 0;
+    }
     int e=Hash2_Entry_Insert(head,url,func,Http->ptr);
 
     if(e!=1)
@@ -204,11 +210,6 @@ int Hash2_Insert(Hash_map_2* h,Http_analysis_1* Http, char* url,void* func)
         return -1;
     }
 
-    Http->ptr=Http->ptr+sizeof(Hash2_Entry_2);
-    if(Http->ptr>=Http->end)
-    {
-        return 0;
-    }
 
     h->elem_num++;
 

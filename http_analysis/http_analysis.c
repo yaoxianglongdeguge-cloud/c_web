@@ -124,8 +124,15 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head)
         if(m)
         {
             *m='\0';
+            m=m+1;
+
+            while(*m==' ')
+            {
+                m++;
+            }
+
             int e1=0;
-            e1=Hash2_Insert(h->Headers,h,line,m+1);
+            e1=Hash2_Insert(h->Headers,h,line,m);
             if(e1!=1)
             {
                 return -1;
@@ -141,47 +148,70 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head)
 
     //处理url
     char* path_cut=strchr(path,'?');
-    char* url=NULL;
-    char* query_ing=NULL;
-    if(path_cut)
+    if(path_cut==NULL)
     {
-        *path_cut='\0';
-        query_ing=path_cut+1;
-        url=path;
+        h->Url=path;
     }
-
-    h->Url=url;
-
-    h->Query=(Hash_map_2*)h->ptr;
-    int e2=Hash2_Init(h,2);
-
-    if(e2!=1)
+    //要切的话首先要有查询条件，如果没有就会返回NULL，如果不特殊处理就会导致对着一个NULL指针操作，得不到url
+    else
     {
-        return -1;
-    }
-    
-    //开始切查询条件
-    char *save2;
-    char* line2 = strtok_r(query_ing, "&", &save2);
-
-
-    while (line2 != NULL) {
-
-        // 处理 line2，按 = 切键和值
-        char* m=strchr(line2,'=');
-        if(m)
+        char* url=NULL;
+        char* query_ing=NULL;
+        if(path_cut)
         {
-            *m='\0';
-            int e1=0;
-            e1=Hash2_Insert(h->Query,h,line2,m+1);
-            if(e1!=1)
-            {
-                return -1;
+            *path_cut='\0';
+            query_ing=path_cut+1;
+            url=path;
+        }
+        
+        h->Url=url;
+        
+        h->Query=(Hash_map_2*)h->ptr;
+        int e2=Hash2_Init(h,2);
+        
+        if(e2!=1)
+        {
+            return -1;
+        }
+        
+        //开始切查询条件
+        char *save2;
+        char* line2 = strtok_r(query_ing, "&", &save2);
+        if(line2==NULL)
+        {
+            char* m=strchr(query_ing,'=');
+            if(m)
+                {
+                    *m='\0';
+                    int e1=0;
+                    e1=Hash2_Insert(h->Query,h,query_ing,m+1);
+                    if(e1!=1)
+                    {
+                        return -1;
+                    }
+                }
+        }
+        else
+        {
+            while (line2 != NULL) {
+                
+                // 处理 line2，按 = 切键和值
+                char* m=strchr(line2,'=');
+                if(m)
+                {
+                    *m='\0';
+                    int e1=0;
+                    e1=Hash2_Insert(h->Query,h,line2,m+1);
+                    if(e1!=1)
+                    {
+                        return -1;
+                    }
+                }
+                
+                line2 = strtok_r(NULL, "&", &save2);
             }
         }
-
-        line2 = strtok_r(NULL, "&", &save2);
-     }
+    }
 
      return 1;
 
