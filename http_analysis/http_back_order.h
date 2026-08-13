@@ -11,7 +11,7 @@ int http_back_order_init(Http_back_order** h,int init);
 
 int http_back_order_get(Http_back_order* h,int fd);//取到需要的连接的序号
 
-int http_back_order_add(Http_back_order* h,int fd);
+int http_back_order_add(Http_back_order* h,int fd,int which);//which是给哪个value加1
 
 int http_back_order_insertfd(Http_back_order* h,int fd);
 

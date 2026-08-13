@@ -17,10 +17,10 @@ typedef struct worker{
     memory_pool* http_pool;//解析后的http包的暂存处
     Http_back_order* http_order;//记录每个连接下一个处理的包的序号，方便后面标记顺序返回
 
-    Send_tool* send_tool;//用来管理顺序指针循环队列，下一个空位，每个连接下一个要接收的包,还有每个连接最后要接收的包，方便释放指针队列
-    int* send_tool_table;
-    Send_queue* send_thing_queue;//接收已经准备好的要发的包的事件
+    Send_tool** send_tool_arr;//用来管理顺序指针循环队列，下一个空位，每个连接下一个要接收的包,还有每个连接最后要接收的包，方便释放指针队列
+    Store_table* send_tool_table;
     memory_pool* send_pool;//要发回的包的暂存处
+    Send_queue* send_thing_queue;//接收已经准备好的要发的包的事件
 
     timer* my_timer;//断连计时器
 

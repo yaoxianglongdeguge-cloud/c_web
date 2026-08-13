@@ -5,16 +5,18 @@
 #include "../my_thread/worker_thread.h"
 #include "../http_analysis/http_ed_store.h"
 #include "../http_analysis/http_state.h"
-
+#include "../send_tool/send_tool.h"
 
 int ed_store_arr_init(worker* work,int small_num,int small_size,int big_num,int big_size)//注册多少条大的或小的，大的多大小的多小
 {
+    big_size=big_size*1024;
+    small_size=small_size*1024;
     if(work==NULL)
     {
         return 0;
     }
     int total_num=small_num+big_num;
-    work->send_tool_table=(Store_table*)malloc(sizeof(Store_table));
+    work->store_pool_table=(Store_table*)malloc(sizeof(Store_table));
     work->store_pool_table->table=(int*)malloc(total_num*sizeof(int));
     work->store_pool_table->cut=small_num;
     work->store_pool_table->end=total_num;
@@ -60,6 +62,62 @@ int ed_store_arr_init(worker* work,int small_num,int small_size,int big_num,int 
 
 }
 
+int send_tool_arr_init(worker* work,int small_num,int small_size,int big_num,int big_size)//注册多少条大的或小的，大的多大小的多小
+{
+    big_size=big_size*1024;
+    small_size=small_size*1024;
+    if(work==NULL)
+    {
+        return 0;
+    }
+    int total_num=small_num+big_num;
+    work->send_tool_table=(Store_table*)malloc(sizeof(Store_table));
+    work->send_tool_table->table=(int*)malloc(total_num*sizeof(int));
+    work->send_tool_table->cut=small_num;
+    work->send_tool_table->end=total_num;
+
+    for(int i=0;i<small_num;i++)
+    {
+        work->send_tool_arr[i]=malloc(small_size);
+        work->send_tool_arr[i]->spack=(char**)(work->send_tool_arr[i]);
+        
+
+        int a=http_state_init(&(work->http_ed_store_arr[i]->httpstate));
+        if(a!=1)
+        {
+            return 1;
+        }
+
+        work->store_pool_table->table[i]=-2;//防止fd返回-1
+
+    }
+
+    for(int j=0;j<big_num;j++)
+    {
+        int i=j+work->store_pool_table->cut;
+        work->send_tool_arr[i]=malloc(big_size);
+        work->send_tool_arr[i]->begin=(char**)(work->send_tool_arr[i]);
+        work->send_tool_arr[i]->end=(char**)(((char*)work->send_tool_arr[i]->begin)+big_size);
+        work->send_tool_arr[i]->ptr_b=work->send_tool_arr[i]->begin;
+        work->send_tool_arr[i]->ptr_e=work->send_tool_arr[i]->ptr_b;
+
+        char** c=work->send_tool_arr[i]->begin;
+
+        while(c<work->send_tool_arr[i]->end)
+        {
+           c=NULL;
+        c++;
+        }
+
+        work->send_tool_table->table[i]=-2;//防止fd返回-1
+
+    }
+
+    return 1;
+
+}
+
+
 int ed_store_pool_fdget(worker* work,int fd)
 {
     int a=0;
@@ -75,6 +133,23 @@ int ed_store_pool_fdget(worker* work,int fd)
 
     return which;
 }
+
+int send_tool_arr_fdget(worker* work,int fd)
+{
+    int a=0;
+    int which=-2;
+    while(a<work->send_tool_table->end)
+    {
+        if(work->send_tool_table->table[a]==fd)
+        {
+            which=a;
+        }
+        a++;
+    }
+
+    return which;
+}
+
 
 int ed_store_pool_fdalloc(worker* work,int fd)//如果没分配到则返回-2
 {
@@ -104,6 +179,35 @@ int ed_store_pool_fdalloc(worker* work,int fd)//如果没分配到则返回-2
 
     return which;
 }
+int send_tool_arr_fdalloc(worker* work,int fd)//如果没分配到则返回-2
+{
+    int a=0;
+    int can=0;//标记有没有分配到
+    int which=send_tool_arr_fdget(work,fd);
+    if(which!=-2)
+    {
+        return which;
+    }
+    
+    while(a<work->send_tool_table->cut)
+    {
+        if(work->send_tool_table->table[a]==-2)
+        {
+            work->send_tool_table->table[a]=fd;
+            which=a;
+            can=1;
+        }
+        a++;
+    }
+
+    if(can==0)
+    {
+        return -2;
+    }
+
+    return which;
+}
+
 
 int ed_store_pool_fdchange(worker* work,int fd)
 {
@@ -152,6 +256,70 @@ int ed_store_pool_fdchange(worker* work,int fd)
     return which2;
 
 }
+int send_tool_arr_fdchange(worker* work,int fd)
+{
+
+    //确认有这个东西
+    int a=0;
+    int which=send_tool_arr_fdget(work,fd);
+    if(which==-2)
+    {
+        return -1;
+    }
+    //确认此时不在大条中
+    if(which>=work->send_tool_table->cut)
+    {
+        return 0;
+    }
+
+    work->send_tool_table->table[which]=-2;
+
+    //分配大条
+    int a2=work->send_tool_table->cut;
+    int can=0;//标记有没有分配到
+    int which2=-2;
+    while(a<work->send_tool_table->end)
+    {
+        if(work->send_tool_table->table[a2]==-2)
+        {
+            work->send_tool_table->table[a]=fd;
+            which2=a;
+            can=1;
+        }
+        a++;
+    }
+
+    if(can==0)
+    {
+        return -2;
+    }
+
+    int char_num=((char*)work->send_tool_arr[which]->ptr_e)-((char*)work->send_tool_arr[which]->ptr_b);
+
+    char** ptr_b=work->send_tool_arr[which]->ptr_b;
+    char** b=work->send_tool_arr[which2]->begin;
+    while(ptr_b!=work->send_tool_arr[which]->ptr_e)
+    {
+        *b=*ptr_b;
+
+        if(ptr_b+1==work->send_tool_arr[which]->end)
+        {
+            ptr_b=work->send_tool_arr[which]->begin;
+        }
+        else
+        {
+            ptr_b++;
+        }
+        b++;
+    }
+
+    work->send_tool_arr[which2]->ptr_e=(char**)((char*)work->send_tool_arr[which2]->begin+char_num);
+
+    ed_store_pool_fdfree(work,fd);
+
+    return which2;
+
+}
 
 int ed_store_pool_fdfree(worker* work,int fd)
 {
@@ -169,6 +337,22 @@ int ed_store_pool_fdfree(worker* work,int fd)
    return 1;
 
 }
+int send_tool_arr_fdfree(worker* work,int fd)
+{
+    int which=send_tool_arr_fdget(work,fd);
+    if(which==-2)
+    {
+        return -1;
+    }
+   
+   work->send_tool_arr[which]->ptr_b=work->send_tool_arr[which]->begin;
+   work->send_tool_arr[which]->ptr_e=work->send_tool_arr[which]->ptr_b;
+   work->send_tool_table->table[which]=-2;
+
+   return 1;
+
+}
+
 
 
 

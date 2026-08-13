@@ -24,12 +24,15 @@ int Http_main(int fd,worker* worker)
        
        while(1)
        {
-           if(r0==-1)
-           {
+            if(r0==-1)
+            {
                ed_store_pool_fdfree(worker,fd);
                break;
             }
+
+            int back_error=200;//返回包的判断是否错误的信息
             
+
             int state=0;
             char* source_end=http_state_judge(worker->http_ed_store_arr[fd_store],&state);//要复制的文本结尾，此处在文本中
             

@@ -21,11 +21,11 @@ static const int PRIME_BUCKET_SIZES[15] = {
 int PRIME_BUCKET_SIZES_nidex=0;
 
 
-Hash_Entry_3* Hash3_Entry_Creat(int key,int value);//创建节点
+Hash_Entry_3* Hash3_Entry_Creat(int key,int value1,int value2,int value3);//创建节点
 
 Hash_Entry_3* Hash3_Entry_Find(Hash_Entry_3* head,int url,int* Error);//查找一个链表内节点，并且返回指向那个节点的指针，如果为NULL则说明节点不存在
 
-int Hash3_Entry_Insert(Hash_Entry_3* head,int url,int func);//插入节点，head为一个链表开头，之后查找，没找到就插入
+int Hash3_Entry_Insert(Hash_Entry_3* head,int url,int value1,int value2,int value3);//插入节点，head为一个链表开头，之后查找，没找到就插入
 
 int Hash3_Allocate(Hash_map_3* h,int size_h);//分配特定大小内存
 
@@ -35,7 +35,7 @@ int bucket_site(int bucket_size,const int url);//桶位置计算
 
 
 
-Hash_Entry_3* Hash3_Entry_Creat(int key,int value)
+Hash_Entry_3* Hash3_Entry_Creat(int key,int value1,int value2,int value3)
 {
     Hash_Entry_3* e=(Hash_Entry_3*)malloc(sizeof(Hash_Entry_3));
     if(e==NULL)
@@ -43,7 +43,9 @@ Hash_Entry_3* Hash3_Entry_Creat(int key,int value)
         return NULL;
     }
     e->key=key;
-    e->value=value;
+    e->value1=value1;
+    e->value2=value2;
+    e->value3=value3;
     e->next=NULL;
 
     return e;
@@ -66,14 +68,14 @@ Hash_Entry_3* Hash3_Entry_Find(Hash_Entry_3* head,int url,int* Error)
     return h;
 }
 
-int Hash3_Entry_Insert(Hash_Entry_3* head,int url,int func)//返回1插入成功，0已经有该节点，-1过程中失败
+int Hash3_Entry_Insert(Hash_Entry_3* head,int url,int value1,int value2,int value3)//返回1插入成功，0已经有该节点，-1过程中失败
 {
     int e;
     Hash_Entry_3* i=Hash3_Entry_Find(head,url,&e);
     
     if(i->next==NULL)
     {
-        i->next=Hash3_Entry_Creat(url,func);
+        i->next=Hash3_Entry_Creat(url,value1,value2,value3);
         if(i->next!=NULL)
         {
             return 1;
@@ -137,7 +139,9 @@ int Hash3_Allocate(Hash_map_3* h,int size_h)
     for(int i=0;i<size_h;i++)
     {
         h->Elem[i].key=-1;
-        h->Elem[i].value=-1;
+        h->Elem[i].value1=-1;
+        h->Elem[i].value2=-1;
+        h->Elem[i].value3=-1;
         h->Elem[i].next=NULL;
 
     }
@@ -205,14 +209,14 @@ Hash_Entry_3* Hash3_Find(Hash_map_3* h,int url,int* Error)//-1为过程错误，
 
 }
 
-int Hash3_Insert(Hash_map_3* h,int url,int func)
+int Hash3_Insert(Hash_map_3* h,int url,int value1,int value2,int value3)
 {
 
     int b_site=bucket_site(h->bu_num,url);
 
     Hash_Entry_3* head=&(h->Elem[b_site]);
 
-    int e=Hash3_Entry_Insert(head,url,func);
+    int e=Hash3_Entry_Insert(head,url,value1,value2,value3);
 
     if(e!=1)
     {
