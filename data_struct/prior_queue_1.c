@@ -4,12 +4,6 @@
 #include <time.h>
 
 
-typedef struct timer_entry 
-{
-    int fd;
-    time_t time;
-
-}timer_entry;
 
 int prior_queue_1_init(prior_queue_1** p,int num)//节点个数
 {
@@ -33,6 +27,8 @@ int prior_queue_1_init(prior_queue_1** p,int num)//节点个数
          (*p)->queue[i].time=-2;
     }
 
+    (*p)->queue[0].fd=-2;
+
     return 1;
     
 }
@@ -55,11 +51,13 @@ int prior_queue_1_insert(prior_queue_1* p,int fd,time_t time)
         return -1;
     }
 
+    p->queue[0].fd++;
+
     return 1;
 
 }
 
-int prior_queue_1_pop(prior_queue_1* p)//由于时间不会是负值，所以可以把顶上节点换成时间为-1，最后过滤完再去掉
+int prior_queue_1_pop(prior_queue_1* p)
 {
     if(p->elem_end==2)
     {
@@ -79,9 +77,30 @@ int prior_queue_1_pop(prior_queue_1* p)//由于时间不会是负值，所以可
         return -1;
     }
 
+    p->queue[0].fd--;
+
     return 1;
 
 
+}
+
+timer_entry prior_queue_1_top(prior_queue_1* p)
+{
+    
+    timer_entry t;
+
+    if(p->queue[0].fd>0)
+    {
+        t.fd=p->queue[1].fd;
+        t.time=p->queue[1].time;
+    }
+    else
+    {
+        t.fd=-2;
+        t.time=-2;
+    }
+
+    return t;
 }
 
 int prior_queue_1_swap(prior_queue_1* p,int t1,int t2)

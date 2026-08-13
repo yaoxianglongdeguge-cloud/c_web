@@ -6,7 +6,8 @@
 #include "http_analysis.h"
 #include "http_ed_store.h"
 #include "http_state.h"
-#include "connect_config/ed_store_arr_config.h"
+#include "../connect_config/ed_store_arr_config.h"
+#include "../connect_config/connect_manage.h"
 #include "../timer/timer.h"
 
 
@@ -104,24 +105,22 @@ int Http_main(int fd,worker* worker)
                 }
             }
             
-                /*else if(state==-2)//不是http协议,或者有错误
+                else if(state==-2)//不是http协议,或者有错误
                 {
-                    fd_close(fd);//断开连接
+                    fd_close(worker,fd);//断开连接
                     break;
                 }
                 
                 if(state==0)// 发生了错误
                 {
-                    fd_close(fd);
+                    fd_close(worker,fd);
                     break;
                     }
-                    */
-                   
-                   
+                    
+                    
                 }
             }
-                
-    //timer_reset(fd);//重置计时和踢出连接
+
                 
     return 1;
 
