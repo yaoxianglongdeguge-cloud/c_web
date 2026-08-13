@@ -29,6 +29,7 @@ int Http_main(int fd,worker* worker)
        {
            if(r0==-1)
            {
+               ed_store_pool_fdfree(worker,fd);
                break;
             }
             
