@@ -14,12 +14,8 @@ int Http_main(int fd,worker* worker)
 {
 
    int fd_store=ed_store_pool_fdalloc(worker,fd);
-   if(fd_store<0)//说明没分配成功，就先挂起
-   {
-    return -1;
-   }
-
-   else
+   
+   if(fd_store>=0)
    {
 
        int r0=Http_ed_store_write(worker->http_ed_store_arr[fd_store],fd);//返回-1说明，没断开但是没数据
@@ -108,10 +104,10 @@ int Http_main(int fd,worker* worker)
                 }
             }
             
-            /*else if(state==-2)//不是http协议,或者有错误
-            {
-                fd_close(fd);//断开连接
-                break;
+                /*else if(state==-2)//不是http协议,或者有错误
+                {
+                    fd_close(fd);//断开连接
+                    break;
                 }
                 
                 if(state==0)// 发生了错误
@@ -126,9 +122,6 @@ int Http_main(int fd,worker* worker)
             }
                 
     //timer_reset(fd);//重置计时和踢出连接
-                
-    //连接没数据了，挂起
-    //fd_list(worker,fd);
                 
     return 1;
 

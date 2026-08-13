@@ -1,4 +1,4 @@
-#include "connect_config.h"
+#include "connect_manage.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

@@ -80,7 +80,12 @@ int ed_store_pool_fdalloc(worker* work,int fd)//如果没分配到则返回-2
 {
     int a=0;
     int can=0;//标记有没有分配到
-    int which=-2;
+    int which=ed_store_pool_fdget(work,fd);
+    if(which!=-2)
+    {
+        return which;
+    }
+    
     while(a<work->store_pool_table->cut)
     {
         if(work->store_pool_table->table[a]==-2)
