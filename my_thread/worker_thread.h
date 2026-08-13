@@ -1,12 +1,10 @@
-#include <stdio.h>
-#include "../memory_pool/memory_pool.h"
-#include "../timer/timer.h"
-#include "../http_analysis/http_analysis.h"
-#include "../send_tool/send_tool.h"
-#include "../http_analysis/http_ed_store.h"
-#include "../http_analysis/http_state.h"
 
-
+typedef struct http_ed_store http_ed_store;
+typedef struct memory_pool memory_pool;
+typedef struct Send_tool Send_tool;
+typedef struct Send_queue Send_queue;
+typedef struct timer timer;
+typedef struct Store_table Store_table;
 
 typedef struct worker{
    
@@ -14,7 +12,7 @@ typedef struct worker{
     int epfd;
 
     
-    int* store_pool_table;//http包解析前暂存池管理表
+    Store_table* store_pool_table;//http包解析前暂存池管理表
     http_ed_store** http_ed_store_arr;//解析前暂存http包.
     memory_pool* http_pool;//解析后的http包的暂存处
 
