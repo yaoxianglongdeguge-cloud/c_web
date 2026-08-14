@@ -6,6 +6,7 @@
 #include "http_analysis.h"
 #include "http_ed_store.h"
 #include "http_state.h"
+#include "http_back_order.h"
 #include "../connect_config/ed_store_arr_config.h"
 #include "../connect_config/connect_manage.h"
 #include "../timer/timer.h"
@@ -91,9 +92,16 @@ int Http_main(int fd,worker* worker)
                 http_state_reset(worker->http_ed_store_arr[fd_store]);
                 
                 
-                //http_packet* h_packet=(http_packet*)malloc(sizeof(http_packet));
-                
-                //worker_to_profession(worker,fd,h_packet);//加入任务队列
+                int serial=http_back_order_getfd(worker,fd,1);
+                int e3=http_back_order_addfd(worker,fd,1);
+                int e4=http_back_order_addfd(worker,fd,3);
+                if(serial<0||e3!=1||e4!=1)
+                {
+                    worker_to_profession(worker,fd,h,200,-1);//如果没找到序号或者
+                    //序号增加异常，那后面的也没法发了，所以等着断连吧,到时候会在里面判断
+                    break;
+                }
+                worker_to_profession(worker,fd,h,200,serial);
                 
             }
             
@@ -111,8 +119,15 @@ int Http_main(int fd,worker* worker)
                 if(state==0)// 发生了错误
                 {
 
-                   //http_packet* h_packet=(http_packet*)malloc(sizeof(http_packet));//根据error_reason构造错误原因
-                   //worker_to_profession(worker,fd,h_packet);//加入任务队列
+                 int serial=http_back_order_getfd(worker,fd,1);
+                 int e3=http_back_order_addfd(worker,fd,1);
+                 int e4=http_back_order_addfd(worker,fd,3);
+                 if(serial<0||e3!=1||e4!=1)
+                 {
+                    worker_to_profession(worker,fd,NULL,error_reason,-1);
+                    break;
+                 }
+                 worker_to_profession(worker,fd,NULL,error_reason,serial);
                     
                     break;
                 }

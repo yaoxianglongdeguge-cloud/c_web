@@ -17,19 +17,35 @@ int http_back_order_init(Http_back_order** h,int init)//内部哈希表大小型
     return 1;
 }
 
- http_back_order_get(Http_back_order* h,int fd,int* error)
+int http_back_order_get(Http_back_order* h,int fd,int which)
 {
-    error=0;
     int e0=0;
     Hash_Entry_3* e=Hash3_Find(h->order,fd,&e0);
     if(e0!=1)
     {
-        error=-1;
+        return -2;
     }
 
-    error=1;
+     switch (which)
+    {
+    case 1:
+        return e->value1;
+        break;
+    case 2:
+        return e->value2;
+        break;
+    case 3:
+        return e->value3;
+        break;
+    case 4:
+        return e->value4;
+        break;
 
-    return e;
+    default:
+        break;
+    }
+
+    return -1;
 }
 
 int http_back_order_add(Http_back_order* h,int fd,int which)
@@ -52,8 +68,11 @@ int http_back_order_add(Http_back_order* h,int fd,int which)
     case 3:
         e->value3++;
         break;
-    
+
     default:
+
+        e->value4=which;
+
         break;
     }
 
