@@ -4,6 +4,8 @@ typedef struct Request{
 
 typedef struct Response{
 
+    char* txt;
+
 }Response;
 
 typedef struct worker worker; 

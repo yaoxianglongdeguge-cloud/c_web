@@ -22,7 +22,13 @@ int receive_and_send_main(worker* w)
 
     while(1)
     {
-        epoll_wait
+        int n=epoll_wait(w->epfd, events, 1024, -1);
+        for(int i=0;i<n;i++)
+        {
+            int handle_fd=events[i].data.fd;
+
+        }
+ 
     }
 }
 
