@@ -10,6 +10,7 @@
 #include "../connect_config/ed_store_arr_config.h"
 #include "../connect_config/connect_manage.h"
 #include "../timer/timer.h"
+#include "../server/receive_and_send.h"
 
 
 int Http_main(int fd,worker* worker)
