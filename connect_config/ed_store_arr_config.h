@@ -22,7 +22,6 @@ int ed_store_pool_fdalloc(worker* work,int fd);//如果没分配到则返回-2
 int ed_store_pool_fdalloc(worker* work,int fd);
 
 int ed_store_pool_fdchange(worker* work,int fd);//换更大的条
-int send_tool_arr_fdchange(worker* work,int fd);
 
 int ed_store_pool_fdfree(worker* work,int fd);//释放条
 int send_tool_arr_fdfree(worker* work,int fd);
