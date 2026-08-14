@@ -18,11 +18,13 @@ typedef struct worker{
     Http_back_order* http_order;//记录每个连接下一个处理的包的序号，方便后面标记顺序返回
 
     Send_tool** send_tool_arr;//用来管理顺序指针循环队列，下一个空位，每个连接下一个要接收的包,还有每个连接最后要接收的包，方便释放指针队列
-    Store_table* send_tool_table;
+    Send_table* send_tool_table;
     memory_pool* send_pool;//要发回的包的暂存处
     Send_queue* send_thing_queue;//接收已经准备好的要发的包的事件
 
     timer* my_timer;//断连计时器
+
+    pthread_mutex_t mutex_pool;//返回包字节实际储存位置的内存池的锁
 
     sem_t sem_thing_queue_notfull;//返回包事件的队列的信号量，用来指示队列还有多少个业务线程可以进入
     pthread_mutex_t mutex_thing;
@@ -30,3 +32,9 @@ typedef struct worker{
 
 
 }worker;
+
+typedef struct Http_analysis_1 Http_analysis_1;
+
+int worker_init(worker** w);
+
+int worker_to_profession(worker* w,int fd,Http_analysis_1* h,int error_reason,int serial);

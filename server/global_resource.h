@@ -1,9 +1,11 @@
 extern Task_queue* Task_Queue;
 
-typedef struct Request Request;
+typedef const struct Http_analysis_1* const Request;
 
-typedef struct Response Response;
+typedef struct Response{} Response;
 
-extern Task_queue* Task_Queue;
+extern sem_t sem_task_queue_notfull;
 
-extern Task_queue* Task_Queue;
+extern pthread_mutex_t mutex_task;
+
+extern sem_t sem_task_queue_notempty;

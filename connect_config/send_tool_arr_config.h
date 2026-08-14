@@ -9,8 +9,15 @@ typedef struct Send_table{
 
 }Send_table;
 
+typedef struct Send_table_Entry{
 
-int send_tool_arr_init(worker* work,int small_num,int small_size,int big_num,int big_size);//返回包的指针池
+    int fd;//连接对应的那一条指针池，不是指连接
+    sem_t sem;
+    pthread_mutex_t mutex;
+
+}Send_table_Entry;
+
+int send_tool_arr_init(worker* work,int num,int size);//返回包的指针池
 
 int send_tool_arr_fdget(worker* work,int fd);
 
