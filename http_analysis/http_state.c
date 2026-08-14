@@ -34,9 +34,10 @@ int http_state_init(http_state** h)
 
 }
 
-char* http_state_judge(http_ed_store* hs,int* error)//errpr为-2时代表着没有http请求，要马上断开连接，-1时代表不完整，需要accept,0时代表错误，1时代表对
+char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代表不完整，需要accept,0时代表错误，1时代表对
 {
     *error=0;
+    *error_reason=0;
     char* target;
     
     int check_size=hs->ptr_e-hs->ptr_b;
@@ -73,7 +74,7 @@ char* http_state_judge(http_ed_store* hs,int* error)//errpr为-2时代表着没�
         
         if(method==NULL)
         {
-            *error=-2;
+            *error=0;
             return NULL;
         }
         else
@@ -88,7 +89,7 @@ char* http_state_judge(http_ed_store* hs,int* error)//errpr为-2时代表着没�
         char* rnrn=strnstr_match(hs->begin,"\r\n\r\n",check_size);
         if(rnrn==NULL)
         {
-            *error=-1;
+            *error=0;
             return NULL;
         }
         else

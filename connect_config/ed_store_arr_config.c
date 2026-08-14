@@ -20,6 +20,8 @@ int ed_store_arr_init(worker* work,int small_num,int small_size,int big_num,int 
     work->store_pool_table->table=(int*)malloc(total_num*sizeof(int));
     work->store_pool_table->cut=small_num;
     work->store_pool_table->end=total_num;
+    work->store_pool_table->small_block_num=small_size;
+    work->store_pool_table->big_block_num=big_size;
 
     for(int i=0;i<small_num;i++)
     {
@@ -75,6 +77,8 @@ int send_tool_arr_init(worker* work,int small_num,int small_size,int big_num,int
     work->send_tool_table->table=(int*)malloc(total_num*sizeof(int));
     work->send_tool_table->cut=small_num;
     work->send_tool_table->end=total_num;
+    work->send_tool_table->small_block_num=small_size/sizeof(char*);
+    work->send_tool_table->big_block_num=big_size/sizeof(char*);
 
     for(int i=0;i<small_num;i++)
     {
@@ -133,7 +137,6 @@ int ed_store_pool_fdget(worker* work,int fd)
 
     return which;
 }
-
 int send_tool_arr_fdget(worker* work,int fd)
 {
     int a=0;

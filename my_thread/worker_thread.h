@@ -5,7 +5,7 @@ typedef struct Send_tool Send_tool;
 typedef struct Send_queue Send_queue;
 typedef struct timer timer;
 typedef struct Store_table Store_table;
-
+typedef struct Http_back_order Http_back_order;
 typedef struct worker{
    
     int id;

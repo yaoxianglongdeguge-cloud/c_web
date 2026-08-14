@@ -62,7 +62,7 @@ int http_back_order_add(Http_back_order* h,int fd,int which)
 
 int http_back_order_insertfd(Http_back_order* h,int fd)
 {
-    int e0=Hash3_Insert(h->order,fd,0,0,0);
+    int e0=Hash3_Insert(h->order,fd,0,0,0,0);
     if(e0!=1)
     {
         return -1;

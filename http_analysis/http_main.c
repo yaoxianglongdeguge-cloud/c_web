@@ -34,7 +34,8 @@ int Http_main(int fd,worker* worker)
             
 
             int state=0;
-            char* source_end=http_state_judge(worker->http_ed_store_arr[fd_store],&state);//要复制的文本结尾，此处在文本中
+            int error_reason=0;
+            char* source_end=http_state_judge(worker->http_ed_store_arr[fd_store],&state,&error_reason);//要复制的文本结尾，此处在文本中
             
             
             if(state==-1&&worker->http_ed_store_arr[fd_store]->ptr_e!=worker->http_ed_store_arr[fd_store]->end)//不够一个请求的，
@@ -106,27 +107,26 @@ int Http_main(int fd,worker* worker)
                 {
                     break;
                 }
-            }
-            
-                else if(state==-2)//不是http协议,或者有错误
-                {
-                    fd_close(worker,fd);//断开连接
-                    break;
-                }
                 
                 if(state==0)// 发生了错误
                 {
-                    fd_close(worker,fd);
+
+                   //http_packet* h_packet=(http_packet*)malloc(sizeof(http_packet));//根据error_reason构造错误原因
+                   //worker_to_profession(worker,fd,h_packet);//加入任务队列
+                    
                     break;
-                    }
-                    
-                    
                 }
+                    
+                    
+                
             }
+       }
+   }
 
                 
     return 1;
 
 }
+
 
 

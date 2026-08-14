@@ -3,6 +3,8 @@ typedef struct worker worker;
 
 typedef struct Store_table{
     int cut;//指向第一个大队列;
+    int small_block_num;//这个地方是小的条的格子数量
+    int big_block_num;
     int* table;
     int end;//指向最后一个有效元素的下一个
 }Store_table;
