@@ -2,10 +2,10 @@
 typedef struct Send_tool{
 
     char** spack;
-    char** begin;
-    char** end;
-    char** ptr_b;
-    char** ptr_e;
+    int begin;
+    int end;
+    int ptr_b;
+    int ptr_e;
 
 
 } Send_tool; //由于我们假设发回包的速度比接收返回包更快，

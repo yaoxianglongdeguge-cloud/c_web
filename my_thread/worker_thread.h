@@ -12,8 +12,8 @@ typedef struct worker{
     int epfd;
 
     
-    Store_table* store_pool_table;//http包解析前暂存池管理表
     http_ed_store** http_ed_store_arr;//解析前暂存http包.
+    Store_table* store_pool_table;//http包解析前暂存池管理表
     memory_pool* http_pool;//解析后的http包的暂存处
     Http_back_order* http_order;//记录每个连接下一个处理的包的序号，方便后面标记顺序返回
 
@@ -23,6 +23,10 @@ typedef struct worker{
     Send_queue* send_thing_queue;//接收已经准备好的要发的包的事件
 
     timer* my_timer;//断连计时器
+
+    sem_t sem_thing_queue_notfull;//返回包事件的队列的信号量，用来指示队列还有多少个业务线程可以进入
+    pthread_mutex_t mutex_thing;
+
 
 
 }worker;

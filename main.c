@@ -3,7 +3,6 @@
 #include "my_thread/worker_thread.h"
 #include "http_analysis/http_main.h"
 #include "memory_pool/memory_pool.h"
-#include <fcntl.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
