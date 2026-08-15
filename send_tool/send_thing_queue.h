@@ -1,4 +1,9 @@
-typedef struct Send_tq_Entry Send_tq_Entry;
+typedef struct Send_tq_Entry{
+
+    int fd;
+    int serial;
+
+}Send_tq_Entry;
 
 typedef struct Send_thing_queue{
 

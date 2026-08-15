@@ -36,46 +36,67 @@ int deal_and_pack()
 
 
 
+    //处理业务任务
     Response Rsp;
-    deal_task();
+    deal_task(&Error_reason);
     char* C;
     int size=pack_task(&C,Rsp);
 
 
-    
-    pthread_mutex_lock(&(W->mutex_pool));
-    char* back_pack=Memory_pool_alloc(W->send_pool,size);
-    pthread_mutex_unlock(&(W->mutex_pool));
-
-    memcpy(back_pack,C,size);//这里虽然还是要在共享内存池写，但只会在他自己的这块内存写，不会影响到别的，而且他不释放，别的拿不到
-    
-
+    //把打包好的返回文本在内存池里填上，或者如果是错误包也指向对应错误包
+    char* back_pack=NULL;
+    if(Error_reason==200)
+    {
+     
+        pthread_mutex_lock(&(W->mutex_pool));
+        back_pack=Memory_pool_alloc(W->send_pool,size);
+        pthread_mutex_unlock(&(W->mutex_pool));
+        
+        memcpy(back_pack,C,size);//这里虽然还是要在共享内存池写，但只会在他自己的这块内存写，不会影响到别的，而且他不释放，别的拿不到
+    }
+    else
+    {
+        int e5=Error_reason_ptr(&back_pack,Error_reason);
+    }
+        
+    //寻找连接的返回包对应指针池，或者分配
     int e1=0;
     int which=-2;
     while(e1=0)
     {
-
+            
         my_rwlock_rdlock(&(W->rwlock_table));
         which=send_tool_arr_fdget(W,Fd);
         if(which==-2)
-        {
-            my_rwlock_unlock(&(W->rwlock_table));
-            my_rwlock_wrlock(&(W->rwlock_table));
-            which=send_tool_arr_fdalloc(W,Fd);
-            my_rwlock_unlock(&(W->rwlock_table));
-            if(which>=0)
             {
-                e1=1;
+                my_rwlock_unlock(&(W->rwlock_table));
+                my_rwlock_wrlock(&(W->rwlock_table));
+                which=send_tool_arr_fdalloc(W,Fd);
+                my_rwlock_unlock(&(W->rwlock_table));
+                if(which>=0)
+                {
+                    e1=1;
+                }
             }
-        }
     }
 
+
+
+    //把返回包指针放入指针池
     sem_wait(&(W->send_tool_table->table[which].sem));
     pthread_mutex_lock(&(W->send_tool_table->table[which].mutex));
-    int e4=send_tool_insert(W->send_tool_arr[which],Serial,back_pack);
+    if(Error_reason!=200)
+    {
+        int e4=send_tool_insert(W->send_tool_arr[which],Serial,back_pack,-Error_reason);
+    }
+    else
+    {
+        int e4=send_tool_insert(W->send_tool_arr[which],Serial,back_pack,size);
+    }
     pthread_mutex_unlock(&(W->send_tool_table->table[which].mutex));
 
 
+    //把返回包事件放入收发线程的事件队列
     sem_wait(&(W->sem_thing_queue_notfull));
     pthread_mutex_lock(&(W->mutex_thing));
     int e5 = Send_thing_queue_push(&(W->send_thing_queue),Fd,Serial);

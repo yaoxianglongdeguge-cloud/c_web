@@ -2,12 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-typedef struct Send_tq_Entry{
-
-    int fd;
-    int serial;
-
-}Send_tq_Entry;
 
 int Send_thing_queue_init(Send_thing_queue** sq,int size)
 {
