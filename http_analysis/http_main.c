@@ -12,24 +12,34 @@
 #include "../timer/timer.h"
 #include "../send_tool/send_tool.h"
 #include "../connect_config/send_tool_arr_config.h"
+#include "../send_tool/send_tool_early.h"
 
 int Http_main(int fd,worker* worker)
 {
-
-   int fd_store=ed_store_pool_fdalloc(worker,fd);
-   
-   if(fd_store>=0)
-   {
-
-       int r0=Http_ed_store_write(worker->http_ed_store_arr[fd_store],fd);//返回-1说明，没断开但是没数据
-       printf(worker->http_ed_store_arr[fd_store]->begin);
-       
-       while(1)
-       {
+    
+    int fd_store=ed_store_pool_fdalloc(worker,fd);
+    
+    if(fd_store>=0)
+    {
+        
+        int r0=Http_ed_store_write(worker->http_ed_store_arr[fd_store],fd);//返回-1说明，没断开但是没数据
+        printf(worker->http_ed_store_arr[fd_store]->begin);
+        
+        while(1)
+        {
             if(r0==-1)
             {
-               ed_store_pool_fdfree(worker,fd);
-               break;
+                ed_store_pool_fdfree(worker,fd);
+                break;
+            }
+            
+            int serial=http_back_order_get(worker,fd,1);
+            if(serial==0)
+            {
+            my_lock_wrlock(&(worker->rwlock_table));
+            send_tool_arr_fdalloc(worker,fd);
+            my_lock_unlock(&(worker->rwlock_table));
+            send_tool_early_insert(worker->send_early,fd);
             }
 
             int back_error=200;//返回包的判断是否错误的信息
@@ -93,14 +103,8 @@ int Http_main(int fd,worker* worker)
                 http_state_reset(worker->http_ed_store_arr[fd_store]);
                 
                 
-                int serial=http_back_order_getfd(worker,fd,1);
-                if(serial==0)
-                {
-                    send_tool_arr_fdalloc(worker,fd);
-                }
-
-                int e3=http_back_order_addfd(worker,fd,1);
-                int e4=http_back_order_addfd(worker,fd,3);
+                int e3=http_back_order_add(worker,fd,1);
+                int e4=http_back_order_add(worker,fd,3);
                 if(serial<0||e3!=1||e4!=1)
                 {
                     worker_to_profession(worker,fd,h,200,-1);//如果没找到序号或者
@@ -116,7 +120,7 @@ int Http_main(int fd,worker* worker)
             //这个暂存区根本装不下连接发来的一个请求
             {
                 ed_store_pool_fdchange(worker,fd);//换更大的暂存区
-                int n=Http_ed_store_accept(worker->http_ed_store_arr[fd_store],fd);
+                int n=Http_ed_store_write(worker->http_ed_store_arr[fd_store],fd);
                 if(n==-1)
                 {
                     break;
@@ -128,11 +132,13 @@ int Http_main(int fd,worker* worker)
                  int serial=http_back_order_getfd(worker,fd,1);
                  int e3=http_back_order_addfd(worker,fd,1);
                  int e4=http_back_order_addfd(worker,fd,3);
+
                  if(serial<0||e3!=1||e4!=1)
                  {
-                    worker_to_profession(worker,fd,NULL,error_reason,-1);
-                    break;
-                 }
+                     worker_to_profession(worker,fd,NULL,error_reason,-1);
+                     break;
+                    }
+
                  worker_to_profession(worker,fd,NULL,error_reason,serial);
                     
                     break;

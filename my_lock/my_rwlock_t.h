@@ -1,3 +1,7 @@
+#include <pthread.h>
+#include <semaphore.h>
+
+
 typedef struct my_rwlock_t{
 
     pthread_mutex_t mutex;
@@ -16,3 +20,13 @@ typedef struct my_rwlock_t{
 //而写的waiting_writer++在判断的上面，一方面是事实就是他还没进入写，另一方面是，如果放在下面，那其他的和这个都进入了就错了
 //而读的在下面，一方面也是事实原因，另一方面是如果他在上面加了，然后同时写的也加了，这俩个事件是互不干涉的，然后两个一判断就死锁了。
 //还有判断和增加或减少需要加锁，这也很好理解，必须保证自己和别的都要在判断的时候拿到的是最新且不变的信息。
+
+
+int my_rwlock_init(my_rwlock_t* rw);
+
+int my_lock_rdlock(my_rwlock_t* rw);
+
+int my_lock_wrlock(my_rwlock_t* rw);
+
+
+int my_lock_unlock(my_rwlock_t* rw);

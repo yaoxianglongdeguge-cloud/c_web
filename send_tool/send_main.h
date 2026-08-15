@@ -1,0 +1,1 @@
+typedef send_main(worker* w);

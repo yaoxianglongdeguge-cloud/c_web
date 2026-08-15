@@ -10,7 +10,7 @@
 #include "../http_analysis/http_ed_store.h"
 #include "../http_analysis/http_state.h"
 #include "../send_tool/send_tool.h"
-
+#include "../send_tool/send_tool_early.h"
 
 int send_tool_arr_init(worker* work,int num,int blocknum)
 {
@@ -83,6 +83,8 @@ int send_tool_arr_fdalloc(worker* work,int fd)//如果没分配到则返回-2
         return -2;
     }
 
+    send_tool_early_insert(work->send_early,which);
+
     return which;
 }
 
@@ -103,6 +105,8 @@ int send_tool_arr_fdfree(worker* work,int fd)
    sem(&(work->send_tool_table->table[which].sem),0,work->send_tool_table->block_num);
    pthread_mutex_init(&work->send_tool_table->table[which].mutex, NULL);
 
+
+   send_tool_early_pop(work->send_early,which);
 
    return 1;
 

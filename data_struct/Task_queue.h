@@ -1,4 +1,6 @@
-
+typedef struct worker worker;
+typedef struct Http_analysis_1 Http_analysis_1;
+typedef struct Task_Entry Task_Entry;
 typedef struct Task_queue{
 
     Task_Entry* queue;

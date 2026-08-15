@@ -14,10 +14,8 @@ sem_t sem_task_queue_notempty;//任务队列信号量，用来指示队列还有
 int global_resource_init(int Task_Queue_size)
 {
     Task_queue_init(&Task_Queue,Task_Queue_size);
-    sem(sem_task_queue_notfull,0,Task_Queue_size);
-    sem(sem_task_queue_notempty,0,Task_Queue_size);
-
-
+    sem_init(&sem_task_queue_notfull,0,Task_Queue_size);
+    sem_init(&sem_task_queue_notempty,0,Task_Queue_size);
 
 }
 

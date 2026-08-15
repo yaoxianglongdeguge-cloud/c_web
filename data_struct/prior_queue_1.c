@@ -27,7 +27,7 @@ int prior_queue_1_init(prior_queue_1** p,int num)//节点个数
          (*p)->queue[i].time=-2;
     }
 
-    (*p)->queue[0].fd=-2;
+    (*p)->queue[0].fd=0;
 
     return 1;
     

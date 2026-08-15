@@ -13,8 +13,26 @@
 #include "../connect_config/ed_store_arr_config.h"
 #include "../send_tool/send_tool.h"
 #include "../send_tool/send_thing_queue.h"
-#include "send_tool_arr_config.h"
+#include "../connect_config/send_tool_arr_config.h"
 
+int deal_task(int * e)
+{
+    *e=200;
+    return 1;
+}
+
+int pack_task(char** c,Response)
+{
+    *c="HTTP/1.1 200 OK\r\n"
+    "Content-Type: application/json\r\n"
+    "Content-Length: 27\r\n"
+    "\r\n"
+    "{\"name\":\"john\",\"age\":20}";
+
+    int len = strlen(*c);
+
+    return len;
+}
 
 int deal_and_pack()
 {
@@ -46,7 +64,7 @@ int deal_and_pack()
     //把打包好的返回文本在内存池里填上，或者如果是错误包也指向对应错误包
     
     int which=-2;  
-    my_rwlock_rdlock(&(W->rwlock_table));
+    my_lock_rdlock(&(W->rwlock_table));
     which=send_tool_arr_fdget(W,Fd);
     
     if(which==-2)
@@ -64,17 +82,17 @@ int deal_and_pack()
         
         memcpy(back_pack,C,size);//这里虽然还是要在共享内存池写，但只会在他自己的这块内存写，不会影响到别的，而且他不释放，别的拿不到
     }
-    else
-    {
-        int e5=Error_reason_ptr(&back_pack,Error_reason);
-    }
-    my_rwlock_unlock(&(W->rwlock_table));
+   // else
+    //{
+        //int e5=Error_reason_ptr(&back_pack,Error_reason);
+   // }
+    my_lock_unlock(&(W->rwlock_table));
     
 
 
 
 
-    my_rwlock_rdlock(&(W->rwlock_table));
+    my_lock_rdlock(&(W->rwlock_table));
     which=send_tool_arr_fdget(W,Fd);
     
     if(which==-2)
@@ -104,11 +122,11 @@ int deal_and_pack()
     }
     pthread_mutex_unlock(&(W->send_tool_table->table[which].mutex));
     
-    my_rwlock_unlock(&(W->rwlock_table));
+    my_lock_unlock(&(W->rwlock_table));
 
 
 
-    my_rwlock_rdlock(&(W->rwlock_table));
+    my_lock_rdlock(&(W->rwlock_table));
     which=send_tool_arr_fdget(W,Fd);
     
     if(which==-2)
@@ -127,10 +145,10 @@ int deal_and_pack()
     //把返回包事件放入收发线程的事件队列
     sem_wait(&(W->sem_thing_queue_notfull));
     pthread_mutex_lock(&(W->mutex_thing));
-    int e5 = Send_thing_queue_push(&(W->send_thing_queue),Fd,Serial);
+    int e5 = Send_thing_queue_push(W->send_thing_queue,Fd,Serial);
     pthread_mutex_unlock(&(W->mutex_thing));
     
-    my_rwlock_unlock(&(W->rwlock_table));
+    my_lock_unlock(&(W->rwlock_table));
 }
 
 

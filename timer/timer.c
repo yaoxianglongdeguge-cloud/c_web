@@ -52,7 +52,7 @@ int timer_alloc_and_reset(timer* t,int fd,worker* w)//分配给连接计时器�
     else if(f==0)
     {
         time_t now=time(NULL);
-        int e1 = prior_queue_1_insert(t->q,fd,time);
+        int e1 = prior_queue_1_insert(t->q,fd,now);
         if(e1!=1)
         {
             return -1;

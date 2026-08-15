@@ -5,10 +5,8 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <pthread.h>
 #include <fcntl.h>
 
-#include "../my_lock/my_rwlock_t.h"
 
 #include "../server/global_resource.c"
 #include "../memory_pool/memory_pool.h"
@@ -19,8 +17,10 @@
 #include "../http_analysis/http_back_order.h"
 #include "../connect_config/ed_store_arr_config.h"
 #include "../send_tool/send_tool.h"
+#include "../send_tool/send_tool_early.h"
 #include "../send_tool/send_thing_queue.h"
-#include "send_tool_arr_config.h"
+#include "../connect_config/send_tool_arr_config.h"
+#include "../my_lock/my_rwlock_t.h"
 
 extern Task_queue* Task_Queue;
 
@@ -31,9 +31,10 @@ int worker_init(worker** w)
     int e2=http_back_order_init(&((*w)->http_order),3);
     int e3=send_tool_arr_init(*w,15,2);
     int e4=Memory_pool_init(&((*w)->send_pool),32,4);
-    int e5=Send_thing_queue_init((*w)->send_thing_queue,40);
+    int e5=Send_thing_queue_init(&((*w)->send_thing_queue),40);
+    int e6=send_tool_early_init(&((*w)->send_early),50);
 
-    sem(&((*w)->sem_thing_queue_notfull),0,40);
+    sem_init(&((*w)->sem_thing_queue_notfull),0,40);
     pthread_mutex_init(&((*w)->mutex_thing), NULL);
     pthread_mutex_init(&((*w)->mutex_pool), NULL);
     my_rwlock_init(&((*w)->rwlock_table));
@@ -79,7 +80,7 @@ int worker_to_profession(worker* w,int fd,Http_analysis_1* h,int error_reason,in
     sem_post(&sem_task_queue_notfull);
 }
 
-int receive_and_send_main(worker* w,int Listen_fd)
+int receive_and_send_main(worker* w,int Listen_fd,int time)
 {
     struct epoll_event events[1024];
     struct epoll_event ev;
@@ -87,6 +88,7 @@ int receive_and_send_main(worker* w,int Listen_fd)
     while(1)
     {
         int n=epoll_wait(w->epfd, events, 1024, -1);
+        timer_overtime(w->my_timer,time,w);16890
         for(int i=0;i<n;i++)
         {
             int handle_fd=events[i].data.fd;
@@ -108,10 +110,9 @@ int receive_and_send_main(worker* w,int Listen_fd)
             }
             else
             {
+                timer_alloc_and_reset(w->my_timer,handle_fd,w);
                 int e1=http_main(w,handle_fd);//错误包已经通过发送程序发了，所以这里的返回值不验证
                 int e2=send_main(w);
-   
-
             }
 
         }
