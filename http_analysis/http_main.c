@@ -10,7 +10,8 @@
 #include "../connect_config/ed_store_arr_config.h"
 #include "../connect_config/connect_manage.h"
 #include "../timer/timer.h"
-
+#include "../send_tool/send_tool.h"
+#include "../connect_config/send_tool_arr_config.h"
 
 int Http_main(int fd,worker* worker)
 {
@@ -93,6 +94,11 @@ int Http_main(int fd,worker* worker)
                 
                 
                 int serial=http_back_order_getfd(worker,fd,1);
+                if(serial==0)
+                {
+                    send_tool_arr_fdalloc(worker,fd);
+                }
+
                 int e3=http_back_order_addfd(worker,fd,1);
                 int e4=http_back_order_addfd(worker,fd,3);
                 if(serial<0||e3!=1||e4!=1)
