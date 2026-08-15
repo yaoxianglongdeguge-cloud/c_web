@@ -4,8 +4,8 @@
 #include <string.h>
 
 #include "../my_lock/my_rwlock_t.h"
-
-#include "../server/global_resource.c"
+#include "worker_thread.h"
+#include "../server/global_resource.h"
 #include "../memory_pool/memory_pool.h"
 #include "../timer/timer.h"
 #include "../http_analysis/http_analysis.h"
@@ -14,6 +14,7 @@
 #include "../send_tool/send_tool.h"
 #include "../send_tool/send_thing_queue.h"
 #include "../connect_config/send_tool_arr_config.h"
+#include "../data_struct/Task_queue.h"
 
 int deal_task(int * e)
 {
@@ -38,13 +39,13 @@ int deal_and_pack()
 {
     int e0=0;
     Task_Entry t;
-    sem_wait(&sem_task_queue_notfull);//本来push里面也没几个操作而且几乎都要直接操作队列，所以放在这里就可以
+    sem_wait(&sem_task_queue_notempty);//本来push里面也没几个操作而且几乎都要直接操作队列，所以放在这里就可以
     pthread_mutex_lock(&mutex_task);
 
     t=Task_queue_top_and_pop(Task_Queue,&e0);
 
     pthread_mutex_unlock(&mutex_task);
-    sem_post(&sem_task_queue_notempty);
+    sem_post(&sem_task_queue_notfull);
 
     Request Req=t.http;
     int Error_reason=t.error_reason;
@@ -53,14 +54,14 @@ int deal_and_pack()
     worker* W=t.w;
 
 
-
+    int size=0;
+    char* C;
+    Response Rsp;
     if(Error_reason==200)
     {        
         //处理业务任务
-    Response Rsp;
     deal_task(&Error_reason);
-    char* C;
-    int size=pack_task(&C,Rsp);
+    size=pack_task(&C,Rsp);
         
     }
     
