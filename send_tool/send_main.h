@@ -1,1 +1,1 @@
-typedef send_main(worker* w);
+int send_main(worker* w);

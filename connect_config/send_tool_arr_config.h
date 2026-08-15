@@ -21,6 +21,6 @@ int send_tool_arr_init(worker* work,int num,int size);//返回包的指针池
 
 int send_tool_arr_fdget(worker* work,int fd);
 
-int ed_store_pool_fdalloc(worker* work,int fd);
+int send_tool_arr_fdalloc(worker* work,int fd);
 
 int send_tool_arr_fdfree(worker* work,int fd);

@@ -7,6 +7,7 @@
 
 
 #include "../my_thread/worker_thread.h"
+#include "../memory_pool/memory_pool.h"
 #include "../http_analysis/http_ed_store.h"
 #include "../http_analysis/http_state.h"
 #include "../send_tool/send_tool.h"
@@ -90,19 +91,32 @@ int send_tool_arr_fdalloc(worker* work,int fd)//如果没分配到则返回-2
 
 int send_tool_arr_fdfree(worker* work,int fd)
 {
+    
     int which=send_tool_arr_fdget(work,fd);
     if(which==-2)
     {
         return -1;
     }
+
+   
    
    for(int i=0;i<work->send_tool_arr[which]->blocknum;i++)
    {
+    if(work->send_tool_arr[which]->store[i].use==1)
+    {
+        //把剩余包对应的存着返回包的内存池部分释放//当然如果是指向的返回错误信息，这个不用释放,因为其他的还要用
+        if(work->send_tool_arr[which]->store[i].error_reason>0)
+        {
+            int sz=work->send_tool_arr[which]->store[i].error_reason;
+            Memory_pool_free(work->send_pool,work->send_tool_arr[which]->store[i].ptr,work->send_tool_arr[which]->store[i]+sz);
+        }
+    }
     work->send_tool_arr[which]->store[i].use=0;
    }
 
+   //把连接占用的表释放出来
    work->send_tool_table->table[which].fd=-2;
-   sem(&(work->send_tool_table->table[which].sem),0,work->send_tool_table->block_num);
+   sem_init(&(work->send_tool_table->table[which].sem),0,work->send_tool_table->block_num);
    pthread_mutex_init(&work->send_tool_table->table[which].mutex, NULL);
 
 

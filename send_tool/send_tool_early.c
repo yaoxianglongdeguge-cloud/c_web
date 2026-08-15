@@ -41,7 +41,7 @@ int send_tool_early_top(Send_tool_early* s)
     return a.fd;
 }
 
-int send_tool_early_pop(Send_tool_early* s,int fd_site)
+int send_tool_early_pop(Send_tool_early* s,int fd)
 {
     int which=0;
      for(int i=1;i<s->p->end;i++)

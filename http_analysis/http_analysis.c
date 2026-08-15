@@ -8,6 +8,9 @@
 #include "http_state.h"
 #include "../data_struct/hash_2.h"
 
+#define MAX_URL_LEN 8192         // 8KB
+#define MAX_HEADER_LEN 16384     // 16KB
+
 int Http_analysis_body(Http_analysis_1* h,char* http_request);//type用来判断请求体的格式
 
 int Http_analysis_body_1(Http_analysis_1* h,char* http_body);//x-www-form-urlencode类型
@@ -51,7 +54,7 @@ int Http_analysis_init(Http_analysis_1** h,memory_pool* pool,int h_size)
     return 1;
 }
 
-int Http_analysis_receive(Http_analysis_1* h,char* http_request)
+int Http_analysis_receive(Http_analysis_1* h,char* http_request,int *error_reason)
 {
     
     char *body_start = strstr(http_request, "\r\n\r\n");
@@ -71,7 +74,7 @@ int Http_analysis_receive(Http_analysis_1* h,char* http_request)
        body_start += 4;          // 跳过 \r\n\r\n
     } 
 
-    int a1=Http_analysis_head(h,http_request);
+    int a1=Http_analysis_head(h,http_request,error_reason);
 
     if(a1!=1)
     {
@@ -89,7 +92,7 @@ int Http_analysis_receive(Http_analysis_1* h,char* http_request)
 
 }
 
-int Http_analysis_head(Http_analysis_1* h,char* http_head)
+int Http_analysis_head(Http_analysis_1* h,char* http_head,int* error_reason)
 {
     char *save;
     char *line = strtok_r(http_head, "\r\n", &save);//切出第一行，save指向剩下的
@@ -132,6 +135,12 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head)
             }
 
             int e1=0;
+            size_t lenm = strlen(m);
+            if(lenm>MAX_HEADER_LEN)
+            {
+                *error_reason=431;
+                return 0;
+            }
             e1=Hash2_Insert(h->Headers,h,line,m);
             if(e1!=1)
             {
@@ -151,6 +160,12 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head)
     if(path_cut==NULL)
     {
         h->Url=path;
+        size_t lenu = strlen(h->Url);
+        if(lenu>MAX_URL_LEN)
+        {
+            *error_reason=414;
+            return 0;
+        }
     }
     //要切的话首先要有查询条件，如果没有就会返回NULL，如果不特殊处理就会导致对着一个NULL指针操作，得不到url
     else
@@ -163,9 +178,17 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head)
             query_ing=path_cut+1;
             url=path;
         }
+        }
+        
         
         h->Url=url;
+        if(lenu>MAX_URL_LEN)
+        {
+            *error_reason=414;
+            return 0;
+        }
         
+
         h->Query=(Hash_map_2*)h->ptr;
         int e2=Hash2_Init(h,2);
         

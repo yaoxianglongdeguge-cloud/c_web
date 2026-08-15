@@ -5,6 +5,8 @@
 #include "http_ed_store.h"
 
 
+#define MAX_BODY_SIZE (1024 * 1024)  // 1MB
+
 char *strnstr(const char *haystack, const char *needle, size_t n) {
     size_t needle_len = strlen(needle);
     if (needle_len == 0) return (char *)haystack;
@@ -51,35 +53,64 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
         {
             method=strnstr_match(hs->begin,"POST ",8);
         }
+        else
+        {
+            hs->httpstate->h_method=1;
+        }
+
         if(method==NULL)
         {
         method=strnstr_match(hs->begin,"PUT ",8);
         }
+         else
+        {
+            hs->httpstate->h_method=7;
+        }
+
         if(method==NULL)
         {
         method=strnstr_match(hs->begin,"DELETE ",8);
         }
+         else
+        {
+            hs->httpstate->h_method=8;
+        }
+
         if(method==NULL)
         {
         method=strnstr_match(hs->begin,"HEAD ",8);
         }
+         else
+        {
+            hs->httpstate->h_method=2;
+        }
+
         if(method==NULL)
         {
         method=strnstr_match(hs->begin,"OPTIONS ",8);
         }
+         else
+        {
+            hs->httpstate->h_method=3;
+        }
+
         if(method==NULL)
         {
         method=strnstr_match(hs->begin,"PATCH ",8);   
         }
-        
+         else
+        {
+            hs->httpstate->h_method=4;
+        }       
         if(method==NULL)
         {
             *error=0;
+            *error_reason=400;
             return NULL;
         }
         else
         {
-            hs->httpstate->h_method=1;
+            hs->httpstate->h_method=9;
         }
         
     }
@@ -105,6 +136,12 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
         char* body_length=strnstr_match(hs->begin,"Content-Length:",check_size);
         if(body_length==NULL)
         {
+            if(hs->httpstate->h_method>=7)
+            {
+                *error_reason=411;
+                *error=0;
+                return NULL;
+            }
             hs->httpstate->h_body_length=0;
         }
         else
@@ -125,6 +162,12 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
             }
 
             int len=atoi(length_num);
+            if(len>MAX_BODY_SIZE)
+            {
+                *error_reason=413
+                *error=0;
+                return NULL;
+            }
 
             target=target+4+len;
             if(target<hs->ptr_e){

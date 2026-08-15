@@ -14,7 +14,7 @@
 #include "../connect_config/send_tool_arr_config.h"
 #include "../send_tool/send_tool_early.h"
 
-int Http_main(int fd,worker* worker)
+int http_main(int fd,worker* worker)
 {
     
     int fd_store=ed_store_pool_fdalloc(worker,fd);
@@ -33,17 +33,14 @@ int Http_main(int fd,worker* worker)
                 break;
             }
             
-            int serial=http_back_order_get(worker,fd,1);
+            int serial=http_back_order_get(worker->http_order,fd,1);
             if(serial==0)
             {
             my_lock_wrlock(&(worker->rwlock_table));
             send_tool_arr_fdalloc(worker,fd);
             my_lock_unlock(&(worker->rwlock_table));
             send_tool_early_insert(worker->send_early,fd);
-            }
-
-            int back_error=200;//返回包的判断是否错误的信息
-            
+            }      
 
             int state=0;
             int error_reason=0;
@@ -77,7 +74,8 @@ int Http_main(int fd,worker* worker)
                 Http_analysis_1* h;
                 
                 int e0=Http_analysis_init(&h,worker->http_pool,http_size);
-                
+                int error_reason2=200;
+
                 if(e0!=1)
                 {
                     return -1;
@@ -94,24 +92,29 @@ int Http_main(int fd,worker* worker)
                 }
                 
                 
-                Http_analysis_receive(h,http_txt_begin);
+                int e6=Http_analysis_receive(h,http_txt_begin,&error_reason2);
+
+                if(e6==1)
+                {
+                    Http_ed_store_write(worker->http_ed_store_arr[fd_store],fd);
+                }
+                else
+                {
+                    Memory_pool_free(worker->http_pool,h,h->end);
+                }
                 
-                Http_ed_store_write(worker->http_ed_store_arr[fd_store],fd);
-                
-                Http_analysis_receive(h,http_txt_begin);
-                
-                http_state_reset(worker->http_ed_store_arr[fd_store]);
+                e6=http_state_reset(worker->http_ed_store_arr[fd_store]);
                 
                 
-                int e3=http_back_order_add(worker,fd,1);
-                int e4=http_back_order_add(worker,fd,3);
+                int e3=http_back_order_add(worker->http_order,fd,1);
+                int e4=http_back_order_add(worker->http_order,fd,3);
                 if(serial<0||e3!=1||e4!=1)
                 {
-                    worker_to_profession(worker,fd,h,200,-1);//如果没找到序号或者
+                    worker_to_profession(worker,fd,h,error_reason2,-1);//如果没找到序号或者
                     //序号增加异常，那后面的也没法发了，所以等着断连吧,到时候会在里面判断
                     break;
                 }
-                worker_to_profession(worker,fd,h,200,serial);
+                worker_to_profession(worker,fd,h,error_reason2,serial);
                 
             }
             
@@ -126,22 +129,22 @@ int Http_main(int fd,worker* worker)
                     break;
                 }
                 
-                if(state==0)// 发生了错误
+            if(state==0)// 发生了错误
+            {
+
+                int serial=http_back_order_get(worker->http_order,fd,1);
+                int e3=http_back_order_add(worker->http_order,fd,1);
+                int e4=http_back_order_add(worker->http_order,fd,3);
+
+                if(serial<0||e3!=1||e4!=1)
                 {
-
-                 int serial=http_back_order_getfd(worker,fd,1);
-                 int e3=http_back_order_addfd(worker,fd,1);
-                 int e4=http_back_order_addfd(worker,fd,3);
-
-                 if(serial<0||e3!=1||e4!=1)
-                 {
-                     worker_to_profession(worker,fd,NULL,error_reason,-1);
-                     break;
-                    }
-
-                 worker_to_profession(worker,fd,NULL,error_reason,serial);
-                    
+                    worker_to_profession(worker,fd,NULL,error_reason,-1);
                     break;
+                }
+
+                worker_to_profession(worker,fd,NULL,error_reason,serial);
+                    
+                break;
                 }
                     
                     

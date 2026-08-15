@@ -11,16 +11,18 @@
 #include "../server/global_resource.c"
 #include "../memory_pool/memory_pool.h"
 #include "../timer/timer.h"
+#include "../http_analysis/http_main.h"
 #include "../http_analysis/http_analysis.h"
 #include "../http_analysis/http_ed_store.h"
 #include "../http_analysis/http_state.h"
 #include "../http_analysis/http_back_order.h"
-#include "../connect_config/ed_store_arr_config.h"
 #include "../send_tool/send_tool.h"
+#include "../send_tool/send_main.h"
 #include "../send_tool/send_tool_early.h"
 #include "../send_tool/send_thing_queue.h"
+#include "../connect_config/ed_store_arr_config.h"
 #include "../connect_config/send_tool_arr_config.h"
-
+#include "../connect_config/connect_manage.h"
 
 extern Task_queue* Task_Queue;
 
@@ -83,35 +85,23 @@ int worker_to_profession(worker* w,int fd,Http_analysis_1* h,int error_reason,in
 int receive_and_send_main(worker* w,int Listen_fd,int time)
 {
     struct epoll_event events[1024];
-    struct epoll_event ev;
 
     while(1)
     {
         int n=epoll_wait(w->epfd, events, 1024, -1);
-        timer_overtime(w->my_timer,time,w);16890
+        timer_overtime(w->my_timer,time,w);
         for(int i=0;i<n;i++)
         {
             int handle_fd=events[i].data.fd;
 
             if(handle_fd==Listen_fd)
             {
-                int client_fd=accept(handle_fd,NULL,NULL);
-                int flags = fcntl(client_fd, F_GETFL, 0);   // 从内核拿到当前标志
-                fcntl(client_fd, F_SETFL, flags | O_NONBLOCK); // 加上非阻塞，写回内核
-                ev.events = EPOLLIN;        
-                ev.data.fd = client_fd;          
-                epoll_ctl(w->epfd, EPOLL_CTL_ADD, client_fd, &ev);  
-                int e0=fd_connect(w,client_fd);
-                if(e0!=1)
-                {
-                    epoll_ctl(w->epfd, EPOLL_CTL_DEL, client_fd, NULL);
-                }
-        
+               int e0=fd_connect(w,handle_fd);
             }
             else
             {
                 timer_alloc_and_reset(w->my_timer,handle_fd,w);
-                int e1=http_main(w,handle_fd);//错误包已经通过发送程序发了，所以这里的返回值不验证
+                int e1=http_main(handle_fd,w);//错误包已经通过发送程序发了，所以这里的返回值不验证
                 int e2=send_main(w);
             }
 

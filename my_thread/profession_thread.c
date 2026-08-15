@@ -54,12 +54,15 @@ int deal_and_pack()
 
 
 
-    //处理业务任务
+    if(Error_reason==200)
+    {        
+        //处理业务任务
     Response Rsp;
     deal_task(&Error_reason);
     char* C;
     int size=pack_task(&C,Rsp);
-    
+        
+    }
     
     //把打包好的返回文本在内存池里填上，或者如果是错误包也指向对应错误包
     
@@ -90,6 +93,7 @@ int deal_and_pack()
     
 
 
+    Memory_pool_free(W->http_pool,t.http,t.http->end);
 
 
     my_lock_rdlock(&(W->rwlock_table));
@@ -100,7 +104,7 @@ int deal_and_pack()
         if(Error_reason==200)
         {
             
-            Memory_pool_free(W->send_pool,back_pack,back_pack+size);
+            Memory_pool_free(W->send_pool,back_pack,back_pack+size);//这是连接已经断开，资源已经回收，但已经在返回池申请内存的
             
         }
         
