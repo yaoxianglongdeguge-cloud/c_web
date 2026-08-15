@@ -1,5 +1,8 @@
 #include "my_rwlock_t.h"
 #include<pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 
 int my_rwlock_init(my_rwlock_t* rw)
 {

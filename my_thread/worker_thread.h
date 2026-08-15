@@ -1,5 +1,6 @@
 #include <pthread.h>
 #include <semaphore.h>
+#include "../my_lock/my_rwlock_t.h"
 
 typedef struct my_rwlock_t my_rwlock_t;
 typedef struct http_ed_store http_ed_store;
@@ -32,8 +33,9 @@ typedef struct worker{
     timer* my_timer;//断连计时器
     Send_tool_early* send_early;//用来标记每个连接的指针池的时间，并且能从中找出最开始那个
 
-    pthread_mutex_t mutex_pool;//返回包字节实际储存位置的内存池的锁
+
     my_rwlock_t rwlock_table;//读写指针池分配表
+    pthread_mutex_t mutex_pool;//返回包字节实际储存位置的内存池的锁
     
     sem_t sem_thing_queue_notfull;//返回包事件的队列的信号量，用来指示队列还有多少个业务线程可以进入
     pthread_mutex_t mutex_thing;
