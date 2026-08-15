@@ -6,6 +6,7 @@ typedef struct Send_queue Send_queue;
 typedef struct timer timer;
 typedef struct Store_table Store_table;
 typedef struct Http_back_order Http_back_order;
+
 typedef struct worker{
    
     int id;
@@ -25,7 +26,8 @@ typedef struct worker{
     timer* my_timer;//断连计时器
 
     pthread_mutex_t mutex_pool;//返回包字节实际储存位置的内存池的锁
-
+    my_rwlock_t rwlock_table;//读写指针池分配表
+    
     sem_t sem_thing_queue_notfull;//返回包事件的队列的信号量，用来指示队列还有多少个业务线程可以进入
     pthread_mutex_t mutex_thing;
 

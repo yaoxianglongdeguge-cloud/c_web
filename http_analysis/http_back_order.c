@@ -37,9 +37,6 @@ int http_back_order_get(Http_back_order* h,int fd,int which)
     case 3:
         return e->value3;
         break;
-    case 4:
-        return e->value4;
-        break;
 
     default:
         break;
@@ -70,9 +67,6 @@ int http_back_order_add(Http_back_order* h,int fd,int which)
         break;
 
     default:
-
-        e->value4=which;
-
         break;
     }
 

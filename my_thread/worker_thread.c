@@ -5,7 +5,10 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <pthread.h>
 #include <fcntl.h>
+
+#include "../my_lock/my_rwlock_t.h"
 
 #include "../server/global_resource.c"
 #include "../memory_pool/memory_pool.h"
@@ -31,8 +34,9 @@ int worker_init(worker** w)
     int e5=Send_thing_queue_init((*w)->send_thing_queue,40);
 
     sem(&((*w)->sem_thing_queue_notfull),0,40);
-    pthread_mutex_t mutex_thing = PTHREAD_MUTEX_INITIALIZER;
-
+    pthread_mutex_init(&((*w)->mutex_thing), NULL);
+    pthread_mutex_init(&((*w)->mutex_pool), NULL);
+    my_rwlock_init(&((*w)->rwlock_table));
 
 
     if(e0!=1)

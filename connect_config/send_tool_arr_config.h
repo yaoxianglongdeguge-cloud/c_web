@@ -3,7 +3,7 @@ typedef struct Send_table_Entry Send_table_Entry;
 
 typedef struct Send_table{
     
-    int block_num;//这个地方是小的条的格子数量
+    int block_num;//条的格子数量
     Send_table_Entry* table;
     int end;//指向最后一个有效元素的下一个
 
@@ -11,7 +11,7 @@ typedef struct Send_table{
 
 typedef struct Send_table_Entry{
 
-    int fd;//连接对应的那一条指针池，不是指连接
+    int fd;
     sem_t sem;
     pthread_mutex_t mutex;
 
