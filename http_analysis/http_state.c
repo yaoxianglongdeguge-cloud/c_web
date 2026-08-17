@@ -37,9 +37,9 @@ int http_state_init(http_state** h)
 
 }
 
-int maxm(int a,int b)
+int minm(int a,int b)
 {
-    if(a>=b)
+    if(a<=b)
     {
         return a;
     }
@@ -57,7 +57,7 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
     char* target;
     
     int check_size=hs->ptr_e-hs->ptr_b;
-    int pipei_size=maxm(8,check_size);//匹配方法用的长度
+    int pipei_size=minm(8,check_size);//匹配方法用的长度
 
     if(hs->httpstate->h_method==0)
     {
@@ -66,7 +66,7 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
         int i=0;
         for(;i<9;i++)
         {
-           method=strnstr_match(hs->begin,Method_p[i],8);
+           method=strnstr_match(hs->begin,Method_p[i],pipei_size);
            if(method!=NULL)
            {
             break;

@@ -30,7 +30,7 @@ int Http_analysis_init(Http_analysis_1** h,memory_pool* pool,int h_size)
         }
 
         (*h)->ptr=((char*)(*h))+sizeof(Http_analysis_1);
-        (*h)->end=((char*)(*h))+h_size;
+        (*h)->end=((char*)(*h))+h_size-1;
 
         if((*h)->ptr>=(*h)->end)
         {

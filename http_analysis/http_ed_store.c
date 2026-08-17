@@ -76,6 +76,7 @@ int Http_ed_store_copy(http_ed_store* h,char*end,char* target)//把一整个请�
     
     h->ptr_b=h->begin;
     h->ptr_e=h->ptr_b+copy_num2;
+    *(h->ptr_e)='\0';
 
     return 1;
 }
