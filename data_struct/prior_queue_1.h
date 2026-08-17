@@ -1,3 +1,4 @@
+#include <time.h>
 
 typedef struct timer_entry 
 {

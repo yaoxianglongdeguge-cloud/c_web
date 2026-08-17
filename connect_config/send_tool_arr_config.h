@@ -1,3 +1,6 @@
+#include <semaphore.h> 
+#include <pthread.h> 
+
 typedef struct worker worker;
 typedef struct Send_table_Entry Send_table_Entry;
 

@@ -1,8 +1,6 @@
 #include "global_resource.h"
 
-#include"../data_struct/Task_queue.c"
-#include <semaphore.h> 
-#include <pthread.h> 
+#include"../data_struct/Task_queue.h"
 
 Task_queue* Task_Queue;
 
@@ -15,7 +13,7 @@ int global_resource_init(int Task_Queue_size)
 {
     Task_queue_init(&Task_Queue,Task_Queue_size);
     sem_init(&sem_task_queue_notfull,0,Task_Queue_size);
-    sem_init(&sem_task_queue_notempty,0,Task_Queue_size);
+    sem_init(&sem_task_queue_notempty,0,0);
 
 }
 

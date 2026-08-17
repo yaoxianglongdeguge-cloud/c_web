@@ -57,11 +57,6 @@ int timer_alloc_and_reset(timer* t,int fd,worker* w)//分配给连接计时器�
         {
             return -1;
         }
-        int e2=fd_connect(w,fd);
-        if(e2!=1)
-        {
-            return -1;
-        }
     }
 
     return 1;
@@ -69,6 +64,10 @@ int timer_alloc_and_reset(timer* t,int fd,worker* w)//分配给连接计时器�
 
 int timer_overtime(timer* t,int overtime,worker* w)//超时时间
 {
+    if(t->q->elem_end==1)
+    {
+        return 1;
+    }
     timer_entry t1=prior_queue_1_top(t->q);
     int fd=t1.fd;
     time_t time=t1.time;

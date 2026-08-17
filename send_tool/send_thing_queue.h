@@ -23,4 +23,4 @@ int Send_thing_queue_init(Send_thing_queue** sq,int size);
 
 int Send_thing_queue_push(Send_thing_queue* sq,int fd,int serial);
 
-Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error );
+Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error);

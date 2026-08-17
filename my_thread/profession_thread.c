@@ -39,8 +39,10 @@ int deal_and_pack()
 {
     int e0=0;
     Task_Entry t;
-    
+    while(1)
+    {
 
+        
         sem_wait(&sem_task_queue_notempty);//本来push里面也没几个操作而且几乎都要直接操作队列，所以放在这里就可以
         pthread_mutex_lock(&mutex_task);
         
@@ -75,6 +77,7 @@ int deal_and_pack()
         
         if(which==-2)
         {        
+            my_lock_unlock(&(W->rwlock_table));
             return 0; 
         }
         
@@ -110,7 +113,7 @@ int deal_and_pack()
                     Memory_pool_free(W->send_pool,back_pack,back_pack+size);//这是连接已经断开，资源已经回收，但已经在返回池申请内存的
                     
                 }
-                
+                my_lock_unlock(&(W->rwlock_table));
                 return 0; 
             }
             
@@ -144,7 +147,7 @@ int deal_and_pack()
                     Memory_pool_free(W->send_pool,back_pack,back_pack+size);
                     
                 }
-                
+                my_lock_unlock(&(W->rwlock_table));
                 return 0; 
             }
             
@@ -156,10 +159,11 @@ int deal_and_pack()
             pthread_mutex_unlock(&(W->mutex_thing));
             
             my_lock_unlock(&(W->rwlock_table));
-
-        
-
-        
+            
+            
+            
+            
+        }
     }
         
         

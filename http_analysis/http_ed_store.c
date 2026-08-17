@@ -42,7 +42,11 @@ int Http_ed_store_write(http_ed_store* h,int fd)
         h->ptr_e=h->ptr_e+n1;
 
     }
-    else if(errno==EAGAIN)
+    else if(n1==0)
+    {
+        return 0;
+    }
+    else if(n1==-1&&errno==EAGAIN)
     {
         return -1;
     }

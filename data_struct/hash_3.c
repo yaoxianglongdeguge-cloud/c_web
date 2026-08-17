@@ -7,9 +7,7 @@
 #include <unistd.h>
 
 
-unsigned long salt=0;//随机数防止攻击者发送特定信息都哈希选进一个桶里
-
-static const int PRIME_BUCKET_SIZES[15] = {
+static const int PRIME_BUCKET_SIZES_3[15] = {
     7,
     17,     // 起点
     31,     // 1.82x
@@ -18,7 +16,6 @@ static const int PRIME_BUCKET_SIZES[15] = {
  
 };//用于哈希表扩容
 
-int PRIME_BUCKET_SIZES_nidex=0;
 
 
 Hash_Entry_3* Hash3_Entry_Creat(int key,int value1,int value2,int value3);//创建节点
@@ -30,7 +27,7 @@ int Hash3_Entry_Insert(Hash_Entry_3* head,int url,int value1,int value2,int valu
 int Hash3_Allocate(Hash_map_3* h,int size_h);//分配特定大小内存
 
 
-int bucket_site(int bucket_size,const int url);//桶位置计算
+int bucket_site_3(int bucket_size,const int url);//桶位置计算
 
 
 
@@ -158,7 +155,7 @@ int Hash3_Init(Hash_map_3** h,int init)//1成功，0已存在，-1过程错误
         return -1;
     }
 
-    int bu_size=PRIME_BUCKET_SIZES[init-1];
+    int bu_size=PRIME_BUCKET_SIZES_3[init-1];
 
     int a=Hash3_Allocate(*h,bu_size);
     if(a==-1)
@@ -187,7 +184,7 @@ Hash_Entry_3* Hash3_Find(Hash_map_3* h,int url,int* Error)//-1为过程错误，
         return NULL;
     }
 
-    int b_site=bucket_site(h->bu_num,url);
+    int b_site=bucket_site_3(h->bu_num,url);
 
     Hash_Entry_3* head=&(h->Elem[b_site]);
 
@@ -212,7 +209,7 @@ Hash_Entry_3* Hash3_Find(Hash_map_3* h,int url,int* Error)//-1为过程错误，
 int Hash3_Insert(Hash_map_3* h,int url,int value1,int value2,int value3)
 {
 
-    int b_site=bucket_site(h->bu_num,url);
+    int b_site=bucket_site_3(h->bu_num,url);
 
     Hash_Entry_3* head=&(h->Elem[b_site]);
 
@@ -232,7 +229,7 @@ int Hash3_Insert(Hash_map_3* h,int url,int value1,int value2,int value3)
 
 int Hash3_Delete(Hash_map_3* h,int url)
 {
-    int b_site=bucket_site(h->bu_num,url);
+    int b_site=bucket_site_3(h->bu_num,url);
 
     Hash_Entry_3* head=&(h->Elem[b_site]);
 
@@ -248,7 +245,7 @@ int Hash3_Delete(Hash_map_3* h,int url)
     return 1;
 }
 
-int bucket_site(int bucket_size,int url)
+int bucket_site_3(int bucket_size,int url)
 {
     return url/bucket_size;
 }

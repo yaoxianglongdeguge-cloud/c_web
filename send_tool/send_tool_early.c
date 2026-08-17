@@ -6,8 +6,9 @@
 
 #include"../data_struct/prior_queue_1.h"
 
-int send_tool_early_init(Send_tool_early* s,int num)
+int send_tool_early_init(Send_tool_early** s,int num)
 {
+    (*s)=(Send_tool_early*)malloc(sizeof(Send_tool_early));
     prior_queue_1_init(&((*s)->p),num);
 
     return 1;
@@ -17,9 +18,10 @@ int send_tool_early_insert(Send_tool_early* s,int fd)
 {
     for(int i=1;i<s->p->end;i++)
     {
-        if(fd_site==s->p->queue[i].fd)
+        if(fd==s->p->queue[i].fd)
         {
             s->p->queue[i].time=time(NULL);
+            prior_queue_1_down(s->p,fd);
             return 1;
         }
     }
@@ -46,7 +48,7 @@ int send_tool_early_pop(Send_tool_early* s,int fd)
     int which=0;
      for(int i=1;i<s->p->end;i++)
     {
-        if(fd_site==s->p->queue[i].fd)
+        if(fd==s->p->queue[i].fd)
         {
             which=1;
         }

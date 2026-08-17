@@ -43,24 +43,29 @@ int main() {
 
     bind(fd, (struct sockaddr*)&addr, sizeof(addr));
     listen(fd, 1);
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
     worker* w1;
-    worker_init(&w1);
+    worker_init(&w1,fd,1);
 
     pthread_t tid1;
     pthread_t tid2;
 
-    main_t* m;
-    m->fd=fd;
-    m->time=10000;
-    m->w=w1;
+    main_t m;
+    m.fd=fd;
+    m.time=10000;
+    m.w=w1;
 
-    while(1)
-    {
-        pthread_create(&tid1, NULL,func1 ,m);
-        pthread_create(&tid2, NULL,func2, NULL);
-    }
+    
+
+    pthread_create(&tid1, NULL,func1 ,&m);
+    pthread_create(&tid2, NULL,func2, NULL);
+    
  
+    while (1) {
+    sleep(1000);
+   }
 
     close(fd);
     return 0;

@@ -23,15 +23,11 @@ int ed_store_arr_init(worker* work,int small_num,int small_size,int big_num,int 
     work->store_pool_table->small_block_num=small_size;
     work->store_pool_table->big_block_num=big_size;
 
+    work->http_ed_store_arr=(http_ed_store**)malloc(sizeof(http_ed_store*)*total_num);
+
     for(int i=0;i<small_num;i++)
     {
-        work->http_ed_store_arr[i]=malloc(small_size);
-        work->http_ed_store_arr[i]->begin=(char*)(work->http_ed_store_arr[i]);
-        work->http_ed_store_arr[i]->end=work->http_ed_store_arr[i]->begin+small_size;
-        work->http_ed_store_arr[i]->ptr_b=work->http_ed_store_arr[i]->begin;
-        work->http_ed_store_arr[i]->ptr_e=work->http_ed_store_arr[i]->ptr_b;
-
-        int a=http_state_init(&(work->http_ed_store_arr[i]->httpstate));
+        int a=Http_ed_store_init(&(work->http_ed_store_arr[i]),small_size);
         if(a!=1)
         {
             return 1;
@@ -44,13 +40,7 @@ int ed_store_arr_init(worker* work,int small_num,int small_size,int big_num,int 
     for(int j=0;j<big_num;j++)
     {
         int i=j+work->store_pool_table->cut;
-        work->http_ed_store_arr[i]=malloc(big_size);
-        work->http_ed_store_arr[i]->begin=(char*)(work->http_ed_store_arr[i]);
-        work->http_ed_store_arr[i]->end=work->http_ed_store_arr[i]->begin+big_size;
-        work->http_ed_store_arr[i]->ptr_b=work->http_ed_store_arr[i]->begin;
-        work->http_ed_store_arr[i]->ptr_e=work->http_ed_store_arr[i]->ptr_b;
-
-        int a=http_state_init(&(work->http_ed_store_arr[i]->httpstate));
+        int a=Http_ed_store_init(&(work->http_ed_store_arr[i]),big_size);
         if(a!=1)
         {
             return 1;
@@ -73,6 +63,7 @@ int ed_store_pool_fdget(worker* work,int fd)
         if(work->store_pool_table->table[a]==fd)
         {
             which=a;
+            break;
         }
         a++;
     }
@@ -97,6 +88,7 @@ int ed_store_pool_fdalloc(worker* work,int fd)//如果没分配到则返回-2
             work->store_pool_table->table[a]=fd;
             which=a;
             can=1;
+            break;
         }
         a++;
     }

@@ -1,7 +1,7 @@
 #include "prior_queue_1.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
+
 
 
 
@@ -31,6 +31,103 @@ int prior_queue_1_init(prior_queue_1** p,int num)//节点个数
 
     return 1;
     
+}
+
+
+int prior_queue_1_swap(prior_queue_1* p,int t1,int t2)
+{
+    time_t time=p->queue[t2].time;
+    int fd=p->queue[t2].fd;
+    
+    p->queue[t2].time=p->queue[t1].time;
+    p->queue[t2].fd=p->queue[t1].fd;
+    
+    p->queue[t1].time=time;
+    p->queue[t1].fd=fd;
+    
+    return 1;
+}
+
+int prior_queue_1_up(prior_queue_1* p,int t)//上滤
+{
+    if(t<1||t>=p->elem_end||t>=p->end)
+    {
+        return 0;
+    }
+    
+    while(t>1)
+    {
+        if(p->queue[t].time<p->queue[t/2].time)
+        {
+            int a1=prior_queue_1_swap(p,t,t/2);
+            if(a1!=1)
+            {
+                return -1;
+            }
+            
+            t=t/2;
+        }
+        else
+        {
+            break;
+        }
+    }
+    
+    return 1;
+    
+}
+
+int prior_queue_1_down(prior_queue_1* p,int t)
+{
+    if(t<1||t>=p->elem_end||t>=p->end)
+    {
+        return 0;
+    }
+    
+    while(t*2<p->elem_end)
+    {
+        
+        if(p->queue[t*2].time<=p->queue[t*2+1].time)
+        {
+            if(p->queue[t].time>p->queue[t*2].time)
+            {
+                int a1=prior_queue_1_swap(p,t,t*2);
+                if(a1!=1)
+                {
+                    return -1;
+                }
+                
+                t=t*2;
+                
+            }
+            else
+            {
+                break;
+            }
+            
+        }
+        else
+        {
+            if(p->queue[t].time>p->queue[t*2+1].time)
+            {
+                int a1=prior_queue_1_swap(p,t,t*2+1);
+                if(a1!=1)
+                {
+                    return -1;
+                }
+                
+                t=t*2+1;
+                
+            }
+            else
+            {
+                break;
+            }
+            
+        }
+        
+        
+    }
 }
 
 int prior_queue_1_insert(prior_queue_1* p,int fd,time_t time)
@@ -101,100 +198,4 @@ timer_entry prior_queue_1_top(prior_queue_1* p)
     }
 
     return t;
-}
-
-int prior_queue_1_swap(prior_queue_1* p,int t1,int t2)
-{
-    time_t time=p->queue[t2].time;
-    int fd=p->queue[t2].fd;
-
-    p->queue[t2].time=p->queue[t1].time;
-    p->queue[t2].fd=p->queue[t1].fd;
-
-    p->queue[t1].time=time;
-    p->queue[t1].fd=fd;
-
-    return 1;
-}
-
-int prior_queue_1_up(prior_queue_1* p,int t)//上滤
-{
-    if(t<1||t>=p->elem_end||t>=p->end)
-    {
-        return 0;
-    }
-
-    while(t>1)
-    {
-        if(p->queue[t].time<p->queue[t/2].time)
-        {
-            int a1=prior_queue_1_swap(p,t,t/2);
-            if(a1!=1)
-            {
-                return -1;
-            }
-
-            t=t/2;
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    return 1;
-
-}
-
-int prior_queue_1_down(prior_queue_1* p,int t)
-{
-    if(t<1||t>=p->elem_end||t>=p->end)
-    {
-        return 0;
-    }
-
-    while(t*2<p->elem_end)
-    {
-
-        if(p->queue[t*2].time<=p->queue[t*2+1].time)
-        {
-            if(p->queue[t].time>p->queue[t*2].time)
-            {
-            int a1=prior_queue_1_swap(p,t,t*2);
-            if(a1!=1)
-            {
-                return -1;
-            }
-
-            t=t*2;
-
-            }
-            else
-            {
-                break;
-            }
-            
-        }
-        else
-        {
-            if(p->queue[t].time>p->queue[t*2+1].time)
-            {
-            int a1=prior_queue_1_swap(p,t,t*2+1);
-            if(a1!=1)
-            {
-                return -1;
-            }
-
-            t=t*2+1;
-
-            }
-            else
-            {
-                break;
-            }
-
-        }
-
-
-    }
 }

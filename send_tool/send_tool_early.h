@@ -1,3 +1,4 @@
+typedef struct prior_queue_1 prior_queue_1; 
 typedef struct Send_tool_early{
 
     prior_queue_1* p;

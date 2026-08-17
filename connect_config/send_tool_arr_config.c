@@ -2,8 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <semaphore.h> 
-#include <pthread.h> 
+
 
 
 #include "../my_thread/worker_thread.h"
@@ -25,12 +24,14 @@ int send_tool_arr_init(worker* work,int num,int blocknum)
     work->send_tool_table->end=num;
     work->send_tool_table->block_num=blocknum;
 
+    work->send_tool_arr=(Send_tool**)malloc(sizeof(Send_tool*)*num);
+
     for(int i=0;i<num;i++)
     {
         send_tool_init(&(work->send_tool_arr[i]),blocknum);
 
         work->send_tool_table->table[i].fd=-2;//防止fd返回-1
-        sem(&(work->send_tool_table->table[i].sem),0,work->send_tool_table->block_num);
+        sem_init(&(work->send_tool_table->table[i].sem),0,work->send_tool_table->block_num);
         pthread_mutex_init(&(work->send_tool_table->table[i].mutex), NULL);
 
     }
@@ -49,6 +50,7 @@ int send_tool_arr_fdget(worker* work,int fd)
         if(work->send_tool_table->table[a].fd==fd)
         {
             which=a;
+            break;
         }
         a++;
     }
@@ -75,6 +77,7 @@ int send_tool_arr_fdalloc(worker* work,int fd)//如果没分配到则返回-2
             work->send_tool_table->table[a].fd=fd;
             which=a;
             can=1;
+            break;
         }
         a++;
     }
@@ -91,7 +94,7 @@ int send_tool_arr_fdalloc(worker* work,int fd)//如果没分配到则返回-2
 
 int send_tool_arr_fdfree(worker* work,int fd)
 {
-    
+
     int which=send_tool_arr_fdget(work,fd);
     if(which==-2)
     {
@@ -108,7 +111,7 @@ int send_tool_arr_fdfree(worker* work,int fd)
         if(work->send_tool_arr[which]->store[i].error_reason>0)
         {
             int sz=work->send_tool_arr[which]->store[i].error_reason;
-            Memory_pool_free(work->send_pool,work->send_tool_arr[which]->store[i].ptr,work->send_tool_arr[which]->store[i]+sz);
+            Memory_pool_free(work->send_pool,work->send_tool_arr[which]->store[i].ptr,work->send_tool_arr[which]->store[i].ptr+sz);
         }
     }
     work->send_tool_arr[which]->store[i].use=0;

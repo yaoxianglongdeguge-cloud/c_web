@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 
+
 int Send_thing_queue_init(Send_thing_queue** sq,int size)
 {
     *sq=NULL;
@@ -49,7 +50,7 @@ int Send_thing_queue_push(Send_thing_queue* sq,int fd,int serial)
     return 1;
 }
 
-Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error )
+Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error)
 {
     *error=0;
     Send_tq_Entry s;

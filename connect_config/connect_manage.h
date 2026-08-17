@@ -1,3 +1,4 @@
+typedef struct worker worker; 
 
 int fd_connect(worker* w,int Listen_fd);
 

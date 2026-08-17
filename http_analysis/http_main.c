@@ -39,6 +39,10 @@ int http_main(int fd,worker* worker)
                 ed_store_pool_fdfree(worker,fd);
                 break;
             }
+            else if(r0==0)
+            {
+                fd_close(worker,fd);//对端关闭连接
+            }
             
             //序号零代表这个连接第一次发请求，所以要准备分配
         
@@ -71,6 +75,11 @@ int http_main(int fd,worker* worker)
                     }
                     break;
                 }
+                else if(r1==0)
+                {
+                    fd_close(worker,fd);
+                }
+
             }
             
             

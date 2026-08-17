@@ -58,7 +58,7 @@ int Task_queue_push(Task_queue* sq,worker* w,int fd,int serial,int error_reason,
     return 1;
 }
 
-Task_Entry Send_thing_queue_top_and_pop(Task_queue* sq,int* error)
+Task_Entry Task_queue_top_and_pop(Task_queue* sq,int* error)
 {
     *error=0;
     Task_Entry s;

@@ -2,6 +2,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/epoll.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #include "../timer/timer.h"
 #include "../my_lock/my_rwlock_t.h"
@@ -17,25 +23,38 @@
 int fd_connect(worker* w,int Listen_fd)
 {
     struct epoll_event ev;
-    int client_fd=accept(handle_fd,NULL,NULL);
-    int flags = fcntl(client_fd, F_GETFL, 0);   // 从内核拿到当前标志
-    fcntl(client_fd, F_SETFL, flags | O_NONBLOCK); // 加上非阻塞，写回内核
-    ev.events = EPOLLIN;        
-    ev.data.fd = client_fd;          
-    epoll_ctl(w->epfd, EPOLL_CTL_ADD, client_fd, &ev);  
-    int e0=timer_alloc_and_reset(w->my_timer,handle_fd,w);
-    if(e0!=1)
-    {   
-        epoll_ctl(w->epfd, EPOLL_CTL_DEL, client_fd, NULL);
-        return 0;
+    int client_fd;
+    while(1)
+    {
+        client_fd=accept(Listen_fd,NULL,NULL);
+        if (client_fd < 0) {
+        if (errno == EAGAIN) break;  // 取完了
+        else 
+        {
+            return -1;
+        }
+       }
+
+        int flags = fcntl(client_fd, F_GETFL, 0);   // 从内核拿到当前标志
+        fcntl(client_fd, F_SETFL, flags | O_NONBLOCK); // 加上非阻塞，写回内核
+        ev.events = EPOLLIN;        
+        ev.data.fd = client_fd;          
+        epoll_ctl(w->epfd, EPOLL_CTL_ADD, client_fd, &ev);  
+        int e0=timer_alloc_and_reset(w->my_timer,client_fd,w);
+        if(e0!=1)
+        {   
+            epoll_ctl(w->epfd, EPOLL_CTL_DEL, client_fd, NULL);
+            return 0;
+        }
+        int e1=http_back_order_insertfd(w->http_order,client_fd);
     }
-    
+
     return 1;
 }
 
 int fd_close(worker* w,int client_fd)
 {
-    int e0=ed_store_pool_fdfree(w.client_fd);
+    int e0=ed_store_pool_fdfree(w,client_fd);
 
     my_lock_wrlock(&(w->rwlock_table));
     int e2=send_tool_arr_fdfree(w,client_fd);

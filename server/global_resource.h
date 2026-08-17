@@ -1,3 +1,6 @@
+#include <semaphore.h> 
+#include <pthread.h> 
+
 typedef struct Task_queue Task_queue;
 extern Task_queue* Task_Queue;
 
