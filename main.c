@@ -49,6 +49,7 @@ int main() {
     int flags = fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
+
     worker* w1;
     worker_init(&w1,fd,1);
 
