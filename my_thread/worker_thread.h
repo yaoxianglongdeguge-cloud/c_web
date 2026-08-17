@@ -45,7 +45,7 @@ typedef struct worker{
 } worker;
 
 
-int worker_init(worker** w);
+int worker_init(worker** w,int Listen_fd,int id);
 
 int worker_to_profession(worker* w,int fd,Http_analysis_1* h,int error_reason,int serial);
 

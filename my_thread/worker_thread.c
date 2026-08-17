@@ -27,7 +27,7 @@
 
 extern Task_queue* Task_Queue;
 
-int worker_init(worker** w)
+int worker_init(worker** w,int Listen_fd,int id)
 {
     *w=(worker*)malloc(sizeof(worker));
     int e0=ed_store_arr_init(*w,10,4,5,8);
@@ -43,6 +43,15 @@ int worker_init(worker** w)
     pthread_mutex_init(&((*w)->mutex_thing), NULL);
     pthread_mutex_init(&((*w)->mutex_pool), NULL);
     my_rwlock_init(&((*w)->rwlock_table));
+
+    (*w)->epfd=epoll_create1(0);
+    (*w)->id=id;
+    struct epoll_event ev;
+    ev.events = EPOLLIN;        
+    ev.data.fd = Listen_fd;
+    int ret=1;
+
+    ret =epoll_ctl((*w)->epfd, EPOLL_CTL_ADD, Listen_fd, &ev);
 
 
     if(e0!=1)
@@ -76,6 +85,12 @@ int worker_init(worker** w)
 
 int worker_to_profession(worker* w,int fd,Http_analysis_1* h,int error_reason,int serial)
 {
+    if(serial==-1)
+    {
+        fd_close(w,fd);
+        return 1;
+    }
+
     sem_wait(&sem_task_queue_notfull);//本来push里面也没几个操作而且几乎都要直接操作队列，所以放在这里就可以
     pthread_mutex_lock(&mutex_task);
 
@@ -107,6 +122,7 @@ int receive_and_send_main(worker* w,int Listen_fd,int time)
                 int e1=http_main(handle_fd,w);//错误包已经通过发送程序发了，所以这里的返回值不验证
                 int e2=send_main(w);
             }
+
 
         }
  
