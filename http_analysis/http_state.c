@@ -76,9 +76,18 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
 
         if(method==NULL)
         {
-            *error=0;
-            *error_reason=400;
-            return NULL;
+            if(pipei_size<=7)
+            {
+                *error=-1;
+                return NULL;
+            }
+            else//因为匹配的字符数不一定够一个方法的，所以需要返回字符不够出去再写一次
+            {
+
+                *error=0;
+                *error_reason=400;
+                return NULL;
+            }
         }
         else
         { 
@@ -92,7 +101,7 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
         char* rnrn=strnstr_match(hs->begin,"\r\n\r\n",check_size);
         if(rnrn==NULL)
         {
-            *error=0;
+            *error=-1;
             return NULL;
         }
         else
@@ -144,6 +153,10 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
             target=target+4+len;
             if(target<hs->ptr_e){
                 *error=1;
+            }
+            else
+            {
+                *error=-1;
             }
 
         }

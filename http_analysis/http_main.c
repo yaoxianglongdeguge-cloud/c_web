@@ -25,7 +25,13 @@ int http_main(int fd,worker* worker)
     {
         
         int r0=Http_ed_store_write(worker->http_ed_store_arr[fd_store],fd);//返回-1说明，没断开但是没数据
-        
+        if(r0==-1)
+            {
+                ed_store_pool_fdfree(worker,fd);
+            }
+
+
+        int serial=http_back_order_get(worker->http_order,fd,1);
         while(1)
         {
             if(r0==-1)
@@ -35,7 +41,7 @@ int http_main(int fd,worker* worker)
             }
             
             //序号零代表这个连接第一次发请求，所以要准备分配
-            int serial=http_back_order_get(worker->http_order,fd,1);
+        
             if(serial==0)
             {
 
@@ -58,7 +64,7 @@ int http_main(int fd,worker* worker)
                 int r1=Http_ed_store_write(worker->http_ed_store_arr[fd_store],fd);
                 if(r1==-1)
                 {
-                    if(worker->http_ed_store_arr[fd_store]->begin==worker->http_ed_store_arr[fd_store]->end)
+                    if(worker->http_ed_store_arr[fd_store]->ptr_b==worker->http_ed_store_arr[fd_store]->ptr_e)
                     //说明连接里没数据并且暂存区也没有残留数据,所以可以释放占有的暂存区
                     {
                         ed_store_pool_fdfree(worker,fd);
@@ -133,7 +139,7 @@ int http_main(int fd,worker* worker)
                 }
                 
 
-            if(state==0)// 发生了错误
+            else if(state==0)// 发生了错误
             {
 
                 int serial=http_back_order_get(worker->http_order,fd,1);
