@@ -47,7 +47,7 @@ int worker_init(worker** w,int Listen_fd,int id)
     (*w)->epfd=epoll_create1(0);
     (*w)->id=id;
     struct epoll_event ev;
-    ev.events = EPOLLIN;        
+    ev.events = EPOLLIN;
     ev.data.fd = Listen_fd;
     int ret=1;
 
@@ -114,6 +114,7 @@ int receive_and_send_main(worker* w,int Listen_fd,int time)
             {
                 break;
             }
+            
             int e4=send_main(w);
             timer_overtime(w->my_timer,time,w);
         }

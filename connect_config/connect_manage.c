@@ -27,6 +27,7 @@ int fd_connect(worker* w,int Listen_fd)
     while(1)
     {
         client_fd=accept(Listen_fd,NULL,NULL);
+        printf("%d",w->id);
         if (client_fd < 0) {
         if (errno == EAGAIN) break;  // 取完了
         else 
