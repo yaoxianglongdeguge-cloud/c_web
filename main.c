@@ -25,7 +25,10 @@ void* func1(void* arg)
 }
 void* func2(void* arg)
 {
+    while(1)
+    {
     deal_and_pack();
+    }
 }
 
 int main() {
@@ -59,14 +62,13 @@ int main() {
 
     
 
-    pthread_create(&tid1, NULL,func1 ,&m);
-    pthread_create(&tid2, NULL,func2, NULL);
-    
- 
-    while (1) {
-    sleep(1000);
-   }
+    //pthread_create(&tid1, NULL,func1 ,&m);
 
-    close(fd);
+    pthread_create(&tid2, NULL,func2, NULL);
+
+ 
+    receive_and_send_main(m.w,m.fd,m.time);
+
+
     return 0;
 }

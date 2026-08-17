@@ -1,5 +1,6 @@
 #include "global_resource.h"
-
+#include <semaphore.h> 
+#include <pthread.h> 
 #include"../data_struct/Task_queue.h"
 
 Task_queue* Task_Queue;

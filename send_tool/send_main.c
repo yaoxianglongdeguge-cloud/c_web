@@ -123,7 +123,7 @@ int send_main(worker* w)
     }
 
 
-    while(w->send_tool_arr[which2]->store[next_ptr2].use==1&&next_ptr<w->send_tool_arr[which]->blocknum)
+    while(w->send_tool_arr[which2]->store[next_ptr2].use==1&&next_ptr<w->send_tool_arr[which2]->blocknum)
     {
         int n1=write(early_fd,w->send_tool_arr[which2]->store[next_ptr2].ptr,len);
         http_back_order_add(w->http_order,s.fd,2);
@@ -137,7 +137,7 @@ int send_main(worker* w)
         my_lock_wrlock(&(w->rwlock_table));
         send_tool_arr_fdfree(w,early_fd);
         my_lock_unlock(&(w->rwlock_table));
-        send_tool_early_pop(w->send_early,which);
+        send_tool_early_pop(w->send_early,which2);
     }
     timer_alloc_and_reset(w->my_timer,early_fd,w);
 

@@ -25,10 +25,10 @@ int deal_task(int * e)
 int pack_task(char** c,Response)
 {
     *c="HTTP/1.1 200 OK\r\n"
-    "Content-Type: application/json\r\n"
-    "Content-Length: 27\r\n"
+    "Content-Type: text/plain\r\n"
+    "Content-Length: 13\r\n"
     "\r\n"
-    "{\"name\":\"john\",\"age\":20}";
+    "Hello, World!";
 
     int len = strlen(*c);
 
@@ -39,10 +39,8 @@ int deal_and_pack()
 {
     int e0=0;
     Task_Entry t;
-    while(1)
-    {
+    
 
-        
         sem_wait(&sem_task_queue_notempty);//本来push里面也没几个操作而且几乎都要直接操作队列，所以放在这里就可以
         pthread_mutex_lock(&mutex_task);
         
@@ -163,7 +161,7 @@ int deal_and_pack()
             
             
             
-        }
+        
     }
         
         

@@ -102,12 +102,21 @@ int worker_to_profession(worker* w,int fd,Http_analysis_1* h,int error_reason,in
 
 int receive_and_send_main(worker* w,int Listen_fd,int time)
 {
+    
     struct epoll_event events[1024];
-
     while(1)
     {
-        int n=epoll_wait(w->epfd, events, 1024, -1);
-        timer_overtime(w->my_timer,time,w);
+        int n=-1;
+        while(1)
+        {
+            n=epoll_wait(w->epfd, events, 1024, -1);
+            if(n>0)
+            {
+                break;
+            }
+            int e4=send_main(w);
+            timer_overtime(w->my_timer,time,w);
+        }
         for(int i=0;i<n;i++)
         {
             int handle_fd=events[i].data.fd;

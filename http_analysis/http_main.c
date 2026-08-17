@@ -42,18 +42,25 @@ int http_main(int fd,worker* worker)
             else if(r0==0)
             {
                 fd_close(worker,fd);//对端关闭连接
+                return 1;
             }
             
             //序号零代表这个连接第一次发请求，所以要准备分配
         
-            if(serial==0)
+            my_lock_rdlock(&(worker->rwlock_table));
+            int which0 = send_tool_arr_fdget(worker,fd);
+            my_lock_unlock(&(worker->rwlock_table));
+
+            if(which0==-2)
             {
+                my_lock_wrlock(&(worker->rwlock_table));
+                send_tool_arr_fdalloc(worker,fd);
+                my_lock_unlock(&(worker->rwlock_table));
 
-               my_lock_wrlock(&worker->rwlock_table);
-               send_tool_arr_fdalloc(worker,fd);
-               my_lock_unlock(&worker->rwlock_table);
+            }
 
-            }      
+
+               
 
         //状态机开始检索http请求
             int state=0;
@@ -78,6 +85,7 @@ int http_main(int fd,worker* worker)
                 else if(r1==0)
                 {
                     fd_close(worker,fd);
+                    return 1;
                 }
 
             }

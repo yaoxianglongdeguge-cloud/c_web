@@ -16,7 +16,7 @@ int send_tool_early_init(Send_tool_early** s,int num)
 
 int send_tool_early_insert(Send_tool_early* s,int fd)
 {
-    for(int i=1;i<s->p->end;i++)
+    for(int i=1;i<s->p->elem_end;i++)
     {
         if(fd==s->p->queue[i].fd)
         {
@@ -46,11 +46,11 @@ int send_tool_early_top(Send_tool_early* s)
 int send_tool_early_pop(Send_tool_early* s,int fd)
 {
     int which=0;
-     for(int i=1;i<s->p->end;i++)
+     for(int i=1;i<s->p->elem_end;i++)
     {
         if(fd==s->p->queue[i].fd)
         {
-            which=1;
+            which=i;
         }
     }
 
@@ -59,7 +59,7 @@ int send_tool_early_pop(Send_tool_early* s,int fd)
         return 1;
     }
 
-    s->p->queue[which].time=9223372036854775800;
+    s->p->queue[which].time=9223372036009;
     prior_queue_1_down(s->p,which);
     s->p->queue[0].fd--;
     s->p->elem_end--;

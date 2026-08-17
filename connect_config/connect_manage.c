@@ -35,9 +35,9 @@ int fd_connect(worker* w,int Listen_fd)
         }
        }
 
-        int flags = fcntl(client_fd, F_GETFL, 0);   // 从内核拿到当前标志
-        fcntl(client_fd, F_SETFL, flags | O_NONBLOCK); // 加上非阻塞，写回内核
-        ev.events = EPOLLIN;        
+        int flags = fcntl(client_fd, F_GETFL, 0); 
+        fcntl(client_fd, F_SETFL, flags | O_NONBLOCK); 
+        ev.events = ev.events = EPOLLIN | EPOLLET;   // 边缘触发;        
         ev.data.fd = client_fd;          
         epoll_ctl(w->epfd, EPOLL_CTL_ADD, client_fd, &ev);  
         int e0=timer_alloc_and_reset(w->my_timer,client_fd,w);
@@ -62,6 +62,8 @@ int fd_close(worker* w,int client_fd)
 
     int e1=http_back_order_deletefd(w->http_order,client_fd);
     int e3=send_tool_early_pop(w->send_early,client_fd);
+    close(client_fd);
+    epoll_ctl(w->epfd, EPOLL_CTL_DEL, client_fd, NULL);
 
     return 1;
 }
