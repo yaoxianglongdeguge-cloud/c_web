@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "../memory_pool/memory_pool.h"
 #include "../my_thread/worker_thread.h"
 #include "../timer/timer.h"
 #include "send_tool.h"
@@ -69,6 +70,8 @@ int send_main(worker* w)
     while(w->send_tool_arr[which]->store[next_ptr].use==1&&next_ptr<w->send_tool_arr[which]->blocknum)
     {
         int n=write(s.fd,w->send_tool_arr[which]->store[next_ptr].ptr, len);
+        w->send_tool_arr[which]->store[next_ptr].use=0;
+        Memory_pool_free(w->send_pool,w->send_tool_arr[which]->store[next_ptr].ptr,w->send_tool_arr[which]->store[next_ptr].ptr+len);
         http_back_order_add(w->http_order,s.fd,2);
         next_ptr=next_ptr+1%w->send_tool_arr[which]->blocknum;
     }
@@ -126,6 +129,8 @@ int send_main(worker* w)
     while(w->send_tool_arr[which2]->store[next_ptr2].use==1&&next_ptr<w->send_tool_arr[which2]->blocknum)
     {
         int n1=write(early_fd,w->send_tool_arr[which2]->store[next_ptr2].ptr,len);
+        w->send_tool_arr[which2]->store[next_ptr2].use=0;
+        Memory_pool_free(w->send_pool,w->send_tool_arr[which2]->store[next_ptr2].ptr,w->send_tool_arr[which2]->store[next_ptr2].ptr+len2);
         http_back_order_add(w->http_order,s.fd,2);
         next_ptr2=next_ptr2+1/w->send_tool_arr[which2]->blocknum;
     }

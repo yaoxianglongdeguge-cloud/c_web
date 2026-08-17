@@ -33,7 +33,7 @@ int worker_init(worker** w,int Listen_fd,int id)
     int e0=ed_store_arr_init(*w,10,4,5,8);
     int e1=Memory_pool_init(&((*w)->http_pool),32,4);
     int e2=http_back_order_init(&((*w)->http_order),3);
-    int e3=send_tool_arr_init(*w,15,2);
+    int e3=send_tool_arr_init(*w,15,4);
     int e4=Memory_pool_init(&((*w)->send_pool),32,4);
     int e5=Send_thing_queue_init(&((*w)->send_thing_queue),40);
     int e6=send_tool_early_init(&((*w)->send_early),50);
