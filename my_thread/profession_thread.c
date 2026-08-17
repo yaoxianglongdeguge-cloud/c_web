@@ -93,7 +93,7 @@ int deal_and_pack()
         //{
             //int e5=Error_reason_ptr(&back_pack,Error_reason);
             // }
-            my_lock_unlock(&(W->rwlock_table));
+        my_lock_unlock(&(W->rwlock_table));
             
             
             //把http请求的内存回收，业务函数用完了
@@ -107,8 +107,9 @@ int deal_and_pack()
             {
                 if(Error_reason==200)
                 {
-                    
-                    Memory_pool_free(W->send_pool,back_pack,back_pack+size);//这是连接已经断开，资源已经回收，但已经在返回池申请内存的
+                     pthread_mutex_lock(&(W->mutex_pool));
+                     Memory_pool_free(W->send_pool,back_pack,back_pack+size);//这是连接已经断开，资源已经回收，但已经在返回池申请内存的
+                     pthread_mutex_unlock(&(W->mutex_pool));
                     
                 }
                 my_lock_unlock(&(W->rwlock_table));
@@ -141,8 +142,9 @@ int deal_and_pack()
             {
                 if(Error_reason==200)
                 {
-                    
-                    Memory_pool_free(W->send_pool,back_pack,back_pack+size);
+                pthread_mutex_lock(&(W->mutex_pool));
+                Memory_pool_free(W->send_pool,back_pack,back_pack+size);
+                pthread_mutex_unlock(&(W->mutex_pool));
                     
                 }
                 my_lock_unlock(&(W->rwlock_table));

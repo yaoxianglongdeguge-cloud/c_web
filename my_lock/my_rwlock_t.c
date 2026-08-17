@@ -18,7 +18,7 @@ int my_rwlock_init(my_rwlock_t* rw)
 int my_lock_rdlock(my_rwlock_t* rw)
 {
     pthread_mutex_lock(&(rw->mutex));
-    while(rw->waiting_writers!=0||rw->waiting_writers!=0)
+    while(rw->waiting_writers>0||rw->waiting_writers>0)
     {
         pthread_cond_wait(&(rw->cond),&(rw->mutex));
     }
@@ -50,6 +50,6 @@ int my_lock_unlock(my_rwlock_t* rw)
     {
         rw->writers=0;
     }
-    pthread_cond_broadcast(&rw->cond);
+    pthread_cond_broadcast(&(rw->cond));
     pthread_mutex_unlock(&(rw->mutex));
 }

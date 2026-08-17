@@ -67,14 +67,27 @@ int send_main(worker* w)
     }
 
 
+    pthread_mutex_lock(&(w->send_tool_table->table[which].mutex));
     while(w->send_tool_arr[which]->store[next_ptr].use==1&&next_ptr<w->send_tool_arr[which]->blocknum)
     {
         int n=write(s.fd,w->send_tool_arr[which]->store[next_ptr].ptr, len);
         w->send_tool_arr[which]->store[next_ptr].use=0;
+
+
+        pthread_mutex_lock(&(w->mutex_pool));
+
         Memory_pool_free(w->send_pool,w->send_tool_arr[which]->store[next_ptr].ptr,w->send_tool_arr[which]->store[next_ptr].ptr+len);
+        pthread_mutex_unlock(&(w->mutex_pool));
+
+
+
         http_back_order_add(w->http_order,s.fd,2);
+
+
+        sem_post(&(w->send_tool_table->table[which].sem));
         next_ptr=next_ptr+1%w->send_tool_arr[which]->blocknum;
     }
+    pthread_mutex_unlock(&(w->send_tool_table->table[which].mutex));
 
     int final_ptr=http_back_order_get(w->http_order,s.fd,3);
     if(next_ptr>=final_ptr)
@@ -126,14 +139,21 @@ int send_main(worker* w)
     }
 
 
+    pthread_mutex_lock(&(w->send_tool_table->table[which2].mutex));
     while(w->send_tool_arr[which2]->store[next_ptr2].use==1&&next_ptr<w->send_tool_arr[which2]->blocknum)
     {
         int n1=write(early_fd,w->send_tool_arr[which2]->store[next_ptr2].ptr,len);
         w->send_tool_arr[which2]->store[next_ptr2].use=0;
+
+        pthread_mutex_lock(&(w->mutex_pool));
+
         Memory_pool_free(w->send_pool,w->send_tool_arr[which2]->store[next_ptr2].ptr,w->send_tool_arr[which2]->store[next_ptr2].ptr+len2);
+        pthread_mutex_unlock(&(w->mutex_pool));
         http_back_order_add(w->http_order,s.fd,2);
+        sem_post(&(w->send_tool_table->table[which2].sem));
         next_ptr2=next_ptr2+1/w->send_tool_arr[which2]->blocknum;
     }
+    pthread_mutex_unlock(&(w->send_tool_table->table[which2].mutex));
 
     int final_ptr2=http_back_order_get(w->http_order,early_fd,3);
 
