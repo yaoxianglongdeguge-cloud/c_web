@@ -15,7 +15,7 @@ int Http_analysis_body(Http_analysis_1* h,char* http_request);//type用来判断
 
 int Http_analysis_body_1(Http_analysis_1* h,char* http_body);//x-www-form-urlencode类型
 
-int Http_analysis_head(Http_analysis_1* h,char* http_request);
+int Http_analysis_head(Http_analysis_1* h,char* http_request,int* error_reason);
 
 
 
@@ -60,7 +60,7 @@ int Http_analysis_receive(Http_analysis_1* h,char* http_request,int *error_reaso
     char *body_start = strstr(http_request, "\r\n\r\n");
     if (!body_start) 
     {
-       int a1=Http_analysis_head(h,http_request);
+       int a1=Http_analysis_head(h,http_request,error_reason);
        if(a1!=1)
       {
         return -1;
@@ -178,10 +178,9 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head,int* error_reason)
             query_ing=path_cut+1;
             url=path;
         }
-        }
-        
-        
+         
         h->Url=url;
+        size_t lenu = strlen(h->Url);
         if(lenu>MAX_URL_LEN)
         {
             *error_reason=414;

@@ -13,6 +13,8 @@
 #include "../send_tool/send_tool.h"
 #include "../connect_config/send_tool_arr_config.h"
 #include "../send_tool/send_tool_early.h"
+#include "../memory_pool/memory_pool.h"
+
 
 int http_main(int fd,worker* worker)
 {
@@ -23,7 +25,6 @@ int http_main(int fd,worker* worker)
     {
         
         int r0=Http_ed_store_write(worker->http_ed_store_arr[fd_store],fd);//返回-1说明，没断开但是没数据
-        printf(worker->http_ed_store_arr[fd_store]->begin);
         
         while(1)
         {
@@ -33,21 +34,25 @@ int http_main(int fd,worker* worker)
                 break;
             }
             
+            //序号零代表这个连接第一次发请求，所以要准备分配
             int serial=http_back_order_get(worker->http_order,fd,1);
             if(serial==0)
             {
-            my_lock_wrlock(&(worker->rwlock_table));
-            send_tool_arr_fdalloc(worker,fd);
-            my_lock_unlock(&(worker->rwlock_table));
-            send_tool_early_insert(worker->send_early,fd);
+
+               my_lock_wrlock(&worker->rwlock_table);
+               send_tool_arr_fdalloc(worker,fd);
+               my_lock_unlock(&worker->rwlock_table);
+
             }      
 
+        //状态机开始检索http请求
             int state=0;
             int error_reason=0;
             char* source_end=http_state_judge(worker->http_ed_store_arr[fd_store],&state,&error_reason);//要复制的文本结尾，此处在文本中
             
             
-            if(state==-1&&worker->http_ed_store_arr[fd_store]->ptr_e!=worker->http_ed_store_arr[fd_store]->end)//不够一个请求的，
+            if(state==-1&&worker->http_ed_store_arr[fd_store]->ptr_e!=worker->http_ed_store_arr[fd_store]->end)
+            //不够一个请求的，
             //但是还不需要更大的存储区
             {
                 int r1=Http_ed_store_write(worker->http_ed_store_arr[fd_store],fd);
@@ -84,7 +89,8 @@ int http_main(int fd,worker* worker)
                 Http_ed_store_copy(worker->http_ed_store_arr[fd_store],source_end,h->ptr);
                 char* http_txt_begin=h->ptr;//复制之后等待被分割解析的文本
                 
-                h->ptr=h->ptr+h_size+1;//如果是http_analysis或者他特有的数据结构的函数，那会自己移动指针，但这个不是，需要我操作
+                h->ptr=h->ptr+h_size+1;
+                //如果是http_analysis或者他特有的数据结构的函数，那会自己移动指针，但这个不是，需要我操作
                 //加一是因为复制文本后，最后面还有个\0
                 if(h->ptr>=h->end)
                 {
@@ -94,18 +100,15 @@ int http_main(int fd,worker* worker)
                 
                 int e6=Http_analysis_receive(h,http_txt_begin,&error_reason2);
 
-                if(e6==1)
-                {
-                    Http_ed_store_write(worker->http_ed_store_arr[fd_store],fd);
-                }
-                else
+                if(e6!=1)
                 {
                     Memory_pool_free(worker->http_pool,h,h->end);
                 }
                 
-                e6=http_state_reset(worker->http_ed_store_arr[fd_store]);
+                int e7=http_state_reset(worker->http_ed_store_arr[fd_store]);
                 
-                
+
+                serial=http_back_order_get(worker->http_order,fd,1);
                 int e3=http_back_order_add(worker->http_order,fd,1);
                 int e4=http_back_order_add(worker->http_order,fd,3);
                 if(serial<0||e3!=1||e4!=1)
@@ -129,6 +132,7 @@ int http_main(int fd,worker* worker)
                     break;
                 }
                 
+
             if(state==0)// 发生了错误
             {
 

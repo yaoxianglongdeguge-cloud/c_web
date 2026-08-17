@@ -6,6 +6,7 @@
 
 
 #define MAX_BODY_SIZE (1024 * 1024)  // 1MB
+char* Method_p[9]={"GET ","DELETE ","HEAD ","OPTIONS ","TRACE ","CONNECT ","POST ","PUT ","PATCH "};
 
 char *strnstr(const char *haystack, const char *needle, size_t n) {
     size_t needle_len = strlen(needle);
@@ -36,6 +37,19 @@ int http_state_init(http_state** h)
 
 }
 
+int maxm(int a,int b)
+{
+    if(a>=b)
+    {
+        return a;
+    }
+    else
+    {
+        return b;
+    }
+    return 0;
+}
+
 char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代表不完整，需要accept,0时代表错误，1时代表对
 {
     *error=0;
@@ -43,65 +57,23 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
     char* target;
     
     int check_size=hs->ptr_e-hs->ptr_b;
+    int pipei_size=maxm(8,check_size);//匹配方法用的长度
 
     if(hs->httpstate->h_method==0)
     {
 
-        
-        char* method=strnstr_match(hs->begin,"GET ",8);
-        if(method==NULL)
+        char* method=NULL;
+        int i=0;
+        for(;i<9;i++)
         {
-            method=strnstr_match(hs->begin,"POST ",8);
-        }
-        else
-        {
-            hs->httpstate->h_method=1;
+           method=strnstr_match(hs->begin,Method_p[i],8);
+           if(method!=NULL)
+           {
+            break;
+           }
+
         }
 
-        if(method==NULL)
-        {
-        method=strnstr_match(hs->begin,"PUT ",8);
-        }
-         else
-        {
-            hs->httpstate->h_method=7;
-        }
-
-        if(method==NULL)
-        {
-        method=strnstr_match(hs->begin,"DELETE ",8);
-        }
-         else
-        {
-            hs->httpstate->h_method=8;
-        }
-
-        if(method==NULL)
-        {
-        method=strnstr_match(hs->begin,"HEAD ",8);
-        }
-         else
-        {
-            hs->httpstate->h_method=2;
-        }
-
-        if(method==NULL)
-        {
-        method=strnstr_match(hs->begin,"OPTIONS ",8);
-        }
-         else
-        {
-            hs->httpstate->h_method=3;
-        }
-
-        if(method==NULL)
-        {
-        method=strnstr_match(hs->begin,"PATCH ",8);   
-        }
-         else
-        {
-            hs->httpstate->h_method=4;
-        }       
         if(method==NULL)
         {
             *error=0;
@@ -109,8 +81,8 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
             return NULL;
         }
         else
-        {
-            hs->httpstate->h_method=9;
+        { 
+           hs->httpstate->h_method=i;
         }
         
     }
@@ -146,7 +118,7 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
         }
         else
         {
-            *error=-1;
+            *error=0;
             body_length=body_length+15;
             while(body_length!=" ")
             {
@@ -164,7 +136,7 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
             int len=atoi(length_num);
             if(len>MAX_BODY_SIZE)
             {
-                *error_reason=413
+                *error_reason=413;
                 *error=0;
                 return NULL;
             }

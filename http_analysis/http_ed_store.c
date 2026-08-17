@@ -4,7 +4,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
-
+#include <string.h>
 
 int Http_ed_store_init(http_ed_store** h,int size)//分配整个存储大小，单位是字节
 {
@@ -32,20 +32,20 @@ int Http_ed_store_init(http_ed_store** h,int size)//分配整个存储大小，�
 int Http_ed_store_write(http_ed_store* h,int fd)
 {
    
-        int length=h->end-h->ptr_e;
-        int n1=read(fd,h->ptr_e,length);
-        if(n1==1)
-        {
-         h->ptr_e=h->end;
-        }
-        else if(errno==EAGAIN)
-        {
-            return -1;
-        }
-        else
-        {
-            h->ptr_e=h->begin+n1;
-        }
+    int length=h->end-h->ptr_e;
+    char C[length];
+    int n1=read(fd,C,length);
+
+    if(n1>0)
+    {
+        memcpy(h->ptr_e,C,n1);
+        h->ptr_e=h->ptr_e+n1;
+
+    }
+    else if(errno==EAGAIN)
+    {
+        return -1;
+    }
 
     return 1;
 }
@@ -65,7 +65,7 @@ int Http_ed_store_copy(http_ed_store* h,char*end,char* target)//把一整个请�
     
     if(h->ptr_b[0]=='\r'&&h->ptr_b[1]=='\n'&&h->ptr_b[2]=='\r'&&h->ptr_b[3]=='\n')
     {
-        h->ptr_b=h->ptr_b+3;//防止复制后参与分隔符
+        h->ptr_b=h->ptr_b+4;//防止复制后参与分隔符
     }
     
     int copy_num2=h->ptr_e-h->ptr_b;
