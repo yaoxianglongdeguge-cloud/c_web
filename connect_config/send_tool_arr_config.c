@@ -111,7 +111,9 @@ int send_tool_arr_fdfree(worker* work,int fd)
         if(work->send_tool_arr[which]->store[i].error_reason>0)
         {
             int sz=work->send_tool_arr[which]->store[i].error_reason;
+            my_lock_wrlock(&(work->mutex_pool));
             Memory_pool_free(work->send_pool,work->send_tool_arr[which]->store[i].ptr,work->send_tool_arr[which]->store[i].ptr+sz);
+            my_lock_unlock(&(work->mutex_pool));
         }
     }
     work->send_tool_arr[which]->store[i].use=0;

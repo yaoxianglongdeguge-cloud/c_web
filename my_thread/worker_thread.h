@@ -35,7 +35,7 @@ typedef struct worker{
 
 
     my_rwlock_t rwlock_table;//读写指针池分配表
-    pthread_mutex_t mutex_pool;//返回包字节实际储存位置的内存池的锁
+    my_rwlock_t mutex_pool;//返回包字节实际储存位置的内存池的锁
     
     sem_t sem_thing_queue_notfull;//返回包事件的队列的信号量，用来指示队列还有多少个业务线程可以进入
     pthread_mutex_t mutex_thing;

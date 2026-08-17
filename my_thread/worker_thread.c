@@ -41,7 +41,7 @@ int worker_init(worker** w,int Listen_fd,int id)
 
     sem_init(&((*w)->sem_thing_queue_notfull),0,40);
     pthread_mutex_init(&((*w)->mutex_thing), NULL);
-    pthread_mutex_init(&((*w)->mutex_pool), NULL);
+    my_rwlock_init(&((*w)->mutex_pool));
     my_rwlock_init(&((*w)->rwlock_table));
 
     (*w)->epfd=epoll_create1(0);

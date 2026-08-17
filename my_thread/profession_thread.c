@@ -83,9 +83,9 @@ int deal_and_pack()
         if(Error_reason==200)
         {
             
-            pthread_mutex_lock(&(W->mutex_pool));
+            my_lock_wrlock(&(W->mutex_pool));
             back_pack=Memory_pool_alloc(W->send_pool,size);
-            pthread_mutex_unlock(&(W->mutex_pool));
+            my_lock_unlock(&(W->mutex_pool));
             
             memcpy(back_pack,C,size);//这里虽然还是要在共享内存池写，但只会在他自己的这块内存写，不会影响到别的，而且他不释放，别的拿不到
         }
@@ -107,9 +107,9 @@ int deal_and_pack()
             {
                 if(Error_reason==200)
                 {
-                     pthread_mutex_lock(&(W->mutex_pool));
+                     my_lock_wrlock(&(W->mutex_pool));
                      Memory_pool_free(W->send_pool,back_pack,back_pack+size);//这是连接已经断开，资源已经回收，但已经在返回池申请内存的
-                     pthread_mutex_unlock(&(W->mutex_pool));
+                     my_lock_unlock(&(W->mutex_pool));
                     
                 }
                 my_lock_unlock(&(W->rwlock_table));
@@ -142,9 +142,9 @@ int deal_and_pack()
             {
                 if(Error_reason==200)
                 {
-                pthread_mutex_lock(&(W->mutex_pool));
+                my_lock_wrlock(&(W->mutex_pool));
                 Memory_pool_free(W->send_pool,back_pack,back_pack+size);
-                pthread_mutex_unlock(&(W->mutex_pool));
+                my_lock_unlock(&(W->mutex_pool));
                     
                 }
                 my_lock_unlock(&(W->rwlock_table));

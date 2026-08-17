@@ -70,14 +70,17 @@ int send_main(worker* w)
     pthread_mutex_lock(&(w->send_tool_table->table[which].mutex));
     while(w->send_tool_arr[which]->store[next_ptr].use==1&&next_ptr<w->send_tool_arr[which]->blocknum)
     {
+        my_lock_rdlock(&(w->mutex_pool));
         int n=write(s.fd,w->send_tool_arr[which]->store[next_ptr].ptr, len);
+        my_lock_unlock(&(w->mutex_pool));
+
         w->send_tool_arr[which]->store[next_ptr].use=0;
 
 
-        pthread_mutex_lock(&(w->mutex_pool));
+        my_lock_wrlock(&(w->mutex_pool));
 
         Memory_pool_free(w->send_pool,w->send_tool_arr[which]->store[next_ptr].ptr,w->send_tool_arr[which]->store[next_ptr].ptr+len);
-        pthread_mutex_unlock(&(w->mutex_pool));
+        my_lock_unlock(&(w->mutex_pool));
 
 
 
@@ -142,13 +145,17 @@ int send_main(worker* w)
     pthread_mutex_lock(&(w->send_tool_table->table[which2].mutex));
     while(w->send_tool_arr[which2]->store[next_ptr2].use==1&&next_ptr<w->send_tool_arr[which2]->blocknum)
     {
+        my_lock_rdlock(&(w->mutex_pool));
         int n1=write(early_fd,w->send_tool_arr[which2]->store[next_ptr2].ptr,len);
+        my_lock_unlock(&(w->mutex_pool));
+
         w->send_tool_arr[which2]->store[next_ptr2].use=0;
 
-        pthread_mutex_lock(&(w->mutex_pool));
+        my_lock_wrlock(&(w->mutex_pool));
 
         Memory_pool_free(w->send_pool,w->send_tool_arr[which2]->store[next_ptr2].ptr,w->send_tool_arr[which2]->store[next_ptr2].ptr+len2);
-        pthread_mutex_unlock(&(w->mutex_pool));
+        my_lock_unlock(&(w->mutex_pool));
+
         http_back_order_add(w->http_order,s.fd,2);
         sem_post(&(w->send_tool_table->table[which2].sem));
         next_ptr2=next_ptr2+1/w->send_tool_arr[which2]->blocknum;
