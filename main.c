@@ -146,10 +146,10 @@ worker_init(&w4, fd, 4);
 pthread_t tid1;
 pthread_t tid2;
 
-main_t m;
-m.fd = fd;
-m.time = 10000;
-m.w = w1;
+main_t m1 = {.fd = fd, .time = 10000, .w = w1};
+main_t m2 = {.fd = fd, .time = 10000, .w = w2};
+main_t m3 = {.fd = fd, .time = 10000, .w = w3};
+main_t m4 = {.fd = fd, .time = 10000, .w = w4};
 
 pthread_create(&tid2, NULL, func2, NULL);
 pthread_create(&tid2, NULL, func2, NULL);
@@ -159,10 +159,13 @@ pthread_create(&tid2, NULL, func2, NULL);
 pthread_create(&tid2, NULL, func2, NULL);
 
 
-pthread_create(&tid1, NULL, func1, &m);
-pthread_create(&tid1, NULL, func1, &m);
-pthread_create(&tid1, NULL, func1, &m);
-pthread_create(&tid1, NULL, func1, &m);
+pthread_create(&tid1, NULL, func1, &m1);
+
+pthread_create(&tid1, NULL, func1, &m2);
+
+pthread_create(&tid1, NULL, func1, &m3);
+
+pthread_create(&tid1, NULL, func1, &m4);
 
 while(1)
 {

@@ -6,17 +6,18 @@ typedef struct Send_table_Entry Send_table_Entry;
 
 typedef struct Send_table{
     
-    int block_num;//条的格子数量
+    int num;//条的数量
+    int had_num;
     Send_table_Entry* table;
-    int end;//指向最后一个有效元素的下一个
 
 }Send_table;
 
 typedef struct Send_table_Entry{
 
     int fd;
-    sem_t sem;
-    pthread_mutex_t mutex;
+    int block_num;//条的格子数量
+    int had_block;
+    Send_tool_Entry* send_tool;
 
 }Send_table_Entry;
 

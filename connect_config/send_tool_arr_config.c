@@ -12,7 +12,7 @@
 #include "../send_tool/send_tool.h"
 #include "../send_tool/send_tool_early.h"
 
-int send_tool_arr_init(worker* work,int num,int blocknum)
+int send_tool_init(worker* work,int num,int blocknum)
 {
     if(work==NULL)
     {
@@ -21,19 +21,19 @@ int send_tool_arr_init(worker* work,int num,int blocknum)
 
     work->send_tool_table=(Send_table*)malloc(sizeof(Send_table));
     work->send_tool_table->table=(Send_table_Entry*)malloc(num*sizeof(Send_table_Entry));
-    work->send_tool_table->end=num;
-    work->send_tool_table->block_num=blocknum;
-
-    work->send_tool_arr=(Send_tool**)malloc(sizeof(Send_tool*)*num);
+    work->send_tool_table->num=num;
 
     for(int i=0;i<num;i++)
-    {
-        send_tool_init(&(work->send_tool_arr[i]),blocknum);
-
-        work->send_tool_table->table[i].fd=-2;//防止fd返回-1
-        sem_init(&(work->send_tool_table->table[i].sem),0,work->send_tool_table->block_num);
-        pthread_mutex_init(&(work->send_tool_table->table[i].mutex), NULL);
-
+    {   
+        work->send_tool_table->table[i].fd=-2;
+        work->send_tool_table->table[i].send_tool=(Send_tool_Entry*)malloc(blocknum*sizeof(Send_tool_Entry));
+        for(int j=0;j<blocknum;j++)
+        {
+            work->send_tool_table->table[i].send_tool[j].send_pack=NULL;
+            work->send_tool_table->table[i].send_tool[j].use=0;
+            work->send_tool_table->table[i].block_num=blocknum;
+            work->send_tool_table->table[i].had_block=0;
+        }
     }
 
 
@@ -41,36 +41,46 @@ int send_tool_arr_init(worker* work,int num,int blocknum)
 
 }
 
-int send_tool_arr_fdget(worker* work,int fd)
+Send_tool_Entry* send_tool_fdget(worker* work,int fd,int* error)
 {
-    int a=0;
+    *error=0;
+
+    num=work->send_tool_table->num;
+
     int which=-2;
-    while(a<work->send_tool_table->end)
+    for(int a=0;a<num;a++)
     {
         if(work->send_tool_table->table[a].fd==fd)
         {
             which=a;
             break;
         }
-        a++;
     }
 
+    if(which==-2)
+    {
+        return NULL;
+    }
 
-    return which;
+    *error=1;
+    return work->send_tool_table->table[which].send_tool;
+
 }
 
-int send_tool_arr_fdalloc(worker* work,int fd)//如果没分配到则返回-2
+int send_tool_alloc(worker* work,int fd)//如果没分配到则返回-2
 {
     int a=0;
-    int can=0;//标记有没有分配到
-    int which=send_tool_arr_fdget(work,fd);
+    int e0=0;//标记有没有分配到
+    int send_tool=send_tool_arr_fdget(work,fd,&e0);
 
-    if(which!=-2)
+    if(send_tool!=NULL&&e0==1)
     {
-        return which;
+        return send_tool;
     }
+
+    int which2=
     
-    while(a<work->send_tool_table->end)
+    for(int a=0;a<work->send_tool_table->num)
     {
         if(work->send_tool_table->table[a].fd==-2)
         {
@@ -79,7 +89,6 @@ int send_tool_arr_fdalloc(worker* work,int fd)//如果没分配到则返回-2
             can=1;
             break;
         }
-        a++;
     }
 
     if(can==0)

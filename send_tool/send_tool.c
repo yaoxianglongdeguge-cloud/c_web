@@ -2,10 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int send_tool_init(Send_tool** s,int blocknum)
+int send_tool_init(Send_tool_Entry* s,int blocknum)
 {
-    *s=(Send_tool*)malloc(sizeof(Send_tool));
-    (*s)->store=(Send_tool_Entry*)malloc(blocknum*sizeof(Send_tool_Entry));
+    s=(Send_tool*)malloc(sizeof(Send_tool));
     for(int i=0;i<blocknum;i++)
     {
         (*s)->store[i].ptr=NULL;
