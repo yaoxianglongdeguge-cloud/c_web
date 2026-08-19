@@ -15,7 +15,15 @@ typedef struct http_ed_store{
 
 
 
-int Http_ed_store_init(http_ed_store** h,int size);//分配整个存储大小
+int Http_ed_store_init(http_ed_store** h);//分配整个存储大小
+
+int Http_ed_store_destroy(http_ed_store* h,Memory_Pool* pool)
+
+int Http_ed_store_alloc(http_ed_store* h,Memory_Pool* pool,int size)
+
+int Http_ed_store_free(http_ed_store* h,Memory_Pool* pool)
+
+int Http_ed_store_expend(http_ed_store* h,Memory_Pool* pool);
 
 int Http_ed_store_write(http_ed_store* h,int fd);//从连接中读数据填满无效位
 

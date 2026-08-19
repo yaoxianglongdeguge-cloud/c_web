@@ -19,25 +19,12 @@ typedef struct worker{
     int id;
     int epfd;
 
-    
-    Http_back_order* http_order;//记录每个连接下一个处理的包的序号，方便后面标记顺序返回
-    Store_table* store_pool_table;//http包解析前暂存池管理表
-    
-    memory_pool* http_pool;//解析后的http包的暂存处
-    
-    Send_table* send_tool_table;
+    Memory_Pool* store_area;
+    Memory_Pool* http_pool;
     Send_thing_queue* Thing_queue;//接收已经准备好的要发的包的事件
-    
     timer* my_timer;//断连计时器
-    Send_tool_early* send_early;//用来标记每个连接的指针池的时间，并且能从中找出最开始那个
-    
     sem_t sem_thing_queue_notfull;//返回包事件的队列的信号量，用来指示队列还有多少个业务线程可以进入
     pthread_mutex_t mutex_thing;
-    
-    //memory_pool* send_pool;//要发回的包的暂存处
-    //http_ed_store** http_ed_store_arr;//解析前暂存http包.
-    //Send_tool** send_tool_arr;//用来管理顺序指针循环队列，下一个空位，每个连接下一个要接收的包,还有每个连接最后要接收的包，方便释放指针队列
-
 
 
 } worker;

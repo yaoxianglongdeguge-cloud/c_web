@@ -19,10 +19,12 @@ int Http_analysis_head(Http_analysis_1* h,char* http_request,int* error_reason);
 
 
 
-int Http_analysis_init(Http_analysis_1** h,memory_pool* pool,int h_size)
+int Http_analysis_init(Http_analysis_1** h,Memory_Pool* pool,int h_size)
 {
-
-        (*h)=Memory_pool_alloc(pool,h_size);
+        (*h)->size=h_size;
+        void* ptr=NULL;
+        int e0=Memory_Pool_alloc(pool,h_size,&ptr);
+        (*h)=(char*)ptr;
 
         if((*h)==NULL)
         {
@@ -51,6 +53,12 @@ int Http_analysis_init(Http_analysis_1** h,memory_pool* pool,int h_size)
     (*h)->Body=NULL;
     (*h)->Error_h=0;
 
+    return 1;
+}
+
+int Http_analysis_free(Http_analysis_1* h,Memory_Pool* pool)
+{
+    Memory_Pool_free(pool,h,h->size);
     return 1;
 }
 

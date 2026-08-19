@@ -12,6 +12,7 @@ typedef struct memory_pool memory_pool;
 
 typedef struct Http_analysis_1{
 
+    int size;
     char* Method;
     char* Url;
     char* Version;
@@ -26,11 +27,13 @@ typedef struct Http_analysis_1{
 
 
 
-int Http_analysis_init(Http_analysis_1** h,memory_pool* pool,int h_size);
+int Http_analysis_init(Http_analysis_1** h,Memory_Pool* pool,int h_size);
+
+int Http_analysis_free(Http_analysis_1* h,Memory_Pool* pool);
 
 int Http_analysis_receive(Http_analysis_1* h,char* http_request,int* error_reason);//传入存储位置，解析后会存进去
 
-int Http_analysis_send(Http_analysis_1* h,char* http_response,memory_pool* store);
+int Http_analysis_send(Http_analysis_1* h,char* http_response,Memory_Pool* store);
 
 char* Http_analysis_get(Http_analysis_1* h,char* get1,char* get2);
 

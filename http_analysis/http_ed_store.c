@@ -6,13 +6,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-int Http_ed_store_init(http_ed_store** h,int size)//分配整个存储大小，单位是字节
+#include "../memory_pool/memory_pool.h"
+
+int Http_ed_store_init(http_ed_store** h)//分配整个存储大小，单位是字节
 {
-    (*h)=NULL;
     (*h)=(http_ed_store*)malloc(sizeof(http_ed_store));
-    
-    (*h)->begin=malloc(size);
-    (*h)->end=(*h)->begin+size;
+  ;
+    (*h)->begin=NULL;
+    (*h)->end=(*h)->begin;
     (*h)->ptr_b=(*h)->begin;
     (*h)->ptr_e=(*h)->begin;
 
@@ -24,6 +25,63 @@ int Http_ed_store_init(http_ed_store** h,int size)//分配整个存储大小，�
     }
 
     (*h)->httpstate=ht;
+
+    return 1;
+
+}
+
+int Http_ed_store_destroy(http_ed_store* h,Memory_Pool* pool)
+{
+    if(h->begin!=NULL)
+    {
+        Http_ed_store_free(h,pool);
+    }
+
+    free(h);
+    return 1;
+}
+
+int Http_ed_store_alloc(http_ed_store* h,Memory_Pool* pool,int size)
+{
+     void* ptr=NULL;
+    Memory_Pool_alloc(pool,size,&ptr);
+
+    (*h)->begin=(char*)ptr;
+    (*h)->end=(*h)->begin+size-1;
+    (*h)->ptr_b=(*h)->begin;
+    (*h)->ptr_e=(*h)->begin;
+
+    return 1;
+}
+
+int Http_ed_store_free(http_ed_store* h,Memory_Pool* pool)
+{
+    int size=h->begin-h->end;
+    Memory_Pool_free(pool,h->begin,size);
+    (*h)->begin=NULL;
+    (*h)->end=(*h)->begin;
+    (*h)->ptr_b=(*h)->begin;
+    (*h)->ptr_e=(*h)->begin;
+
+    http_state_reset(h);
+
+    return 1;
+}
+
+int Http_ed_store_expend(http_ed_store* h,Memory_Pool* pool)
+{
+    int nowsize=h->end-h->begin+1;
+    int expendsize=nowsize*2;
+    int ptr_b=h->ptr_b-h->begin;
+    int ptr_e=h->ptr_e-h->begin;
+    void* ptr=NULL;
+    Memory_Pool_alloc(pool,expendsize,&ptr);
+    memcpy(ptr,h->begin,nowsize);
+    free(h->begin);
+    h->begin=(char*)ptr;
+    h->end=h->begin+expendsize-1;
+    h->ptr_b=h->begin+ptr_b;
+    h->ptr_e=h->begin+ptr_e;
 
     return 1;
 

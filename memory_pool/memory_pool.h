@@ -1,16 +1,28 @@
+typedef struct Memory_Stack{
 
+    int* leisure;
+    int top;
+}Memory_Stack;
 
-typedef struct memory_pool{
+typedef struct Memory_Entry{
 
-    char* All_begin;//内存池起始位置
-    char* All_end;
-    int m_size;//内存池总大小,单位是kb
-    int Page_size;
+    int strip_size;//单位是kb
+    int strip_num;//条的数量
+    int haded_num;//已被使用条数量
+    void* memory_strip;
+    Memory_Stack* stack;
 
-}memory_pool;
+}Memory_Entry;
 
-int Memory_pool_init(memory_pool** memo,int max_size,int Page_size);
+typedef struct Memory_Pool{
 
-void* Memory_pool_alloc(memory_pool* memo,int alloc_size);
+    int Entry_num;
+    Memory_Entry* pool; 
 
-int Memory_pool_free(memory_pool* memo,void* p,void* end);
+}Memory_Pool;
+
+int Memory_Pool_init(Memory_Pool** p,int max_num,int init_max,int strip_num_future,int init_strip_num);//可以申请最大数量，但是只有前几个大小的初始化几条
+
+int Memory_Pool_alloc(Memory_Pool* p,int size,void** ptr);
+
+int Memory_Pool_free(Memory_Pool* p,void* ptr,int size);

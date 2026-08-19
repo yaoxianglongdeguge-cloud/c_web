@@ -1,6 +1,7 @@
 #include "memory_pool.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include<string.h>
 
 
 
@@ -9,138 +10,176 @@
 
 //每页大小灵活一些，因为不同地方可能数据分散度不同
 
-typedef struct Page{
 
-    char* Page_begin;//页的起始位置。
-    int p_size;
-    int use;//使用情况
-
-}Page;//最小分配单元页的表项，这个并不是指向页本身，里面的指针才是指向页本身
-
-typedef Page* Page_table;
-
-
-int Memory_pool_init(memory_pool** memo,int max_size,int Page_size)//这里的size单位是kb
+int Memory_Stack_init(Memory_Stack* s,int strip_num)
 {
-    (*memo)=(memory_pool*)malloc(sizeof(memory_pool));
-    int Bytes_size=max_size*1024;
-     (*memo)->All_begin=NULL;
-     (*memo)->All_end=NULL;
-     (*memo)->m_size=max_size;
-     (*memo)->Page_size=Page_size;
-     (*memo)->All_begin=malloc(Bytes_size);
-    if( (*memo)->All_begin==NULL)
+    s->leisure=(int*)malloc(sizeof(int)*strip_num);
+    for(int i=0;i<strip_num;i++)
     {
-        return -1;
+        s->leisure[i]=-1;
     }
 
-     (*memo)->All_end= (*memo)->All_begin+Bytes_size;
-
-    //写入页表
-    Page_table p1=(Page_table) (*memo)->All_begin;
-    int table_num=max_size/Page_size;//页表项的个数
-    for(int i=0;i<table_num;i++)
-    {
-        p1[i].p_size=4;
-        p1[i].Page_begin=i*Page_size*1024+ (*memo)->All_begin;//计算每一页的虚拟地址位置
-        p1[i].use=0;//0代表没有被利用
-    }
-    //计算一个页表表项大小kb，后面要确定哪些表被占用了
-
-    //int page_table_size=sizeof(Page)/1024;//页表项最多0.几kb，这里用整数类型导致变成了0，就导致了下面计算
-    //结果成了0
-    //int used_page=table_num*page_table_size/Page_size;//用来存储页表项的页数
-
-    int page_table_size=sizeof(Page);
-    int used_page=(table_num*page_table_size/((Page_size)*1024))+1;//要向上取整
-
-    for(int i=0;i<used_page;i++)
-    {
-        p1[i].use=1;
-    }
+    s->top=0;
 
     return 1;
-
 }
 
-void* Memory_pool_alloc(memory_pool* memo,int alloc_size)//这里的size是字节
+int Memory_Stack_push(Memory_Stack* s,int strip_serial)
 {
-    int table_num=memo->m_size/memo->Page_size;
-    void* j0=NULL;
-    if(alloc_size<=memo->Page_size*1024)
-    {
-        for(int i=0;i<table_num;i++)
-        {
-            Page_table p0=(Page_table)(memo->All_begin+i*sizeof(Page));
-            if(p0->use==0)
-            {
-                j0=p0->Page_begin;
-                p0->use=1;
-                break;
-            }
+    s->leisure[s->top]=strip_serial;
+    s->top++;
 
-        }
-    }
-    else if(alloc_size>memo->Page_size*1*1024&&alloc_size<=memo->Page_size*2*1024)//如果有需要，也可以连续分配三个甚至更多
-    {
-        int i0=0;
-        int i1=1;
-        
-        while(i1<table_num)
-        {
-            Page* p0=(Page_table)(memo->All_begin+i0*sizeof(Page));
-            Page* p1=(Page_table)(memo->All_begin+i1*sizeof(Page));
-            if(p0->use==0&&p1->use==0)
-            {
-                j0=p0->Page_begin;
-                p0->use=1;
-                p1->use=1;
-                break;
-            }
-
-            i0++;
-            i1++;
-            
-        }
-    }
-    else if(alloc_size>memo->Page_size*2*1024)
-    {
-        j0=malloc(alloc_size);
-    }
-
-    return j0;
-
+    return 1;
 }
 
-int Memory_pool_free(memory_pool* memo,void* p,void* end)//end是为了能自主设定把哪一页到哪一页全部释放，完全符合符合顺序操作的目的
+int Memory_Stack_top_and_pop(Memory_Stack* s,int* top_serial)
 {
-    int table_num=memo->m_size/memo->Page_size;
-    char* ptr=p;
+    s->top--;
+    int *top_serial=s->leisure[s->top];
+    s->leisure[s->top]=-1;
 
-    int p_table=(ptr-memo->All_begin)/1024/memo->Page_size;
-    int end_table=(ptr-memo->All_begin)/1024/memo->Page_size;
+    return 1;
+}
 
-    if(p_table<0||p_table>=table_num)//p不在内存池里
+
+
+int Memory_Entry_init(Memory_Entry* e,int strip_num_future,int strip_size,int init_num)
+{
+    e->haded_num=0;
+    e->strip_num=init_num;
+    e->strip_size=strip_size;
+    e->memory_strip=malloc(strip_size*1024*init_num);
+    e->stack=(Memory_Stack*)malloc(sizeof(Memory_Stack));
+    Memory_Stack_init(e->stack,strip_num_future);
+    for(int i=0;i<init_num;i++)
     {
-        free(ptr);
+    Memory_Stack_push(e->stack,i);
     }
-    else if(end_table<0||end_table>=table_num)
+    return 1;
+}
+
+int Memory_Entry_expend(Memory_Entry* e)
+{
+    if(e->strip_num==0)
     {
-        return 0;
+        expend_num=1;
     }
     else
     {
-        Page* which_table=(Page_table)(memo->All_begin+p_table*sizeof(Page));//p的表项
-        int gap=end_table-p_table+1;//从p页到end页都释放掉
-
-        for(int i=0;i<gap;i++)
-        {
-            which_table[i].use=0;
-        }
+        int expend_num=e->strip_num;//要被扩容前的大小
     }
+    int strip_size=e->strip_size;
+    int total_size=expend_num*strip_size;
+
+    void* strip=malloc(expend_num*2*strip_size);
+
+    memcpy(strip,e->memory_strip,total_size);
+    free(e->memory_strip);
+    e->memory_strip=strip;
+    e->strip_num=e->strip_num*2;
+    return 1;
+
+}
+
+int Memory_Entry_alloc(Memory_Entry* e,void** ptr)
+{
+    if(e->haded_num==e->strip_num)
+    {
+        Memory_Entry_expend(e);
+    }
+    int size=e->strip_size;
+    int serial=-1;
+    Memory_Stack_top_and_pop(e->stack,&serial);
+    *ptr=e->memory_strip+serial*e->strip_size;
+    e->haded_num++;
+
+    return 1;
+}
+
+int Memory_Entry_free(Memory_Entry* e,void* ptr)
+{
+    int size=e->strip_size;
+    int total_gap=ptr-e->memory_strip;
+    int serial=total_gap/size;
+
+    Memory_Stack_push(e->stack,serial);
+    e->haded_num--;
 
     return 1;
 }
 
 
 
+int Memory_Pool_init(Memory_Pool** p,int max_num,int init_max,int strip_num_future,int init_strip_num)//可以申请最大数量，但是只有前几个大小的初始化几条
+{
+    *p=(Memory_Pool*)malloc(sizeof(Memory_Pool));
+    (*p)->Entry_num=max_num;
+    (*p)->pool=(Memory_Entry*)malloc(max_num*sizeof(Memory_Entry));
+
+    int strip_size=1;
+    int init_num=0;
+
+    for(int i=0;i<max_num;i++)
+    {
+        if(i<init_max)
+        {
+            init_num=init_max;
+        }
+        else
+        {
+            init_num=0;
+        }
+
+        Memory_Entry_init(&((*p)->pool[i]),strip_num_future,strip_size,init_num);
+        strip_size=strip_size*2;
+    }
+
+    return 1;
+
+
+}
+
+int Memory_Pool_alloc(Memory_Pool* p,int size,void** ptr)
+{
+    int alloc_size=1;
+    int i=0;
+    for(;i<p->Entry_num;i++)
+    {
+        if(alloc_size>=size)
+        {
+            break;
+        }
+        alloc_size=alloc_size*2;
+    }
+
+    Memory_Entry* aim_entry=&(p->pool[i]);
+
+    Memory_Entry_alloc(aim_entry,ptr);
+
+    return 1;
+
+}
+
+int Memory_Pool_free(Memory_Pool* p,void* ptr,int size)
+{
+    int alloc_size=1;
+    int i=0;
+    for(;i<p->Entry_num;i++)
+    {
+        if(alloc_size>=size)
+        {
+            break;
+        }
+        alloc_size=alloc_size*2;
+    }
+    Memory_Entry* aim_entry=&(p->pool[i]);
+    if(ptr<aim_entry->memory_strip||end>aim_entry->memory_strip+aim_entry->strip_size*aim_entry->strip_num)
+    {
+        return 0;
+    }
+
+    Memory_Entry_free(aim_entry,ptr);
+
+    return 1;
+
+}
