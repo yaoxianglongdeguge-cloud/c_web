@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include<string.h>
-
+#include "../my_lock/my_rwlock_t.h"
 
 
 //做一个单级页表的内存池。一个页控制在4kb。
@@ -20,23 +20,28 @@ int Memory_Stack_init(Memory_Stack* s,int strip_num)
     }
 
     s->top=0;
+    pthread_mutex_init(&(s->mutex),NULL);
 
     return 1;
 }
 
 int Memory_Stack_push(Memory_Stack* s,int strip_serial)
 {
+    pthread_mutex_lock(&(s->mutex));
     s->leisure[s->top]=strip_serial;
     s->top++;
+    pthread_mutex_unlock(&(s->mutex));
 
     return 1;
 }
 
 int Memory_Stack_top_and_pop(Memory_Stack* s,int* top_serial)
 {
+    pthread_mutex_lock(&(s->mutex));
     s->top--;
     int *top_serial=s->leisure[s->top];
     s->leisure[s->top]=-1;
+    pthread_mutex_unlock(&(s->mutex));
 
     return 1;
 }

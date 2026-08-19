@@ -1,7 +1,11 @@
+#include <pthread.h>
+
 typedef struct Memory_Stack{
 
     int* leisure;
     int top;
+    pthread_mutex_t mutex
+
 }Memory_Stack;
 
 typedef struct Memory_Entry{

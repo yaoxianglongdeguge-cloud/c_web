@@ -9,11 +9,8 @@
 #include "../memory_pool/memory_pool.h"
 #include "../timer/timer.h"
 #include "../http_analysis/http_analysis.h"
-#include "../http_analysis/http_back_order.h"
-#include "../connect_config/ed_store_arr_config.h"
 #include "../send_tool/send_tool.h"
 #include "../send_tool/send_thing_queue.h"
-#include "../connect_config/send_tool_arr_config.h"
 #include "../data_struct/Task_queue.h"
 
 int deal_task(int * e)
