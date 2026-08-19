@@ -9,7 +9,7 @@
 
 
 
-int Task_queue_init(Task_queue** sq,int size)
+int Task_queue_init(Task_queue** sq,int blocknum)
 {
     *sq=NULL;
     *sq=(Task_queue*)malloc(sizeof(Task_queue));
@@ -18,25 +18,28 @@ int Task_queue_init(Task_queue** sq,int size)
         return -1;
     }
 
-    (*sq)->queue=(Task_Entry*)malloc(sizeof(Task_Entry)*size);
+    (*sq)->queue=(Task_Entry*)malloc(sizeof(Task_Entry)*blocknum);
     (*sq)->begin=0;
-    (*sq)->end=(*sq)->begin+size;
+    (*sq)->end=(*sq)->begin+blocknum;
     (*sq)->ptr_in=(*sq)->begin;
     (*sq)->ptr_out=(*sq)->begin;
     (*sq)->num=0;
-    (*sq)->size=size;
+    (*sq)->blocknum=blocknum;
+
+    sem_init(&((*sq)->sem_task_queue_notfull),0,blocknum);
+    pthread_mutex_init(&((*sq)->mutex_task),NULL);
+    sem_init(&((*sq)->sem_task_queue_notempty),0,0);
+
 
     return 1;
 
 
 }
 
-int Task_queue_push(Task_queue* sq,worker* w,int fd,int serial,int error_reason,Http_analysis_1* h)
+int Task_queue_push(Task_queue* sq,worker* w,int fd,int serial,int error_reason,int size,char*char_ptr,Http_analysis_1* h)
 {
-    if(sq->num==sq->size)
-    {
-        return 0;
-    }
+    sem_wait(&(sq->sem_task_queue_notfull));
+    pthread_mutex_lock(&(sq->mutex_thing));
 
     sq->queue[sq->ptr_in].w=w;
     sq->queue[sq->ptr_in].error_reason=error_reason;
@@ -54,12 +57,16 @@ int Task_queue_push(Task_queue* sq,worker* w,int fd,int serial,int error_reason,
     }
 
     sq->num++;
+    pthread_mutex_unlock(&(sq->mutex_thing));
+    sem_post(&(sq->sem_task_queue_notempty));
 
     return 1;
 }
 
 Task_Entry Task_queue_top_and_pop(Task_queue* sq,int* error)
 {
+    sem_wait(&(sq->sem_task_queue_notempty));
+    pthread_mutex_lock(&(sq->mutex_thing));
     *error=0;
     Task_Entry s;
     s.fd=-1;
@@ -68,11 +75,6 @@ Task_Entry Task_queue_top_and_pop(Task_queue* sq,int* error)
     s.error_reason=-1;
     s.w=NULL;
 
-    if(sq->num==0)
-    {
-        *error=0;
-        return s;
-    }
 
     s.fd=sq->queue[sq->ptr_out].fd;
     s.serial=sq->queue[sq->ptr_out].serial;
@@ -91,6 +93,8 @@ Task_Entry Task_queue_top_and_pop(Task_queue* sq,int* error)
     sq->num--;
     *error=1;
 
+    pthread_mutex_unlock(&(sq->mutex_thing));
+    sem_post(&(sq->sem_task_queue_notfull));
     return s;
 }
 

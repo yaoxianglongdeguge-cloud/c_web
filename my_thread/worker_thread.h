@@ -22,9 +22,8 @@ typedef struct worker{
     timer* my_timer;//断连计时器
     
     Send_thing_queue* Thing_queue;//接收已经准备好的要发的包的事件
-    
-    sem_t sem_thing_queue_notfull;//返回包事件的队列的信号量，用来指示队列还有多少个业务线程可以进入
-    pthread_mutex_t mutex_thing;
+
+
 
 } worker;
 

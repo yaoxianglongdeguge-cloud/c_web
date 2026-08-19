@@ -25,6 +25,7 @@ int send_tool_alloc(Send_tool* s,Memory_Pool* pool,int blocknum)
         s->store[i].ptr=NULL;
         s->store[i].error_reason=0;
         s->store[i].use=0;
+        s->store[i].size=0;
     }
 
     return 1;

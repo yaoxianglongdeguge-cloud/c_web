@@ -1,13 +1,13 @@
 #include <pthread.h>
 #include <semaphore.h>
-#include "../my_lock/my_rwlock_t.h"
+#include "../Task_queue/memory_queue.h"
 
 typedef struct profession{
 
     int id;
-    Memory_Pool* txt_pool;
 
-    sem_t 
+    Memory_Pool* txt_pool;
+    Memory_Queue* memory_queue;//用来接收对方要释放内存的事件
 
 }profession;
 

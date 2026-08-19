@@ -1,8 +1,9 @@
 typedef struct Send_tool_Entry{
 
-    char* ptr;
+    const char* const ptr;
     int use;
     int error_reason;
+    int size;
 
 }Send_tool_Entry;
 
