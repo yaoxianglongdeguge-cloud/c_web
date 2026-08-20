@@ -22,25 +22,25 @@ int Http_analysis_head(Http_analysis_1* h,char* http_request,int* error_reason);
 
 
 
-int Http_analysis_init(Http_analysis_1** h,Memory_Pool* pool,int h_size)
+int Http_analysis_init(Http_analysis_1** h,Memory_Pool* pool,int h_size)//单位是字节
 {
-        (*h)->size=h_size;
-        void* ptr=NULL;
-        int e0=Memory_Pool_alloc(pool,h_size,&ptr);
-        (*h)=ptr;
+    void* ptr=NULL;
+    int e0=Memory_Pool_alloc(pool,h_size/1024+1,&ptr);
+    (*h)=ptr;
+    (*h)->size=h_size;
 
-        if((*h)==NULL)
-        {
-            return -1;
-        }
+    if((*h)==NULL)
+    {
+        return -1;
+    }
 
-        (*h)->ptr=((char*)(*h))+sizeof(Http_analysis_1);
-        (*h)->end=((char*)(*h))+h_size-1;
+    (*h)->ptr=((char*)(*h))+sizeof(Http_analysis_1);
+    (*h)->end=((char*)(*h))+h_size-1;
 
-        if((*h)->ptr>=(*h)->end)
-        {
-            return 0;
-        }
+    if((*h)->ptr>=(*h)->end)
+    {
+        return 0;
+    }
 
 
     if((*h)==NULL)

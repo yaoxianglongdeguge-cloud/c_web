@@ -20,7 +20,7 @@ int Http_ed_store_init(http_ed_store** h)//分配整个存储大小，单位是�
     (*h)->ptr_b=(*h)->begin;
     (*h)->ptr_e=(*h)->begin;
 
-    http_state* ht;
+    http_state* ht=NULL;
     int a=http_state_init(&ht);
     if(a!=1)
     {
@@ -44,13 +44,13 @@ int Http_ed_store_destroy(http_ed_store* h,Memory_Pool* pool)
     return 1;
 }
 
-int Http_ed_store_alloc(http_ed_store* h,Memory_Pool* pool,int size)
+int Http_ed_store_alloc(http_ed_store* h,Memory_Pool* pool,int size)//单位是kb
 {
      void* ptr=NULL;
     Memory_Pool_alloc(pool,size,&ptr);
 
     h->begin=(char*)ptr;
-    h->end=h->begin+size-1;
+    h->end=h->begin+(size*1024)-1;
     h->ptr_b=h->begin;
     h->ptr_e=h->begin;
 
@@ -74,13 +74,13 @@ int Http_ed_store_free(http_ed_store* h,Memory_Pool* pool)
 int Http_ed_store_expend(http_ed_store* h,Memory_Pool* pool)
 {
     int nowsize=h->end-h->begin+1;
-    int expendsize=nowsize*2;
+    int expendsize=nowsize*2/1024+1;
     int ptr_b=h->ptr_b-h->begin;
     int ptr_e=h->ptr_e-h->begin;
     void* ptr=NULL;
     Memory_Pool_alloc(pool,expendsize,&ptr);
     memcpy(ptr,h->begin,nowsize);
-    free(h->begin);
+    Http_ed_store_free(h,pool);
     h->begin=(char*)ptr;
     h->end=h->begin+expendsize-1;
     h->ptr_b=h->begin+ptr_b;

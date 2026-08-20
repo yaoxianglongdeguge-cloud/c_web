@@ -13,5 +13,5 @@ typedef struct profession{
 
 }profession;
 
-
-int deal_and_pack();
+int profession_init(profession** profes,int id);
+int deal_and_pack(profession* profes);

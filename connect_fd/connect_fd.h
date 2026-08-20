@@ -11,6 +11,7 @@ typedef struct Hash_Entry_3{
 
     http_ed_store* http_store;  
     Send_tool* send_tool;
+    int pack_in_path;
 
     Hash_Entry_3* next;
 

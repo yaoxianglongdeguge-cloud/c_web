@@ -65,16 +65,19 @@ Memory_Queue_Entry Memory_Queue_top_and_pop(Memory_Queue* sq,int* error)
     s.char_ptr=sq->queue[sq->ptr_out].char_ptr;
 
 
-    if(sq->ptr_out+1==sq->end)
+     if(sq->num!=0)
     {
+      if(sq->ptr_out+1==sq->end)
+      {
         sq->ptr_out=sq->begin;
-    }
+      } 
     else
-    {
+      {
         sq->ptr_out++;
+      }
+      sq->num--;
+      *error=1;
     }
-    sq->num--;
-    *error=1;
 
     pthread_mutex_unlock(&(sq->mutex));
     sem_post(&(sq->queue_notfull));

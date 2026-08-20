@@ -12,14 +12,11 @@
 #include "../connect_fd/connect_fd.h"
 #include "../data_struct/hash_3.h"
 #include "../http_analysis/http_analysis.h"
+#include "../http_analysis/http_ed_store.h"
 #include "../queue/memory_queue.h"
 
 
-int free_http(){
-
-}
-
-int send_main(worker* w)
+int send_main(worker* w,int ed_store_blocknum)
 {
     int send_fd=-2;
     Send_tq_Entry s;
@@ -46,23 +43,21 @@ int send_main(worker* w)
             }
             else
             {
-                if(s.fd!=fd_ob->ser_nex_send)
+                 if(fd_ob->send_tool->store==NULL)
                 {
-                    int next=s.serial%fd_ob->send_tool->blocknum;
-                    if(fd_ob->send_tool->store[next].use==1)
-                    {
-                        Send_thing_queue_push(w->Thing_queue,s.m_queue,s.fd,s.serial,s.error_reason,s.size,s.char_ptr,s.http);
-                    }
-                    else
-                    {
-                        fd_ob->send_tool->store[next].use=1;
-                        fd_ob->send_tool->store[next].error_reason=s.error_reason;
-                        fd_ob->send_tool->store[next].m_queue=s.m_queue;
-                        fd_ob->send_tool->store[next].ptr=s.char_ptr;
-                        fd_ob->send_tool->store[next].size=s.size;
-                    }
+                    send_tool_alloc(fd_ob->send_tool,w->store_area,ed_store_blocknum);
                 }
-                else
+
+                int next=s.serial%fd_ob->send_tool->blocknum;
+                    
+                fd_ob->send_tool->store[next].use=1;
+                fd_ob->send_tool->store[next].error_reason=s.error_reason;
+                fd_ob->send_tool->store[next].m_queue=s.m_queue;
+                fd_ob->send_tool->store[next].ptr=s.char_ptr;
+                fd_ob->send_tool->store[next].size=s.size;
+                    
+                
+                if(s.serial==fd_ob->ser_nex_send)
                 {
                     send_fd=s.fd;
                 }
@@ -71,9 +66,13 @@ int send_main(worker* w)
             
         }
         
-    }
+    
     
 
+    if(send_fd==-2)
+    {
+        return 1;
+    }
 
     Fd_Entry* fd_ob=NULL;
     Fd_Table_find(w->fd_table,send_fd,&fd_ob);
@@ -93,6 +92,7 @@ int send_main(worker* w)
         Memory_Queue_push(m,size,ptr);
         fd_ob->ser_nex_send++;
         fd_ob->send_tool->store[next].use=0;
+        fd_ob->pack_in_path--;
 
         next=next+1%fd_ob->send_tool->blocknum;
     }
@@ -111,3 +111,4 @@ int send_main(worker* w)
 
 }
 
+}

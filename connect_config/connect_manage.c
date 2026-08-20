@@ -35,7 +35,7 @@ int fd_connect(worker* w,int Listen_fd)
        }
         int flags = fcntl(client_fd, F_GETFL, 0); 
         fcntl(client_fd, F_SETFL, flags | O_NONBLOCK); 
-        ev.events = EPOLLIN | EPOLLET;   // 边缘触发;
+        ev.events = EPOLLIN;   // 边缘触发;
         ev.data.fd = client_fd;          
         epoll_ctl(w->epfd, EPOLL_CTL_ADD, client_fd, &ev);
         
@@ -53,8 +53,8 @@ int fd_close(worker* w,int client_fd)
 {
     Fd_Entry* fd_ob=NULL;
     Fd_Table_find(w->fd_table,client_fd,&fd_ob);
+    
     Http_ed_store_destroy(fd_ob->http_store,w->store_area);
-
     for(int i=0;i<fd_ob->send_tool->blocknum;i++)
     {
         if(fd_ob->send_tool->store[i].use)

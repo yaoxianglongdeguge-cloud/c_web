@@ -65,24 +65,30 @@ int Memory_Entry_init(Memory_Entry* e,int strip_num_future,int strip_size,int in
 
 int Memory_Entry_expend(Memory_Entry* e)
 {
+    int before_num=e->strip_num;
     int expend_num=0;
-    if(e->strip_num==0)
+    if(before_num==0)
     {
-        expend_num=1;
+        before_num=1;
     }
-    else
-    {
-        expend_num=e->strip_num;//要被扩容前的大小
-    }
-    int strip_size=e->strip_size;
-    int total_size=expend_num*strip_size;
+    
+    expend_num=before_num*2;
 
-    void* strip=malloc(expend_num*2*strip_size);
+    int strip_size=e->strip_size;
+    int total_size=before_num*strip_size;
+
+    void* strip=malloc(expend_num*strip_size*1024);
 
     memcpy(strip,e->memory_strip,total_size);
     free(e->memory_strip);
     e->memory_strip=strip;
     e->strip_num=e->strip_num*2;
+
+    for(int i=before_num+1;i<expend_num;i++)
+    {
+        Memory_Stack_push(e->stack,i);
+    }
+
     return 1;
 
 }

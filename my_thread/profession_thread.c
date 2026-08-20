@@ -33,7 +33,16 @@ int pack_task(char** c,Response)
     return len;
 }
 
-int deal_and_pack()
+int profession_init(profession** profes,int id)
+{
+    *profes=(profession*)malloc(sizeof(profession));
+    (*profes)->id=id;
+    Memory_Queue_init(&((*profes)->memory_queue),40);
+    Memory_Pool_init(&((*profes)->txt_pool),6,6,50,5);
+    return 1;
+}
+
+int deal_and_pack(profession* profes)
 {
     int e0=0;
     Task_Entry t;
@@ -50,13 +59,25 @@ int deal_and_pack()
     int size=0;
     char* C;
     Response Rsp;
-    if(Error_reason==200)
-    {        
+        
             //处理业务任务
-        deal_task(&Error_reason);
-        size=pack_task(&C,Rsp);
-            
+    deal_task(&Error_reason);
+    size=pack_task(&C,Rsp);
+
+    Send_thing_queue_push(W->Thing_queue,profes->memory_queue,Fd,Serial,Error_reason,size,C,t.http);
+
+    int e1=1;
+    while(e1!=0)
+    {
+        Memory_Queue_Entry m;
+
+        m=Memory_Queue_top_and_pop(profes->memory_queue,&e1);
+        if(e1==1)
+        {
+            Memory_Pool_free(profes->txt_pool,m.char_ptr,m.size);
+        }
     }
+    
         
         //把打包好的返回文本在内存池里填上，或者如果是错误包也指向对应错误包        
        

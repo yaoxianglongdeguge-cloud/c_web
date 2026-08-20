@@ -1,4 +1,4 @@
-#include "worker_thread.h"
+ #include "worker_thread.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/epoll.h>
@@ -22,7 +22,7 @@
 #include "../connect_config/connect_manage.h"
 #include "../connect_fd/connect_fd.h"
 #include "../data_struct/hash_3.h"
-
+extern Task_queue* Task_Queue;
 
 int worker_init(worker** w,int Listen_fd,int id)
 {
@@ -50,16 +50,10 @@ int worker_init(worker** w,int Listen_fd,int id)
 
 int worker_to_profession(worker* w,int fd,Http_analysis_1* h,int error_reason,int serial)
 {
-    if(serial==-1)
-    {
-        fd_close(w,fd);
-        return 1;
-    }
-
     int e0=Task_queue_push(Task_Queue,w,fd,serial,error_reason,h);
 }
 
-int receive_and_send_main(worker* w,int Listen_fd,int time)
+int receive_and_send_main(worker* w,int Listen_fd,int time,int ed_store_blocknum)
 {
     
     struct epoll_event events[1024];
@@ -68,13 +62,12 @@ int receive_and_send_main(worker* w,int Listen_fd,int time)
         int n=-1;
         while(1)
         {
-            n=epoll_wait(w->epfd, events, 1024, -1);
+            n=epoll_wait(w->epfd, events, 1024, 0);
             if(n>0)
             {
                 break;
             }
-            
-            int e4=send_main(w);
+            int e2=send_main(w,ed_store_blocknum);
             timer_overtime(w->my_timer,time,w);
         }
         for(int i=0;i<n;i++)
@@ -88,8 +81,8 @@ int receive_and_send_main(worker* w,int Listen_fd,int time)
             else
             {
                 timer_alloc_and_reset(w->my_timer,handle_fd,w);
-                int e1=http_main(handle_fd,w);//错误包已经通过发送程序发了，所以这里的返回值不验证
-                int e2=send_main(w);
+                int e1=http_main(handle_fd,w,ed_store_blocknum);//错误包已经通过发送程序发了，所以这里的返回值不验证
+                int e2=send_main(w,ed_store_blocknum);
             }
 
 

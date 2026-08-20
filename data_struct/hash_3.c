@@ -38,9 +38,9 @@ Hash_Entry_3* Hash3_Entry_Creat(int fd)
     e->fd=fd;
     e->ser_fina_send=0;
     e->ser_nex_send=0;
+    e->pack_in_path=0;
     e->http_store=NULL;
     e->send_tool=NULL;
-    e->next=NULL;
     e->next=NULL;
 
     return e;
@@ -136,8 +136,9 @@ int Hash3_Allocate(Hash_map_3* h,int size_h)
         h->Elem[i].fd=-1;
         h->Elem[i].ser_fina_send=-1;
         h->Elem[i].ser_nex_send=-1;
+        h->Elem[i].pack_in_path=-1;
         h->Elem[i].http_store=NULL;
-         h->Elem[i].send_tool=NULL;
+        h->Elem[i].send_tool=NULL;
         h->Elem[i].next=NULL;
 
     }
@@ -180,7 +181,7 @@ int Hash3_Find(Hash_map_3* h,int url,Hash_Entry_3** ptr)//-1为过程错误，�
 
     if(h==NULL||h->Elem==NULL)
     {
-        return 1;
+        return 0;
     }
 
     int b_site=bucket_site_3(h->bu_num,url);
@@ -246,5 +247,5 @@ int Hash3_Delete(Hash_map_3* h,int url)
 
 int bucket_site_3(int bucket_size,int url)
 {
-    return url/bucket_size;
+    return url % bucket_size;
 }

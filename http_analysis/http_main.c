@@ -13,17 +13,20 @@
 #include "../connect_fd/connect_fd.h"
 #include "../data_struct/hash_3.h"
 
-int http_main(int fd,worker* worker)
+int http_main(int fd,worker* worker,int ed_store_blocknum)
 {
 
     Fd_Entry* fd_ob=NULL;
     Fd_Table_find(worker->fd_table,fd,&fd_ob);
-    
+
+    if(fd_ob->pack_in_path>=ed_store_blocknum)
+    {
+        return 1;
+    }
     if(fd_ob->http_store->begin==NULL)
     {
         Http_ed_store_alloc(fd_ob->http_store,worker->store_area,2);
     }
-    
         
     int r0=Http_ed_store_write(fd_ob->http_store,fd);//返回-1说明，没断开但是没数据
     int serial=fd_ob->ser_fina_send;
@@ -103,6 +106,7 @@ int http_main(int fd,worker* worker)
             fd_ob->ser_fina_send++;
             
             worker_to_profession(worker,fd,h,error_reason,serial);
+            fd_ob->pack_in_path++;
 
             error_reason=200;
                 
@@ -124,6 +128,7 @@ int http_main(int fd,worker* worker)
             fd_ob->ser_fina_send++;
 
             worker_to_profession(worker,fd,NULL,error_reason,serial);
+            fd_ob->pack_in_path++;
             error_reason=200;
                     
             break;

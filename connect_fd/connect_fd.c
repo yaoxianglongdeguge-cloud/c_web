@@ -1,6 +1,7 @@
 #include "connect_fd.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "../my_thread/worker_thread.h"
 #include "../memory_pool/memory_pool.h"
 #include "../http_analysis/http_ed_store.h"
 #include "../send_tool/send_tool.h"
@@ -18,6 +19,11 @@ int Fd_Table_init(Fd_Table** f,int init)
 int Fd_Table_insert(Fd_Table* f,int fd)
 {
     Hash3_Insert(f,fd);
+    Hash_Entry_3* ptr=NULL;
+    Hash3_Find(f,fd,&ptr);
+    Http_ed_store_init(&(ptr->http_store));
+    send_tool_init(&(ptr->send_tool));
+
     return 1;
 }
 

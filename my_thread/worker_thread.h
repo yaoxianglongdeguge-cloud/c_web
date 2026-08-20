@@ -28,4 +28,4 @@ int worker_init(worker** w,int Listen_fd,int id);
 
 int worker_to_profession(worker* w,int fd,Http_analysis_1* h,int error_reason,int serial);
 
-int receive_and_send_main(worker* w,int Listen_fd,int time);
+int receive_and_send_main(worker* w,int Listen_fd,int time,int ed_store_blocknum);

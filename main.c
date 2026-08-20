@@ -18,19 +18,25 @@ typedef  struct main{
     worker* w;
     int fd;
     int time;
+    int ed_store_blocknum;
 
 } main_t;
+
+typedef  struct main2{
+    profession* p;
+} main_t2;
 
 void* func1(void* arg)
 {
     main_t* m=(main_t*)arg;
-    receive_and_send_main(m->w,m->fd,m->time);
+    receive_and_send_main(m->w,m->fd,m->time,m->ed_store_blocknum);
 }
 void* func2(void* arg)
 {
+    main_t2* m=(main_t2*)arg;
     while(1)
     {
-    deal_and_pack();
+    deal_and_pack(m->p);
     }
 }
 
@@ -134,38 +140,49 @@ printf("预热完成\n");
 // ========== 预热代码结束 ==========
 
 // 创建worker
+pthread_t tid1;
+pthread_t tid2;
 worker* w1;
 worker_init(&w1, fd, 1);
+main_t m1 = {.fd = fd, .time = 10000, .w = w1,.ed_store_blocknum=30};
+
+pthread_create(&tid1, NULL, func1, &m1);
+
+profession* p1;
+profession_init(&p1,1);
+
+main_t2 m2 = {.p=p1};
+
+pthread_create(&tid2, NULL, func2, &m2);
+/*
 worker* w2;
-worker_init(&w2, fd, 2);
+worker_init(&w2, fd, 2,30);
 worker* w3;
 worker_init(&w3, fd, 3);
 worker* w4;
 worker_init(&w4, fd, 4);
 
-pthread_t tid1;
-pthread_t tid2;
 
-main_t m1 = {.fd = fd, .time = 10000, .w = w1};
 main_t m2 = {.fd = fd, .time = 10000, .w = w2};
 main_t m3 = {.fd = fd, .time = 10000, .w = w3};
 main_t m4 = {.fd = fd, .time = 10000, .w = w4};
 
 pthread_create(&tid2, NULL, func2, NULL);
-pthread_create(&tid2, NULL, func2, NULL);
 
 pthread_create(&tid2, NULL, func2, NULL);
 
 pthread_create(&tid2, NULL, func2, NULL);
 
 
-pthread_create(&tid1, NULL, func1, &m1);
 
 pthread_create(&tid1, NULL, func1, &m2);
 
 pthread_create(&tid1, NULL, func1, &m3);
 
 pthread_create(&tid1, NULL, func1, &m4);
+*/
+
+
 
 while(1)
 {

@@ -17,7 +17,7 @@ int send_tool_alloc(Send_tool* s,Memory_Pool* pool,int blocknum)
 {
     s->blocknum=blocknum;
     void* ptr=NULL;
-    int size=sizeof(Send_tool_Entry)*blocknum;
+    int size=sizeof(Send_tool_Entry)*blocknum/1024+1;
     Memory_Pool_alloc(pool,size,&ptr);
     s->store=(Send_tool_Entry*)ptr;
 
@@ -37,6 +37,8 @@ int send_tool_free(Send_tool* s,Memory_Pool* pool)
 {
     int size=s->blocknum*sizeof(Send_tool_Entry);
     Memory_Pool_free(pool,s->store,size);
+    s->store=NULL;
+    s->blocknum=0;
     return 1;
 }
 

@@ -8,6 +8,7 @@ typedef struct Hash_Entry_3{
 
     int ser_fina_send;//下一个请求要打的序号，也是目前最后一个包序号的后一位
     int ser_nex_send;//下一个要发的包的序号
+    int pack_in_path;
 
     http_ed_store* http_store;
     Send_tool* send_tool;
