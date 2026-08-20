@@ -4,6 +4,16 @@
 typedef struct worker worker;
 typedef struct Http_analysis_1 Http_analysis_1;
 
+typedef struct Task_Entry{
+
+    worker* w;
+    int fd;
+    int serial;
+    int error_reason;
+    Http_analysis_1* http;
+
+}Task_Entry;
+
 typedef struct Task_queue{
 
     Task_Entry* queue;
@@ -21,15 +31,6 @@ typedef struct Task_queue{
 
 }Task_queue;
 
-typedef struct Task_Entry{
-
-    worker* w;
-    int fd;
-    int serial;
-    int error_reason;
-    Http_analysis_1* http;
-
-}Task_Entry;
 
 int Task_queue_init(Task_queue** sq,int size);
 

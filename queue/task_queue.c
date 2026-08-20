@@ -1,4 +1,4 @@
-#include "Task_queue.h"
+#include "task_queue.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -36,10 +36,10 @@ int Task_queue_init(Task_queue** sq,int blocknum)
 
 }
 
-int Task_queue_push(Task_queue* sq,worker* w,int fd,int serial,int error_reason,int size,char*char_ptr,Http_analysis_1* h)
+int Task_queue_push(Task_queue* sq,worker* w,int fd,int serial,int error_reason,Http_analysis_1* h)
 {
     sem_wait(&(sq->sem_task_queue_notfull));
-    pthread_mutex_lock(&(sq->mutex_thing));
+    pthread_mutex_lock(&(sq->mutex_task));
 
     sq->queue[sq->ptr_in].w=w;
     sq->queue[sq->ptr_in].error_reason=error_reason;
@@ -57,7 +57,7 @@ int Task_queue_push(Task_queue* sq,worker* w,int fd,int serial,int error_reason,
     }
 
     sq->num++;
-    pthread_mutex_unlock(&(sq->mutex_thing));
+    pthread_mutex_unlock(&(sq->mutex_task));
     sem_post(&(sq->sem_task_queue_notempty));
 
     return 1;
@@ -66,7 +66,7 @@ int Task_queue_push(Task_queue* sq,worker* w,int fd,int serial,int error_reason,
 Task_Entry Task_queue_top_and_pop(Task_queue* sq,int* error)
 {
     sem_wait(&(sq->sem_task_queue_notempty));
-    pthread_mutex_lock(&(sq->mutex_thing));
+    pthread_mutex_lock(&(sq->mutex_task));
     *error=0;
     Task_Entry s;
     s.fd=-1;
@@ -93,7 +93,7 @@ Task_Entry Task_queue_top_and_pop(Task_queue* sq,int* error)
     sq->num--;
     *error=1;
 
-    pthread_mutex_unlock(&(sq->mutex_thing));
+    pthread_mutex_unlock(&(sq->mutex_task));
     sem_post(&(sq->sem_task_queue_notfull));
     return s;
 }

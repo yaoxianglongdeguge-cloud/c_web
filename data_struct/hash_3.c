@@ -6,6 +6,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "../send_tool/send_tool.h"
+#include "../http_analysis/http_ed_store.h"
 
 static const int PRIME_BUCKET_SIZES_3[15] = {
     7,
@@ -23,6 +25,8 @@ static const int PRIME_BUCKET_SIZES_3[15] = {
 
     http_ed_store* http_store;
     Send_tool* send_tool; */
+    
+int bucket_site_3(int bucket_size,int url);
 
 Hash_Entry_3* Hash3_Entry_Creat(int fd)
 {
@@ -172,7 +176,6 @@ int Hash3_Init(Hash_map_3** h,int init)//1成功，0已存在，-1过程错误
 
 int Hash3_Find(Hash_map_3* h,int url,Hash_Entry_3** ptr)//-1为过程错误，用来指示中间调用函数出现错误
 {
-    *Error=0;
     *ptr=NULL;
 
     if(h==NULL||h->Elem==NULL)

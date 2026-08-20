@@ -1,6 +1,8 @@
 #include <pthread.h>
 #include <semaphore.h>
-#include "../Task_queue/memory_queue.h"
+
+typedef struct Memory_Queue Memory_Queue;
+typedef struct Memory_Pool Memory_Pool;
 
 typedef struct profession{
 

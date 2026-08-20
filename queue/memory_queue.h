@@ -1,10 +1,16 @@
 #include <pthread.h>
 #include <semaphore.h>
 
+typedef struct Memory_Queue_Entry{
+
+    int size;
+    char* char_ptr;
+
+}Memory_Queue_Entry;
 
 typedef struct Memory_Queue{
 
-    Memory_Entry* queue;
+    Memory_Queue_Entry* queue;
     int begin;
     int end;
     int ptr_in;
@@ -18,15 +24,9 @@ typedef struct Memory_Queue{
 
 }Memory_Queue;
 
-typedef struct Memory_Entry{
 
-    int size;
-    const char* const char_ptr;
+int Memory_Queue_init(Memory_Queue** sq,int blocknum);
 
-}Memory_Entry;
+int Memory_Queue_push(Memory_Queue*sq,int size,char*char_ptr);
 
-int Memory_Queue_init(Memory_Queue** sq,int size);
-
-int Memory_Queue_push(Memory_Queue* sq,int size,const char* const char_ptr);
-
-Memory_Entry Memory_Queue_top_and_pop(Memory_Queue* sq,int* error);
+Memory_Queue_Entry Memory_Queue_top_and_pop(Memory_Queue* sq,int* error);

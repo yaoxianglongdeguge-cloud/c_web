@@ -3,10 +3,13 @@
 #include <unistd.h>   
 #include <string.h>
 #include <errno.h>
+#include<stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "../memory_pool/memory_pool.h"
+
+
 
 int Http_ed_store_init(http_ed_store** h)//分配整个存储大小，单位是字节
 {
@@ -46,10 +49,10 @@ int Http_ed_store_alloc(http_ed_store* h,Memory_Pool* pool,int size)
      void* ptr=NULL;
     Memory_Pool_alloc(pool,size,&ptr);
 
-    (*h)->begin=(char*)ptr;
-    (*h)->end=(*h)->begin+size-1;
-    (*h)->ptr_b=(*h)->begin;
-    (*h)->ptr_e=(*h)->begin;
+    h->begin=(char*)ptr;
+    h->end=h->begin+size-1;
+    h->ptr_b=h->begin;
+    h->ptr_e=h->begin;
 
     return 1;
 }
@@ -58,10 +61,10 @@ int Http_ed_store_free(http_ed_store* h,Memory_Pool* pool)
 {
     int size=h->begin-h->end;
     Memory_Pool_free(pool,h->begin,size);
-    (*h)->begin=NULL;
-    (*h)->end=(*h)->begin;
-    (*h)->ptr_b=(*h)->begin;
-    (*h)->ptr_e=(*h)->begin;
+    h->begin=NULL;
+    h->end=h->begin;
+    h->ptr_b=h->begin;
+    h->ptr_e=h->begin;
 
     http_state_reset(h);
 

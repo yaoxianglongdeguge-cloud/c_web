@@ -8,170 +8,104 @@
 #include "../my_thread/worker_thread.h"
 #include "../timer/timer.h"
 #include "send_tool.h"
-#include "send_thing_queue.h"
-#include "send_tool_early.h"
-#include "../connect_config/send_tool_arr_config.h"
-#include "../http_analysis/http_back_order.h"
+#include "../queue/send_thing_queue.h"
+#include "../connect_fd/connect_fd.h"
+#include "../data_struct/hash_3.h"
+#include "../http_analysis/http_analysis.h"
+#include "../queue/memory_queue.h"
+
+
+int free_http(){
+
+}
 
 int send_main(worker* w)
 {
-    int e0=0;
+    int send_fd=-2;
     Send_tq_Entry s;
-    int which=-2;
-    int next=-2;
-    int next_ptr=-2;
-
-
     //这里是看返回事件队列里能现在立刻发的包，然后顺便发他后面顺延的包
-    pthread_mutex_lock(&(w->mutex_thing));
-    while(which==-2||w->send_tool_arr[which]->store[next_ptr].use==0)
+
+    int e0=1;
+    while(e0!=0&&send_fd==-2)
     {
-    s = Send_thing_queue_top_and_pop(w->send_thing_queue,&e0);
-    if(e0==1)
-    {
-        my_lock_rdlock(&(w->rwlock_table));
-        which=send_tool_arr_fdget(w,s.fd);
-        my_lock_unlock(&(w->rwlock_table));
-        if(which>=0)
+        s = Send_thing_queue_top_and_pop(w->Thing_queue,&e0);
+        if(e0==1)
         {
-            next=http_back_order_get(w->http_order,s.fd,2);
-            next_ptr=next/w->send_tool_arr[which]->blocknum;
+            Fd_Entry* fd_ob=NULL;
+            int e1=Fd_Table_find(w->fd_table,s.fd,&fd_ob);
+            if(s.http!=NULL)
+            {
+                Http_analysis_free(s.http,w->http_pool);
+                s.http=NULL;
+            }
+         
+            if(e1!=1)
+            {
+                Memory_Queue_push(s.m_queue,s.size,s.char_ptr);
+
+            }
+            else
+            {
+                if(s.fd!=fd_ob->ser_nex_send)
+                {
+                    int next=s.serial%fd_ob->send_tool->blocknum;
+                    if(fd_ob->send_tool->store[next].use==1)
+                    {
+                        Send_thing_queue_push(w->Thing_queue,s.m_queue,s.fd,s.serial,s.error_reason,s.size,s.char_ptr,s.http);
+                    }
+                    else
+                    {
+                        fd_ob->send_tool->store[next].use=1;
+                        fd_ob->send_tool->store[next].error_reason=s.error_reason;
+                        fd_ob->send_tool->store[next].m_queue=s.m_queue;
+                        fd_ob->send_tool->store[next].ptr=s.char_ptr;
+                        fd_ob->send_tool->store[next].size=s.size;
+                    }
+                }
+                else
+                {
+                    send_fd=s.fd;
+                }
+            }
+   
+            
         }
         
     }
-    else if(e0==0)
-    {
-        break;
-    }
+    
 
-    }
-    if(e0==0)
-    {
-        pthread_mutex_unlock(&(w->mutex_thing));
-        return 1;
-    }
 
-    sem_post(&(w->sem_thing_queue_notfull));
-    pthread_mutex_unlock(&(w->mutex_thing));
-
+    Fd_Entry* fd_ob=NULL;
+    Fd_Table_find(w->fd_table,send_fd,&fd_ob);
+    int next=s.serial%fd_ob->send_tool->blocknum;
 
     int len=0;//之前说过用error_reason为正数时表示要发回的文本的长度
-    if(w->send_tool_arr[which]->store[next_ptr].error_reason<0)//------
+    len=fd_ob->send_tool->store[next].size;
+    
+
+
+    while(fd_ob->send_tool->store[next].use==1)
     {
+        int n=write(send_fd,fd_ob->send_tool->store[next].ptr, len);
+        Memory_Queue* m=fd_ob->send_tool->store[next].m_queue;
+        int size=fd_ob->send_tool->store[next].size;
+        char* ptr=fd_ob->send_tool->store[next].ptr;
+        Memory_Queue_push(m,size,ptr);
+        fd_ob->ser_nex_send++;
+        fd_ob->send_tool->store[next].use=0;
 
-
+        next=next+1%fd_ob->send_tool->blocknum;
     }
-    else
+
+
+ 
+    if( fd_ob->ser_nex_send>= fd_ob->ser_fina_send)
     {
-        len=w->send_tool_arr[which]->store[next_ptr].error_reason;
-    }
-
-
-    pthread_mutex_lock(&(w->send_tool_table->table[which].mutex));
-    while(w->send_tool_arr[which]->store[next_ptr].use==1&&next_ptr<w->send_tool_arr[which]->blocknum)
-    {
-        my_lock_rdlock(&(w->mutex_pool));
-        int n=write(s.fd,w->send_tool_arr[which]->store[next_ptr].ptr, len);
-        my_lock_unlock(&(w->mutex_pool));
-
-        w->send_tool_arr[which]->store[next_ptr].use=0;
-
-
-        my_lock_wrlock(&(w->mutex_pool));
-
-        Memory_pool_free(w->send_pool,w->send_tool_arr[which]->store[next_ptr].ptr,w->send_tool_arr[which]->store[next_ptr].ptr+len);
-        my_lock_unlock(&(w->mutex_pool));
-
-
-
-        http_back_order_add(w->http_order,s.fd,2);
-
-
-        sem_post(&(w->send_tool_table->table[which].sem));
-        next_ptr=next_ptr+1%w->send_tool_arr[which]->blocknum;
-    }
-    pthread_mutex_unlock(&(w->send_tool_table->table[which].mutex));
-
-    int final_ptr=http_back_order_get(w->http_order,s.fd,3);
-    if(next_ptr>=final_ptr)
-    {
-        my_lock_wrlock(&(w->rwlock_table));
-        send_tool_arr_fdfree(w,s.fd);
-        my_lock_unlock(&(w->rwlock_table));
-        send_tool_early_pop(w->send_early,which);
+        send_tool_free(fd_ob->send_tool,w->store_area);
     }
 
     timer_alloc_and_reset(w->my_timer,s.fd,w);
 
-
-
-
-
-
-
-    //给最开始分配的连接也释放一下
-    int early_fd=send_tool_early_top(w->send_early);
-    if(early_fd==-2)
-    {
-        return 1;
-    }
-
-    my_lock_rdlock(&(w->rwlock_table));
-    int which2=send_tool_arr_fdget(w,early_fd);
-    my_lock_unlock(&(w->rwlock_table));
-
-
-    if(which2<0)
-    {
-        return 0;
-    }
-    int next2=http_back_order_get(w->http_order,early_fd,2);
-    int next_ptr2=next2%w->send_tool_arr[which2]->blocknum;
-
-    int len2=0;
-    if(w->send_tool_arr[which2]->store[next_ptr2].error_reason<0)
-    {
-
-
-
-
-    }
-    else
-    {
-        len2=w->send_tool_arr[which2]->store[next_ptr2].error_reason;
-    }
-
-
-    pthread_mutex_lock(&(w->send_tool_table->table[which2].mutex));
-    while(w->send_tool_arr[which2]->store[next_ptr2].use==1&&next_ptr<w->send_tool_arr[which2]->blocknum)
-    {
-        my_lock_rdlock(&(w->mutex_pool));
-        int n1=write(early_fd,w->send_tool_arr[which2]->store[next_ptr2].ptr,len);
-        my_lock_unlock(&(w->mutex_pool));
-
-        w->send_tool_arr[which2]->store[next_ptr2].use=0;
-
-        my_lock_wrlock(&(w->mutex_pool));
-
-        Memory_pool_free(w->send_pool,w->send_tool_arr[which2]->store[next_ptr2].ptr,w->send_tool_arr[which2]->store[next_ptr2].ptr+len2);
-        my_lock_unlock(&(w->mutex_pool));
-
-        http_back_order_add(w->http_order,s.fd,2);
-        sem_post(&(w->send_tool_table->table[which2].sem));
-        next_ptr2=next_ptr2+1/w->send_tool_arr[which2]->blocknum;
-    }
-    pthread_mutex_unlock(&(w->send_tool_table->table[which2].mutex));
-
-    int final_ptr2=http_back_order_get(w->http_order,early_fd,3);
-
-    if(next_ptr2>=final_ptr2)
-    {
-        my_lock_wrlock(&(w->rwlock_table));
-        send_tool_arr_fdfree(w,early_fd);
-        my_lock_unlock(&(w->rwlock_table));
-        send_tool_early_pop(w->send_early,which2);
-    }
-    timer_alloc_and_reset(w->my_timer,early_fd,w);
 
     return 1;
 

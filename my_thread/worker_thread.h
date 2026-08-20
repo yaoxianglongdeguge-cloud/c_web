@@ -1,15 +1,11 @@
-#include <pthread.h>
-#include <semaphore.h>
-#include "../my_lock/my_rwlock_t.h"
 
-typedef struct my_rwlock_t my_rwlock_t;
-typedef struct http_ed_store http_ed_store;
-typedef struct memory_pool memory_pool;
-typedef struct Send_tool Send_tool;
+
+typedef struct Memory_Pool Memory_Pool;
 typedef struct Send_thing_queue Send_thing_queue;
 typedef struct timer timer;
 typedef struct Http_analysis_1 Http_analysis_1;
-typedef struct Fd_Table Fd_Table;
+typedef struct Hash_map_3 Fd_Table;
+
 
 typedef struct worker{
    
@@ -25,7 +21,7 @@ typedef struct worker{
 
 
 
-} worker;
+}worker;
 
 
 int worker_init(worker** w,int Listen_fd,int id);

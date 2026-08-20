@@ -6,10 +6,12 @@
 #include "../memory_pool/memory_pool.h"
 #include "http_ed_store.h"
 #include "http_state.h"
-#include "../data_struct/hash_2.h"
 
 #define MAX_URL_LEN 8192         // 8KB
 #define MAX_HEADER_LEN 16384     // 16KB
+
+
+
 
 int Http_analysis_body(Http_analysis_1* h,char* http_request);//type用来判断请求体的格式
 
@@ -19,12 +21,13 @@ int Http_analysis_head(Http_analysis_1* h,char* http_request,int* error_reason);
 
 
 
+
 int Http_analysis_init(Http_analysis_1** h,Memory_Pool* pool,int h_size)
 {
         (*h)->size=h_size;
         void* ptr=NULL;
         int e0=Memory_Pool_alloc(pool,h_size,&ptr);
-        (*h)=(char*)ptr;
+        (*h)=ptr;
 
         if((*h)==NULL)
         {

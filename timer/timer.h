@@ -1,4 +1,3 @@
-#include<stdio.h>
 
 typedef struct prior_queue_1 prior_queue_1;
 typedef struct worker worker;

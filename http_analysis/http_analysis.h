@@ -8,14 +8,14 @@
 //到时候，这个表本身不在内存池，长期存在，表存储的数据放到内存池，处理一个请求有一次申请和一次释放。
 
 typedef struct Hash_map Hash_map_2;
-typedef struct memory_pool memory_pool;
+typedef struct Memory_Pool Memory_Pool;
 
 typedef struct Http_analysis_1{
 
     int size;
     char* Method;
     char* Url;
-    char* Version;
+    char* Version; 
     Hash_map_2* Query;
     Hash_map_2* Headers;
     char* Body;

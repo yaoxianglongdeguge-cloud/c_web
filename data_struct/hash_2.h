@@ -1,7 +1,6 @@
 //内存池分配专用哈希表
 
 
-typedef struct Http_analysis_1 Http_analysis_1;
 
 typedef struct Entry Hash2_Entry_2;
 
@@ -10,9 +9,10 @@ typedef struct Hash_map
    int bu_num;
    int elem_num;
    Hash2_Entry_2* Elem;
-
+   
 }Hash_map_2;
 
+typedef struct Http_analysis_1 Http_analysis_1;
 
 int Hash2_Init(Http_analysis_1* Http, int init);//初始化.但这个最开始的哈希表没必要放到内存池，因为是这样，先是一个指针h，指向一个哈希表，这个表是用来存储本身信息和指向
 //键值对块的指针的，而存储键值对块的内存块放到内存池里。因为需要时常修改。而这个表本身大小和位置不会变，生命周期也很长，所以没必要放到内存池，每次和其他的一起注册。

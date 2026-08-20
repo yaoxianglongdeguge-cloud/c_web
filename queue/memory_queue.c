@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 
-int Memory_Queue_init(Memory_Queue** sq,int size)
+int Memory_Queue_init(Memory_Queue** sq,int blocknum)
 {
     *sq=NULL;
     *sq=(Memory_Queue*)malloc(sizeof(Memory_Queue));
@@ -12,7 +12,7 @@ int Memory_Queue_init(Memory_Queue** sq,int size)
         return -1;
     }
 
-    (*sq)->queue=(Memory_Entry*)malloc(sizeof(Memory_Entry)*blocknum);
+    (*sq)->queue=(Memory_Queue_Entry*)malloc(sizeof(Memory_Queue_Entry)*blocknum);
     (*sq)->begin=0;
     (*sq)->end=(*sq)->begin+blocknum;
     (*sq)->ptr_in=(*sq)->begin;
@@ -29,7 +29,7 @@ int Memory_Queue_init(Memory_Queue** sq,int size)
 
 }
 
-int Memory_Queue_push(Memory_Queue* sq,int size,const char* const char_ptr)
+int Memory_Queue_push(Memory_Queue* sq,int size,char*char_ptr)
 {
     sem_wait(&(sq->queue_notfull));
     pthread_mutex_lock(&(sq->mutex));
@@ -52,11 +52,11 @@ int Memory_Queue_push(Memory_Queue* sq,int size,const char* const char_ptr)
     return 1;
 }
 
-Memory_Entry Memory_Queue_top_and_pop(Memory_Queue* sq,int* error)
+Memory_Queue_Entry Memory_Queue_top_and_pop(Memory_Queue* sq,int* error)
 {
     pthread_mutex_lock(&(sq->mutex));
     *error=0;
-    Memory_Entry s;
+    Memory_Queue_Entry s;
    
     s.size=0;
     s.char_ptr=NULL;

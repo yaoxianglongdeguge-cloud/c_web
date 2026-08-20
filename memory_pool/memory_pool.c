@@ -39,7 +39,7 @@ int Memory_Stack_top_and_pop(Memory_Stack* s,int* top_serial)
 {
     pthread_mutex_lock(&(s->mutex));
     s->top--;
-    int *top_serial=s->leisure[s->top];
+    *top_serial=s->leisure[s->top];
     s->leisure[s->top]=-1;
     pthread_mutex_unlock(&(s->mutex));
 
@@ -65,13 +65,14 @@ int Memory_Entry_init(Memory_Entry* e,int strip_num_future,int strip_size,int in
 
 int Memory_Entry_expend(Memory_Entry* e)
 {
+    int expend_num=0;
     if(e->strip_num==0)
     {
         expend_num=1;
     }
     else
     {
-        int expend_num=e->strip_num;//要被扩容前的大小
+        expend_num=e->strip_num;//要被扩容前的大小
     }
     int strip_size=e->strip_size;
     int total_size=expend_num*strip_size;
@@ -178,7 +179,7 @@ int Memory_Pool_free(Memory_Pool* p,void* ptr,int size)
         alloc_size=alloc_size*2;
     }
     Memory_Entry* aim_entry=&(p->pool[i]);
-    if(ptr<aim_entry->memory_strip||end>aim_entry->memory_strip+aim_entry->strip_size*aim_entry->strip_num)
+    if(ptr<aim_entry->memory_strip||ptr+size-1>aim_entry->memory_strip+aim_entry->strip_size*aim_entry->strip_num)
     {
         return 0;
     }

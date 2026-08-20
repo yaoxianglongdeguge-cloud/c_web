@@ -1,4 +1,5 @@
 #include "timer.h"
+#include<stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include "../data_struct/prior_queue_1.h"

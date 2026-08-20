@@ -17,65 +17,32 @@
 #include "../http_analysis/http_state.h"
 #include "../send_tool/send_tool.h"
 #include "../send_tool/send_main.h"
-#include "../send_tool/send_thing_queue.h"
+#include "../queue/send_thing_queue.h"
+#include "../queue/task_queue.h"
 #include "../connect_config/connect_manage.h"
-#include "../Task_queue/Task_queue.h"
 #include "../connect_fd/connect_fd.h"
+#include "../data_struct/hash_3.h"
 
-
-extern Task_queue* Task_Queue;
 
 int worker_init(worker** w,int Listen_fd,int id)
 {
     *w=(worker*)malloc(sizeof(worker));
-    int e0=ed_store_arr_init(*w,10,4,5,8);
-    int e1=Memory_pool_init(&((*w)->http_pool),32,4);
-    int e2=http_back_order_init(&((*w)->http_order),3);
-    int e3=send_tool_arr_init(*w,15,4);
-    int e4=Memory_pool_init(&((*w)->send_pool),32,4);
-    int e5=Send_thing_queue_init(&((*w)->send_thing_queue),40);
-    int e6=send_tool_early_init(&((*w)->send_early),50);
-    int e7=timer_init(&((*w)->my_timer),50);
 
-    sem_init(&((*w)->sem_thing_queue_notfull),0,40);
-    pthread_mutex_init(&((*w)->mutex_thing), NULL);
-    my_rwlock_init(&((*w)->mutex_pool));
-    my_rwlock_init(&((*w)->rwlock_table));
+    Memory_Pool_init(&((*w)->http_pool),6,6,50,5);
+    Memory_Pool_init(&((*w)->store_area),6,6,50,5);
+    Send_thing_queue_init(&((*w)->Thing_queue),40);
+    timer_init(&((*w)->my_timer),50);
+    Fd_Table_init(&((*w)->fd_table),2);
+
+
+
 
     (*w)->epfd=epoll_create1(0);
     (*w)->id=id;
     struct epoll_event ev;
     ev.events = EPOLLIN;
     ev.data.fd = Listen_fd;
-    int ret=1;
-
-    ret =epoll_ctl((*w)->epfd, EPOLL_CTL_ADD, Listen_fd, &ev);
-
-
-    if(e0!=1)
-    {
-        return -1;
-    }
-    if(e1!=1)
-    {
-        return -1;
-    }
-    if(e2!=1)
-    {
-        return -1;
-    }
-    if(e3!=1)
-    {
-        return -1;
-    }
-    if(e4!=1)
-    {
-        return -1;
-    }
-    if(e5!=1)
-    {
-        return -1;
-    }
+    epoll_ctl((*w)->epfd, EPOLL_CTL_ADD, Listen_fd, &ev);
 
     return 1;
 
@@ -89,13 +56,7 @@ int worker_to_profession(worker* w,int fd,Http_analysis_1* h,int error_reason,in
         return 1;
     }
 
-    sem_wait(&sem_task_queue_notfull);//本来push里面也没几个操作而且几乎都要直接操作队列，所以放在这里就可以
-    pthread_mutex_lock(&mutex_task);
-
     int e0=Task_queue_push(Task_Queue,w,fd,serial,error_reason,h);
-
-    pthread_mutex_unlock(&mutex_task);
-    sem_post(&sem_task_queue_notempty);
 }
 
 int receive_and_send_main(worker* w,int Listen_fd,int time)
@@ -135,4 +96,6 @@ int receive_and_send_main(worker* w,int Listen_fd,int time)
         }
  
     }
+    
+    return 1;
 }

@@ -1,4 +1,6 @@
 
+typedef struct http_ed_store http_ed_store;
+typedef struct Send_tool Send_tool;
 
 typedef struct Hash_Entry_3{
     
@@ -10,7 +12,7 @@ typedef struct Hash_Entry_3{
     http_ed_store* http_store;
     Send_tool* send_tool;
 
-    Hash_Entry_3* next;
+    struct Hash_Entry_3* next;
 
 }Hash_Entry_3;
 
@@ -22,6 +24,7 @@ typedef struct Hash_map_3
    Hash_Entry_3* Elem;
 
 }Hash_map_3;
+
 
 int Hash3_Init(Hash_map_3** h,int init);//初始化
 

@@ -10,14 +10,13 @@
 #include <errno.h>
 
 #include "../timer/timer.h"
-#include "../my_lock/my_rwlock_t.h"
 #include "../my_thread/worker_thread.h"
 #include "../http_analysis/http_ed_store.h"
 #include "../http_analysis/http_state.h"
-#include "../connect_config/ed_store_arr_config.h"
-#include "../connect_config/send_tool_arr_config.h"
-#include "../http_analysis/http_back_order.h"
-#include "../send_tool/send_tool_early.h"
+#include "../connect_fd/connect_fd.h"
+#include "../send_tool/send_tool.h"
+#include "../queue/memory_queue.h"
+#include "../data_struct/hash_3.h"
 
 
 int fd_connect(worker* w,int Listen_fd)
@@ -27,27 +26,24 @@ int fd_connect(worker* w,int Listen_fd)
     while(1)
     {
         client_fd=accept(Listen_fd,NULL,NULL);
-        printf("%d",w->id);
         if (client_fd < 0) {
-        if (errno == EAGAIN) break;  // 取完了
+        if (errno == EAGAIN) break;
         else 
         {
             return -1;
         }
        }
-
         int flags = fcntl(client_fd, F_GETFL, 0); 
         fcntl(client_fd, F_SETFL, flags | O_NONBLOCK); 
-        ev.events = ev.events = EPOLLIN | EPOLLET;   // 边缘触发;        
+        ev.events = EPOLLIN | EPOLLET;   // 边缘触发;
         ev.data.fd = client_fd;          
-        epoll_ctl(w->epfd, EPOLL_CTL_ADD, client_fd, &ev);  
-        int e0=timer_alloc_and_reset(w->my_timer,client_fd,w);
-        if(e0!=1)
-        {   
-            epoll_ctl(w->epfd, EPOLL_CTL_DEL, client_fd, NULL);
-            return 0;
-        }
-        int e1=http_back_order_insertfd(w->http_order,client_fd);
+        epoll_ctl(w->epfd, EPOLL_CTL_ADD, client_fd, &ev);
+        
+        
+        timer_alloc_and_reset(w->my_timer,client_fd,w);
+        Fd_Table_insert(w->fd_table,client_fd);
+
+        
     }
 
     return 1;
@@ -55,16 +51,27 @@ int fd_connect(worker* w,int Listen_fd)
 
 int fd_close(worker* w,int client_fd)
 {
-    int e0=ed_store_pool_fdfree(w,client_fd);
+    Fd_Entry* fd_ob=NULL;
+    Fd_Table_find(w->fd_table,client_fd,&fd_ob);
+    Http_ed_store_destroy(fd_ob->http_store,w->store_area);
 
-    my_lock_wrlock(&(w->rwlock_table));
-    int e2=send_tool_arr_fdfree(w,client_fd);
-    my_lock_unlock(&(w->rwlock_table));
+    for(int i=0;i<fd_ob->send_tool->blocknum;i++)
+    {
+        if(fd_ob->send_tool->store[i].use)
+        {
+            Memory_Queue* m=fd_ob->send_tool->store[i].m_queue;
+            int size=fd_ob->send_tool->store[i].size;
+            char* c=fd_ob->send_tool->store[i].ptr;
+            Memory_Queue_push(m,size,c);
+        }
+    }
 
-    int e1=http_back_order_deletefd(w->http_order,client_fd);
-    int e3=send_tool_early_pop(w->send_early,client_fd);
-    close(client_fd);
+
+    send_tool_destory(fd_ob->send_tool,w->store_area);
+    Fd_Table_delete(w->fd_table,client_fd);
+
     epoll_ctl(w->epfd, EPOLL_CTL_DEL, client_fd, NULL);
+    close(client_fd);
 
     return 1;
 }

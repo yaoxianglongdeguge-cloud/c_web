@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "../memory_pool/memory_pool.h"
+#include "../queue/memory_queue.h"
 
 int send_tool_init(Send_tool** s)
 {
@@ -22,6 +23,7 @@ int send_tool_alloc(Send_tool* s,Memory_Pool* pool,int blocknum)
 
     for(int i=0;i<blocknum;i++)
     {
+        s->store[i].m_queue=NULL;
         s->store[i].ptr=NULL;
         s->store[i].error_reason=0;
         s->store[i].use=0;
@@ -38,8 +40,9 @@ int send_tool_free(Send_tool* s,Memory_Pool* pool)
     return 1;
 }
 
-int send_tool_destory(Send_tool* s,Memory* pool)
+int send_tool_destory(Send_tool* s,Memory_Pool* pool)
 {
+    int size=s->blocknum*sizeof(Send_tool_Entry);
     if(s->store!=NULL)
     {
         Memory_Pool_free(pool,s->store,size);
