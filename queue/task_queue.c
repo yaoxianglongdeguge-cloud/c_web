@@ -26,6 +26,15 @@ int Task_queue_init(Task_queue** sq,int blocknum)
     (*sq)->num=0;
     (*sq)->blocknum=blocknum;
 
+    for(int i=0;i<blocknum;i++)
+    {
+        (*sq)->queue[i].error_reason=0;
+        (*sq)->queue[i].fd=0;
+        (*sq)->queue[i].http=NULL;
+        (*sq)->queue[i].serial=-1;
+        (*sq)->queue[i].w;
+    }
+
     sem_init(&((*sq)->sem_task_queue_notfull),0,blocknum);
     pthread_mutex_init(&((*sq)->mutex_task),NULL);
     sem_init(&((*sq)->sem_task_queue_notempty),0,0);

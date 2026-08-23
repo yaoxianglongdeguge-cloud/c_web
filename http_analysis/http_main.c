@@ -47,7 +47,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
 
     //状态机开始检索http请求
         int state=0;
-        int error_reason=0;
+        int error_reason=200;
         char* source_end=http_state_judge(fd_ob->http_store,&state,&error_reason);//要复制的文本结尾，此处在文本中
             
             
@@ -100,10 +100,10 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
                 
             Http_analysis_receive(h,http_txt_begin,&error_reason);
 
-            if(error_reason!=200)
-            {
-                Memory_Pool_free(worker->http_pool,h,http_size);
-            }
+           // if(error_reason!=200)
+            //{
+             //   Memory_Pool_free(worker->http_pool,h,http_size);
+            //}
                 
 
             http_state_reset(fd_ob->http_store);    
