@@ -66,16 +66,17 @@ int deal_and_pack(profession* profes)
 
     Send_thing_queue_push(W->Thing_queue,profes->memory_queue,Fd,Serial,Error_reason,size,C,t.http);
 
+    
     int e1=1;
     while(e1!=0)
     {
         Memory_Queue_Entry m;
 
         m=Memory_Queue_top_and_pop(profes->memory_queue,&e1);
-        if(e1==1)
+        /*if(e1==1)
         {
             Memory_Pool_free(profes->txt_pool,m.char_ptr,m.size);
-        }
+        }*/
     }
     
         

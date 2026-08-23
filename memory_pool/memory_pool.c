@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include<string.h>
+
 #include "../my_lock/my_rwlock_t.h"
 
 
@@ -10,19 +11,42 @@
 
 //每页大小灵活一些，因为不同地方可能数据分散度不同
 
+int Memory_Stack_top_and_pop(Memory_Stack* s,int* top_serial);
+int Memory_Stack_push(Memory_Stack* s,int strip_serial);
 
 int Memory_Stack_init(Memory_Stack* s,int strip_num)
 {
+    
     s->leisure=(int*)malloc(sizeof(int)*strip_num);
     for(int i=0;i<strip_num;i++)
     {
         s->leisure[i]=-1;
     }
 
+    s->num=strip_num;
     s->top=0;
     pthread_mutex_init(&(s->mutex),NULL);
 
     return 1;
+}
+
+int Memory_Stack_expend(Memory_Entry* e,int expend_num)
+{
+    Memory_Stack* s=(Memory_Stack*)malloc(sizeof(Memory_Stack));
+    Memory_Stack_init(s,expend_num);
+    int serial=-1;
+    int em=Memory_Stack_top_and_pop(e->stack,&serial);
+    while(em!=0)
+    {
+        Memory_Stack_push(s,serial);
+        em=Memory_Stack_top_and_pop(e->stack,&serial);
+    }
+
+    pthread_mutex_lock(&(s->mutex));
+    free(e->stack);
+    e->stack=s;
+    pthread_mutex_unlock(&(s->mutex));
+
 }
 
 int Memory_Stack_push(Memory_Stack* s,int strip_serial)
@@ -37,13 +61,22 @@ int Memory_Stack_push(Memory_Stack* s,int strip_serial)
 
 int Memory_Stack_top_and_pop(Memory_Stack* s,int* top_serial)
 {
+    int e=0;
     pthread_mutex_lock(&(s->mutex));
-    s->top--;
-    *top_serial=s->leisure[s->top];
-    s->leisure[s->top]=-1;
+    if(s->top==0)
+    {
+        e=0;
+    }
+    else
+    {
+        e=1;
+        s->top--;
+        *top_serial=s->leisure[s->top];
+        s->leisure[s->top]=-1;
+    }
     pthread_mutex_unlock(&(s->mutex));
 
-    return 1;
+    return e;
 }
 
 
@@ -53,9 +86,9 @@ int Memory_Entry_init(Memory_Entry* e,int strip_num_future,int strip_size,int in
     e->haded_num=0;
     e->strip_num=init_num;
     e->strip_size=strip_size;
-    e->memory_strip=malloc(strip_size*1024*init_num);
+    e->memory_strip=calloc(init_num,strip_size*1024);
     e->stack=(Memory_Stack*)malloc(sizeof(Memory_Stack));
-    Memory_Stack_init(e->stack,strip_num_future);
+    Memory_Stack_init(e->stack,strip_num_future+50);
     for(int i=0;i<init_num;i++)
     {
     Memory_Stack_push(e->stack,i);
@@ -66,31 +99,29 @@ int Memory_Entry_init(Memory_Entry* e,int strip_num_future,int strip_size,int in
 int Memory_Entry_expend(Memory_Entry* e)
 {
     int before_num=e->strip_num;
-    int expend_num=0;
-    if(before_num==0)
-    {
-        before_num=1;
-    }
-    
-    expend_num=before_num*2;
+    int expend_num=before_num*2;
 
     int strip_size=e->strip_size;
-    int total_size=before_num*strip_size;
+    int total_size=before_num*strip_size*1024;
 
-    void* strip=malloc(expend_num*strip_size*1024);
-
-    memcpy(strip,e->memory_strip,total_size);
+    char* strip=(char*)malloc(expend_num*strip_size*1024);
+    e->memory_strip=(char*)malloc(expend_num*strip_size*1024);
+    memcpy(e->memory_strip,strip,total_size);
     free(e->memory_strip);
     e->memory_strip=strip;
     e->strip_num=e->strip_num*2;
 
-    for(int i=before_num+1;i<expend_num;i++)
+    
+    for(int i=before_num;i<expend_num;i++)
     {
         Memory_Stack_push(e->stack,i);
     }
+    
 
+    Memory_Stack_expend(e,expend_num+100);
+    
     return 1;
-
+    
 }
 
 int Memory_Entry_alloc(Memory_Entry* e,void** ptr)
@@ -99,10 +130,10 @@ int Memory_Entry_alloc(Memory_Entry* e,void** ptr)
     {
         Memory_Entry_expend(e);
     }
-    int size=e->strip_size;
+    int size=e->strip_size*1024;
     int serial=-1;
     Memory_Stack_top_and_pop(e->stack,&serial);
-    *ptr=e->memory_strip+serial*e->strip_size;
+    *ptr=(void*)(e->memory_strip+serial*size);
     e->haded_num++;
 
     return 1;
@@ -111,8 +142,8 @@ int Memory_Entry_alloc(Memory_Entry* e,void** ptr)
 int Memory_Entry_free(Memory_Entry* e,void* ptr)
 {
     int size=e->strip_size;
-    int total_gap=ptr-e->memory_strip;
-    int serial=total_gap/size;
+    int total_gap=(char*)ptr-e->memory_strip;
+    int serial=total_gap/(size*1024);
 
     Memory_Stack_push(e->stack,serial);
     e->haded_num--;
@@ -172,20 +203,21 @@ int Memory_Pool_alloc(Memory_Pool* p,int size,void** ptr)
 
 }
 
-int Memory_Pool_free(Memory_Pool* p,void* ptr,int size)
+int Memory_Pool_free(Memory_Pool* p,void* ptr,int size)//单位字节
 {
     int alloc_size=1;
     int i=0;
     for(;i<p->Entry_num;i++)
     {
-        if(alloc_size>=size)
+        if(alloc_size*1024>=size)
         {
             break;
         }
         alloc_size=alloc_size*2;
     }
     Memory_Entry* aim_entry=&(p->pool[i]);
-    if(ptr<aim_entry->memory_strip||ptr+size-1>aim_entry->memory_strip+aim_entry->strip_size*aim_entry->strip_num)
+    int right_size=aim_entry->strip_size*aim_entry->strip_num*1024;
+    if((char*)ptr<aim_entry->memory_strip||(char*)ptr+size-1>aim_entry->memory_strip+right_size)
     {
         return 0;
     }

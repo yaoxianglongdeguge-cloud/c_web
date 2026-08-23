@@ -31,7 +31,7 @@ int worker_init(worker** w,int Listen_fd,int id)
     Memory_Pool_init(&((*w)->http_pool),6,6,50,5);
     Memory_Pool_init(&((*w)->store_area),6,6,50,5);
     Send_thing_queue_init(&((*w)->Thing_queue),40);
-    timer_init(&((*w)->my_timer),50);
+    timer_init(&((*w)->my_timer),5000);
     Fd_Table_init(&((*w)->fd_table),2);
 
 
@@ -73,6 +73,10 @@ int receive_and_send_main(worker* w,int Listen_fd,int time,int ed_store_blocknum
         for(int i=0;i<n;i++)
         {
             int handle_fd=events[i].data.fd;
+            if(handle_fd<3)
+            {
+                continue;
+            }
 
             if(handle_fd==Listen_fd)
             {

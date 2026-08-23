@@ -17,7 +17,12 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
 {
 
     Fd_Entry* fd_ob=NULL;
-    Fd_Table_find(worker->fd_table,fd,&fd_ob);
+    int o0=Fd_Table_find(worker->fd_table,fd,&fd_ob);
+
+    if(o0==0)
+    {
+        return 1;
+    }
 
     if(fd_ob->pack_in_path>=ed_store_blocknum)
     {

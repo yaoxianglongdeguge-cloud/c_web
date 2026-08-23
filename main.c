@@ -145,34 +145,24 @@ pthread_t tid2;
 worker* w1;
 worker_init(&w1, fd, 1);
 main_t m1 = {.fd = fd, .time = 10000, .w = w1,.ed_store_blocknum=30};
-
 pthread_create(&tid1, NULL, func1, &m1);
 
 profession* p1;
 profession_init(&p1,1);
 
-main_t2 m2 = {.p=p1};
+main_t2 m5 = {.p=p1};
 
-pthread_create(&tid2, NULL, func2, &m2);
-/*
-worker* w2;
-worker_init(&w2, fd, 2,30);
+pthread_create(&tid2, NULL, func2, &m5);
+/*worker* w2;
+worker_init(&w2, fd, 2);
 worker* w3;
 worker_init(&w3, fd, 3);
 worker* w4;
 worker_init(&w4, fd, 4);
 
-
-main_t m2 = {.fd = fd, .time = 10000, .w = w2};
-main_t m3 = {.fd = fd, .time = 10000, .w = w3};
-main_t m4 = {.fd = fd, .time = 10000, .w = w4};
-
-pthread_create(&tid2, NULL, func2, NULL);
-
-pthread_create(&tid2, NULL, func2, NULL);
-
-pthread_create(&tid2, NULL, func2, NULL);
-
+main_t m2 = {.fd = fd, .time = 10000, .w = w2,.ed_store_blocknum=30};
+main_t m3 = {.fd = fd, .time = 10000, .w = w3,.ed_store_blocknum=30};
+main_t m4 = {.fd = fd, .time = 10000, .w = w4,.ed_store_blocknum=30};
 
 
 pthread_create(&tid1, NULL, func1, &m2);
@@ -180,9 +170,35 @@ pthread_create(&tid1, NULL, func1, &m2);
 pthread_create(&tid1, NULL, func1, &m3);
 
 pthread_create(&tid1, NULL, func1, &m4);
+
+
+profession* p2;
+profession_init(&p2,2);
+
+main_t2 m6 = {.p=p2};
+
+profession* p3;
+profession_init(&p3,3);
+
+main_t2 m7 = {.p=p3};
+
+profession* p4;
+profession_init(&p4,4);
+
+main_t2 m8 = {.p=p4};
+
+
+
+pthread_create(&tid2, NULL, func2, &m6);
+
+
+pthread_create(&tid2, NULL, func2, &m7);
+
+
+pthread_create(&tid2, NULL, func2, &m8);
+
+
 */
-
-
 
 while(1)
 {

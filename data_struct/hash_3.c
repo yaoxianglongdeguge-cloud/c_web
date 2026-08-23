@@ -48,6 +48,7 @@ Hash_Entry_3* Hash3_Entry_Creat(int fd)
 
 Hash_Entry_3* Hash3_Entry_Find(Hash_Entry_3* head,int url,int* Error)
 {
+    
     Hash_Entry_3* h=head;
     *Error=0;
     while(h->next!=NULL)
@@ -110,20 +111,14 @@ int Hash3_Entry_Delete(Hash_Entry_3* head,int url)//返回1插入成功，0已�
         free(m);
         return 1;
     }
-    else
-    {
-        return -1;
-    }
+
 
     return -1;
 }
 
 int Hash3_Allocate(Hash_map_3* h,int size_h)
 {
-    if(h->Elem!=NULL)
-    {
-        return 0;
-    }
+    h->Elem=NULL;
     h->Elem=(Hash_Entry_3*)malloc(sizeof(Hash_Entry_3)*size_h);
 
     if(h->Elem==NULL)

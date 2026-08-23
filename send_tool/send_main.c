@@ -11,6 +11,7 @@
 #include "../queue/send_thing_queue.h"
 #include "../connect_fd/connect_fd.h"
 #include "../data_struct/hash_3.h"
+#include "../connect_config/connect_manage.h"
 #include "../http_analysis/http_analysis.h"
 #include "../http_analysis/http_ed_store.h"
 #include "../queue/memory_queue.h"
@@ -66,6 +67,7 @@ int send_main(worker* w,int ed_store_blocknum)
             
         }
         
+    }
     
     
 
@@ -86,6 +88,10 @@ int send_main(worker* w,int ed_store_blocknum)
     while(fd_ob->send_tool->store[next].use==1)
     {
         int n=write(send_fd,fd_ob->send_tool->store[next].ptr, len);
+        if(n==0)
+        {
+            fd_close(w,send_fd);
+        }
         Memory_Queue* m=fd_ob->send_tool->store[next].m_queue;
         int size=fd_ob->send_tool->store[next].size;
         char* ptr=fd_ob->send_tool->store[next].ptr;
@@ -109,6 +115,5 @@ int send_main(worker* w,int ed_store_blocknum)
 
     return 1;
 
-}
 
 }

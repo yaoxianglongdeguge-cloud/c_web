@@ -10,6 +10,7 @@ typedef struct Memory_Stack{
 
     int* leisure;
     int top;
+    int num;
     pthread_mutex_t mutex;
 
 }Memory_Stack;
@@ -19,7 +20,7 @@ typedef struct Memory_Entry{
     int strip_size;//单位是kb
     int strip_num;//条的数量
     int haded_num;//已被使用条数量
-    void* memory_strip;
+    char* memory_strip;
     Memory_Stack* stack;
 
 }Memory_Entry;
