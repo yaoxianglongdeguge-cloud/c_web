@@ -1,11 +1,4 @@
-#include "connect_fd.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include "../my_thread/worker_thread.h"
-#include "../memory_pool/memory_pool.h"
-#include "../http_analysis/http_ed_store.h"
-#include "../send_tool/send_tool.h"
-#include "../data_struct/hash_3.h"
+#include "../include.h"
 
 
 

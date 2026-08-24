@@ -1,7 +1,5 @@
-#include <semaphore.h> 
-#include <pthread.h> 
-typedef struct Http_analysis_1 Http_analysis_1;
-typedef struct Memory_Queue Memory_Queue;
+#include "../variate.h"
+
 typedef struct Send_tq_Entry{
 
     Memory_Queue* m_queue;
@@ -10,7 +8,7 @@ typedef struct Send_tq_Entry{
     int error_reason;
     int size;
     char* char_ptr;
-    Http_analysis_1* http;
+
 
 }Send_tq_Entry;
 
@@ -35,6 +33,6 @@ typedef struct Send_thing_queue{
 
 int Send_thing_queue_init(Send_thing_queue** sq,int blocknum);
 
-int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int serial,int error_reason,int size,char*char_ptr,Http_analysis_1* h);
+int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int serial,int error_reason,int size,char*char_ptr);
 
 Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error);

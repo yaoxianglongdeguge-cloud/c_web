@@ -1,5 +1,4 @@
-typedef struct Memory_Queue Memory_Queue;
-typedef struct Memory_Pool Memory_Pool;
+#include "../variate.h"
 
 typedef struct Send_tool_Entry{
 

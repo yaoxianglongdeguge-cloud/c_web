@@ -1,4 +1,4 @@
-#include <time.h>
+#include "../variate.h"
 
 typedef struct timer_entry 
 {

@@ -1,20 +1,4 @@
-#include "send_main.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
-#include "../memory_pool/memory_pool.h"
-#include "../my_thread/worker_thread.h"
-#include "../timer/timer.h"
-#include "send_tool.h"
-#include "../queue/send_thing_queue.h"
-#include "../connect_fd/connect_fd.h"
-#include "../data_struct/hash_3.h"
-#include "../connect_config/connect_manage.h"
-#include "../http_analysis/http_analysis.h"
-#include "../http_analysis/http_ed_store.h"
-#include "../queue/memory_queue.h"
+#include "../include.h"
 
 
 int send_main(worker* w,int ed_store_blocknum)
@@ -31,11 +15,6 @@ int send_main(worker* w,int ed_store_blocknum)
         {
             Fd_Entry* fd_ob=NULL;
             int e1=Fd_Table_find(w->fd_table,s.fd,&fd_ob);
-            if(s.http!=NULL)
-            {
-                Http_analysis_free(s.http,w->http_pool);
-                s.http=NULL;
-            }
          
             if(e1!=1)
             {
@@ -90,7 +69,13 @@ int send_main(worker* w,int ed_store_blocknum)
         int n=write(send_fd,fd_ob->send_tool->store[next].ptr, len);
         if(n==0)
         {
-            fd_close(w,send_fd);
+            fd_close(w,send_fd,200);
+        }
+        if(fd_ob->send_tool->store[next].error_reason!=200)
+        {
+            int error_reason=fd_ob->send_tool->store[next].error_reason;
+            fd_close(w,send_fd,error_reason);
+            break;
         }
         Memory_Queue* m=fd_ob->send_tool->store[next].m_queue;
         int size=fd_ob->send_tool->store[next].size;

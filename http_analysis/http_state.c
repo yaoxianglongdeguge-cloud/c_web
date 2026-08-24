@@ -1,11 +1,6 @@
-#include <stdio.h>
-#include<string.h>
-#include <stdlib.h>
-#include "http_state.h"
-#include "http_ed_store.h"
+#include "../include.h"
 
 
-#define MAX_BODY_SIZE (1024 * 1024)  // 1MB
 char* Method_p[9]={"GET ","DELETE ","HEAD ","OPTIONS ","TRACE ","CONNECT ","POST ","PUT ","PATCH "};
 
 char *strnstr(const char *haystack, const char *needle, size_t n) {
@@ -53,7 +48,7 @@ int minm(int a,int b)
 char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代表不完整，需要accept,0时代表错误，1时代表对
 {
     *error=0;
-    *error_reason=0;
+    *error_reason=200;
     char* target;
     
     int check_size=hs->ptr_e-hs->ptr_b;
@@ -129,7 +124,7 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
         {
             *error=0;
             body_length=body_length+15;
-            while(body_length!=" ")
+            while(*body_length!=' ')
             {
                 body_length++;
             }
@@ -143,22 +138,10 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
             }
 
             int len=atoi(length_num);
-            if(len>MAX_BODY_SIZE)
-            {
-                *error_reason=413;
-                *error=0;
-                return NULL;
-            }
 
-            target=target+4+len;
-            if(target<hs->ptr_e){
-                *error=1;
-            }
-            else
-            {
-                *error=-1;
-            }
 
+            hs->httpstate->h_body_length=len;
+            *error=1;
         }
 
     }

@@ -1,5 +1,5 @@
-#include <pthread.h>
-#include <semaphore.h>
+#include "../variate.h"
+
 
 
 typedef struct my_rwlock_t{

@@ -1,6 +1,5 @@
+#include "../variate.h"
 
-typedef struct http_ed_store http_ed_store;
-typedef struct Send_tool Send_tool;
 
 typedef struct Hash_Entry_3{
     

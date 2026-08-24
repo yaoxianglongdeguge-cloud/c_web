@@ -1,5 +1,3 @@
-
-typedef struct Http_analysis_1 Http_analysis_1;
-typedef struct worker worker;
+#include "../variate.h"
 
 int http_main(int fd,worker* worker,int ed_store_blocknum);

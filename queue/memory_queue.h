@@ -1,5 +1,4 @@
-#include <pthread.h>
-#include <semaphore.h>
+#include "../variate.h"
 
 typedef struct Memory_Queue_Entry{
 

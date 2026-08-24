@@ -1,5 +1,4 @@
-typedef struct Hash_Entry_3 Fd_Entry; 
-typedef struct Hash_map_3 Fd_Table;
+#include "../variate.h"
 
 /*
 typedef struct Hash_Entry_3{

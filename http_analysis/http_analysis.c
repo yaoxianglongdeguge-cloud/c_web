@@ -1,11 +1,4 @@
-#include "http_analysis.h"
-#include <stdio.h>
- #include <string.h>
-#include <stdlib.h>
-#include"../data_struct/hash_2.h"
-#include "../memory_pool/memory_pool.h"
-#include "http_ed_store.h"
-#include "http_state.h"
+#include "../include.h"
 
 #define MAX_URL_LEN 8192         // 8KB
 #define MAX_HEADER_LEN 16384     // 16KB
@@ -54,7 +47,6 @@ int Http_analysis_init(Http_analysis_1** h,Memory_Pool* pool,int h_size)//单位
     (*h)->Query=NULL;
     (*h)->Headers=NULL;
     (*h)->Body=NULL;
-    (*h)->Error_h=0;
 
     return 1;
 }

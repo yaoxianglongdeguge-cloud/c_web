@@ -7,6 +7,7 @@
             "command": "gcc",
             "args": [
                 "-g",
+                "-O2",
                 "-o",
                 "${workspaceFolder}/main",
                 "${workspaceFolder}/main.c",
@@ -30,7 +31,6 @@
                 "${workspaceFolder}/router/route.c",
                 "${workspaceFolder}/send_tool/send_main.c",
                 "${workspaceFolder}/send_tool/send_tool.c",
-                "${workspaceFolder}/server/accept_conn.c",
                 "${workspaceFolder}/server/driver.c",
                 "${workspaceFolder}/server/global_resource.c",
                 "${workspaceFolder}/server/Listen.c",

@@ -1,12 +1,6 @@
-
+#include "../variate.h"
 
 //路由注册专用哈希表
-
-typedef struct Request Request;
-typedef struct Response Response;
-
-typedef void (*Handler)(Request *, Response *);//路由后处理函数类型
-
 
 typedef struct Entry{
     

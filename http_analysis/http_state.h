@@ -1,3 +1,5 @@
+#include "../variate.h"
+
 typedef struct http_state{
 
     int h_method;//请求方法，0表示还没有找到,1 GET,2 DELETE,3 HEAD,4 OPTIONS,5 TRACE,6 CONNECT,7 POST,8 PUT,9 PATCH
@@ -6,7 +8,6 @@ typedef struct http_state{
 
 }http_state;
 
-typedef struct http_ed_store http_ed_store;
 
 int http_state_init(http_state** h);
 

@@ -1,11 +1,4 @@
-
-
-typedef struct Memory_Pool Memory_Pool;
-typedef struct Send_thing_queue Send_thing_queue;
-typedef struct timer timer;
-typedef struct Http_analysis_1 Http_analysis_1;
-typedef struct Hash_map_3 Fd_Table;
-
+#include "../variate.h"
 
 typedef struct worker{
    
@@ -26,6 +19,6 @@ typedef struct worker{
 
 int worker_init(worker** w,int Listen_fd,int id);
 
-int worker_to_profession(worker* w,int fd,Http_analysis_1* h,int error_reason,int serial);
+int worker_to_profession(worker* w,int fd,char* h,int h_size,int error_reason,int serial);
 
 int receive_and_send_main(worker* w,int Listen_fd,int time,int ed_store_blocknum);

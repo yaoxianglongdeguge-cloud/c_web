@@ -1,6 +1,5 @@
-#include "memory_queue.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include "../include.h"
+
 
 
 int Memory_Queue_init(Memory_Queue** sq,int blocknum)

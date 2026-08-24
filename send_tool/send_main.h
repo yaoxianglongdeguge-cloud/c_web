@@ -1,2 +1,2 @@
-typedef struct worker worker; 
+#include "../variate.h"
 int send_main(worker* w,int ed_store_blocknum);

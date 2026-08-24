@@ -1,8 +1,4 @@
-#include"send_tool.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include "../memory_pool/memory_pool.h"
-#include "../queue/memory_queue.h"
+#include "../include.h"
 
 int send_tool_init(Send_tool** s)
 {

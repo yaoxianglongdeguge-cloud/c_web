@@ -1,6 +1,4 @@
-#include "prior_queue_1.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include "../include.h"
 
 
 

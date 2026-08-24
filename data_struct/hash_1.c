@@ -1,10 +1,4 @@
-#include "hash_1.h"
-#include <stdio.h>
-#include<stdint.h>
-#include<string.h>
-#include <stdlib.h>
-#include <time.h>
-#include <unistd.h>
+#include "../include.h"
 
 
 unsigned long salt=0;//随机数防止攻击者发送特定信息都哈希选进一个桶里

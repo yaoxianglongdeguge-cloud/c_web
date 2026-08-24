@@ -1,22 +1,7 @@
-#include "connect_manage.h"
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/epoll.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <fcntl.h>
-#include <errno.h>
+#include "../include.h"
 
-#include "../timer/timer.h"
-#include "../my_thread/worker_thread.h"
-#include "../http_analysis/http_ed_store.h"
-#include "../http_analysis/http_state.h"
-#include "../connect_fd/connect_fd.h"
-#include "../send_tool/send_tool.h"
-#include "../queue/memory_queue.h"
-#include "../data_struct/hash_3.h"
+int build_error_response(char *buf, int buf_size, int error_reason);
+char *status_text(int error_reason);
 
 
 int fd_connect(worker* w,int Listen_fd)
@@ -49,8 +34,15 @@ int fd_connect(worker* w,int Listen_fd)
     return 1;
 }
 
-int fd_close(worker* w,int client_fd)
+int fd_close(worker* w,int client_fd,int error_reason)
 {
+    if(error_reason!=200)
+    {
+        char re[1024]={0};
+        int len=build_error_response(re,1024,error_reason);
+        write(client_fd,re,len);
+
+    }
     Fd_Entry* fd_ob=NULL;
     Fd_Table_find(w->fd_table,client_fd,&fd_ob);
     
@@ -76,3 +68,36 @@ int fd_close(worker* w,int client_fd)
     return 1;
 }
 
+char *status_text(int error_reason)
+{
+    switch (error_reason) {
+        case 400: return "Bad Request";
+        case 404: return "Not Found";
+        case 405: return "Method Not Allowed";
+        case 408: return "Request Timeout";
+        case 411: return "Length Required";
+        case 413: return "Payload Too Large";
+        case 414: return "URI Too Long";
+        case 431: return "Header Fields Too Large";
+        case 500: return "Internal Server Error";
+        case 503: return "Service Unavailable";
+        default:  return "Unknown";
+    }
+}
+
+int build_error_response(char *buf, int buf_size, int error_reason) 
+{
+    char *reason = status_text(error_reason);
+    int body_len = strlen(reason);
+
+    return snprintf(buf, buf_size,
+        "HTTP/1.1 %d %s\r\n"
+        "Content-Type: text/plain\r\n"
+        "Content-Length: %d\r\n"
+        "Connection: close\r\n"
+        "\r\n"
+        "%s",
+        error_reason, reason,
+        body_len,
+        reason);
+}

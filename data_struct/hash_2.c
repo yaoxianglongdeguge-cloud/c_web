@@ -1,15 +1,5 @@
-#include "hash_2.h"
-#include <stdio.h>
-#include<stdint.h>
-#include<string.h>
-#include <stdlib.h>
-#include <time.h>
-#include <unistd.h>
+#include "../include.h"
 
-#include"../memory_pool/memory_pool.h"
-#include "../http_analysis/http_analysis.h"
-
-int Hash_map;
 static const int PRIME_BUCKET_SIZES_2[15];
 
 //type -1是在栈上，0是在堆上，经过内核态，更大的数字就是表明哪种内存池
@@ -29,11 +19,11 @@ static unsigned long hash_2(const char *str);//哈希函数：DJB2 + 盐值
 int bucket_site_2(int bucket_size,const char* url);//桶位置计算
 
 
-typedef struct Entry{
+typedef struct Hash2_Entry_2{
     
     char* key;//键
     void* value;//值
-    struct Entry* next;//指向下一个元素
+    struct Hash2_Entry_2* next;//指向下一个元素
 
 }Hash2_Entry_2;
 

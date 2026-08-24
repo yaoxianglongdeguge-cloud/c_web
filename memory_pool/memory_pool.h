@@ -1,10 +1,4 @@
-#include <pthread.h> 
-typedef struct Memory_Stack Memory_Stack;
-
-typedef struct Memory_Entry Memory_Entry;
-
-typedef struct Memory_Pool Memory_Pool;
-
+#include "../variate.h"
 
 typedef struct Memory_Stack{
 
@@ -35,6 +29,8 @@ typedef struct Memory_Pool{
 
 int Memory_Pool_init(Memory_Pool** p,int max_num,int init_max,int strip_num_future,int init_strip_num);//可以申请最大数量，但是只有前几个大小的初始化几条
 
-int Memory_Pool_alloc(Memory_Pool* p,int size,void** ptr);
+int Memory_Pool_alloc(Memory_Pool* p,int size,void** ptr);//强制扩容分配
+
+int Memory_Pool_alloc2(Memory_Pool* p,int size,void** ptr,int* notfull);//非扩容分配
 
 int Memory_Pool_free(Memory_Pool* p,void* ptr,int size);

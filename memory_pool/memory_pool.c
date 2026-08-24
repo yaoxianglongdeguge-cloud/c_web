@@ -1,9 +1,4 @@
-#include "memory_pool.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include<string.h>
-
-#include "../my_lock/my_rwlock_t.h"
+#include "../include.h"
 
 
 //做一个单级页表的内存池。一个页控制在4kb。
@@ -105,7 +100,6 @@ int Memory_Entry_expend(Memory_Entry* e)
     int total_size=before_num*strip_size*1024;
 
     char* strip=(char*)malloc(expend_num*strip_size*1024);
-    e->memory_strip=(char*)malloc(expend_num*strip_size*1024);
     memcpy(e->memory_strip,strip,total_size);
     free(e->memory_strip);
     e->memory_strip=strip;
@@ -139,6 +133,24 @@ int Memory_Entry_alloc(Memory_Entry* e,void** ptr)
     return 1;
 }
 
+int Memory_Entry_alloc2(Memory_Entry* e,void** ptr,int* notfull)
+{
+    *notfull=0;
+    if(e->haded_num==e->strip_num)
+    {
+        return 1;
+    }
+
+    int size=e->strip_size*1024;
+    int serial=-1;
+    Memory_Stack_top_and_pop(e->stack,&serial);
+    *ptr=(void*)(e->memory_strip+serial*size);
+    e->haded_num++;
+    *notfull=1;
+
+    return 1;
+}
+
 int Memory_Entry_free(Memory_Entry* e,void* ptr)
 {
     int size=e->strip_size;
@@ -166,7 +178,7 @@ int Memory_Pool_init(Memory_Pool** p,int max_num,int init_max,int strip_num_futu
     {
         if(i<init_max)
         {
-            init_num=init_max;
+            init_num=init_strip_num;
         }
         else
         {
@@ -203,8 +215,46 @@ int Memory_Pool_alloc(Memory_Pool* p,int size,void** ptr)
 
 }
 
+int Memory_Pool_alloc2(Memory_Pool* p,int size,void** ptr,int* notfull)
+{
+    *notfull=0;
+
+    if(size>p->pool[p->Entry_num-1].strip_size)
+    {
+        *notfull=1;
+        *ptr=malloc(size*1024);
+        return 1;
+    }
+    int alloc_size=1;
+    int i=0;
+    for(;i<p->Entry_num;i++)
+    {
+        if(alloc_size>=size)
+        {
+            break;
+        }
+        alloc_size=alloc_size*2;
+    }
+
+    Memory_Entry* aim_entry=&(p->pool[i]);
+    int notfull2=1;
+    Memory_Entry_alloc2(aim_entry,ptr,&notfull2);
+    if(notfull2==1&&*ptr!=NULL)
+    {
+        *notfull=1;
+    }
+        
+
+    return 1;
+}
+
 int Memory_Pool_free(Memory_Pool* p,void* ptr,int size)//单位字节
 {
+    if(size>p->pool[p->Entry_num-1].strip_size*1024)
+    {
+        free(ptr);
+        return 1;
+    }
     int alloc_size=1;
     int i=0;
     for(;i<p->Entry_num;i++)
@@ -227,3 +277,4 @@ int Memory_Pool_free(Memory_Pool* p,void* ptr,int size)//单位字节
     return 1;
 
 }
+

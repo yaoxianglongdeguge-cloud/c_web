@@ -1,8 +1,4 @@
-#include <pthread.h>
-#include <semaphore.h>
-
-typedef struct worker worker;
-typedef struct Http_analysis_1 Http_analysis_1;
+#include "../variate.h"
 
 typedef struct Task_Entry{
 
@@ -10,7 +6,8 @@ typedef struct Task_Entry{
     int fd;
     int serial;
     int error_reason;
-    Http_analysis_1* http;
+    char* http;
+    int h_size;
 
 }Task_Entry;
 
@@ -34,6 +31,6 @@ typedef struct Task_queue{
 
 int Task_queue_init(Task_queue** sq,int size);
 
-int Task_queue_push(Task_queue* sq,worker* w,int fd,int serial,int error_reason,Http_analysis_1* h);
+int Task_queue_push(Task_queue* sq,worker* w,int fd,int serial,int error_reason,char* h,int h_size);
 
 Task_Entry Task_queue_top_and_pop(Task_queue* sq,int* error);

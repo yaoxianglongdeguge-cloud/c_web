@@ -1,9 +1,4 @@
-#include <stdio.h>
-#include <sys/socket.h> 
-#include <netinet/in.h>  
-#include <arpa/inet.h>   
-#include <unistd.h> 
-#include "../router/route.h"
+#include "../variate.h"
 
 
 typedef struct Web_Driver_1{

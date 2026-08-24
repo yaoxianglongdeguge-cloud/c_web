@@ -1,7 +1,4 @@
-#include "my_rwlock_t.h"
-#include <stdio.h>
-#include <stdlib.h>
-
+#include "../include.h"
 
 int my_rwlock_init(my_rwlock_t* rw)
 {

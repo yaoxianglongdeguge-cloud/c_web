@@ -1,5 +1,4 @@
-#include"../data_struct/hash_1.h"
-
+#include"../variate.h"
 
 typedef struct route_1{
 
@@ -7,8 +6,7 @@ typedef struct route_1{
 
 }route_1;
 
-typedef struct Request Request;
-typedef struct Response Response;
+
 
 int route_1_init(route_1* r);//初始化
 

@@ -1,13 +1,5 @@
-#include "hash_3.h"
-#include <stdio.h>
-#include<stdint.h>
-#include<string.h>
-#include <stdlib.h>
-#include <time.h>
-#include <unistd.h>
+#include "../include.h"
 
-#include "../send_tool/send_tool.h"
-#include "../http_analysis/http_ed_store.h"
 
 static const int PRIME_BUCKET_SIZES_3[15] = {
     7,

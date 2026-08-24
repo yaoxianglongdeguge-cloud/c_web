@@ -1,14 +1,4 @@
-#include "http_ed_store.h"
-#include "http_state.h"
-#include <unistd.h>   
-#include <string.h>
-#include <errno.h>
-#include<stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "../memory_pool/memory_pool.h"
-
+#include "../include.h"
 
 
 int Http_ed_store_init(http_ed_store** h)//分配整个存储大小，单位是字节

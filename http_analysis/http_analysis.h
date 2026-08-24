@@ -1,4 +1,4 @@
-
+#include "../variate.h"
 
 /*> GET / HTTP/1.1          
 > Host: www.baidu.com     
@@ -6,9 +6,6 @@
 > Accept: * */
 
 //到时候，这个表本身不在内存池，长期存在，表存储的数据放到内存池，处理一个请求有一次申请和一次释放。
-
-typedef struct Hash_map Hash_map_2;
-typedef struct Memory_Pool Memory_Pool;
 
 typedef struct Http_analysis_1{
 
@@ -19,7 +16,6 @@ typedef struct Http_analysis_1{
     Hash_map_2* Query;
     Hash_map_2* Headers;
     char* Body;
-    int Error_h;
     char* ptr;//下一个可用内存开头数据，用来连续存储内存和一次性释放内存
     char* end;//能分配的最远地方，主要是用来适配统一释放这个问题，这样可以直接操纵从哪里释放到哪里
 

@@ -1,10 +1,4 @@
-#include "send_thing_queue.h"
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "../http_analysis/http_analysis.h"
-#include "../queue/memory_queue.h"
-
+#include "../include.h"
 
 int Send_thing_queue_init(Send_thing_queue** sq,int blocknum)
 {
@@ -32,14 +26,13 @@ int Send_thing_queue_init(Send_thing_queue** sq,int blocknum)
 
 }
 
-int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int serial,int error_reason,int size,char*char_ptr,Http_analysis_1* h)
+int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int serial,int error_reason,int size,char*char_ptr)
 {
     sem_wait(&(sq->sem_thing_queue_notfull));
     pthread_mutex_lock(&(sq->mutex_thing));
 
     sq->queue[sq->ptr_in].m_queue=m_queue;
     sq->queue[sq->ptr_in].error_reason=error_reason;
-    sq->queue[sq->ptr_in].http=h;
     sq->queue[sq->ptr_in].fd=fd;
     sq->queue[sq->ptr_in].size=size;
     sq->queue[sq->ptr_in].char_ptr=char_ptr;
@@ -70,7 +63,6 @@ Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error)//0ä¸
     s.serial=-1;
     s.size=0;
     s.char_ptr=NULL;
-    s.http=NULL;
     s.error_reason=-1;
     s.m_queue=NULL;
 
@@ -82,7 +74,6 @@ Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error)//0ä¸
         s.serial=sq->queue[sq->ptr_out].serial;
         s.size=sq->queue[sq->ptr_out].size;
         s.char_ptr=sq->queue[sq->ptr_out].char_ptr;
-        s.http=sq->queue[sq->ptr_out].http;
         s.error_reason=sq->queue[sq->ptr_out].error_reason;
         s.m_queue=sq->queue[sq->ptr_out].m_queue;
 
@@ -102,5 +93,3 @@ Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error)//0ä¸
     sem_post(&(sq->sem_thing_queue_notfull));
     return s;
 }
-
-int Send_thing_queue_expend();

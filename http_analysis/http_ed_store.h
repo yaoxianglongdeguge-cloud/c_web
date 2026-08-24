@@ -1,9 +1,7 @@
+#include "../variate.h"
 
-
-typedef struct http_state http_state;
-typedef struct Memory_Pool Memory_Pool;
-
-typedef struct http_ed_store http_ed_store;//这个就是http解析前存储的地方，需要解决的问题是，如果我们一次读固定长度数据，那就有可能除了读到所要的请求之外还读到下一个请求的一部分，而如果没有标记，
+//typedef struct http_ed_store http_ed_store;
+//这个就是http解析前存储的地方，需要解决的问题是，如果我们一次读固定长度数据，那就有可能除了读到所要的请求之外还读到下一个请求的一部分，而如果没有标记，
 //那我们下次继续读可能读到的是上上次请求残留的无效位，而如果直接再接收从头读，那就有可能这次请求的上一半段还没读到
 typedef struct http_ed_store{
 

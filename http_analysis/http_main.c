@@ -1,17 +1,4 @@
-#include "http_main.h"
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "../my_thread/worker_thread.h"
-#include "http_analysis.h"
-#include "http_ed_store.h"
-#include "http_state.h"
-#include "../connect_config/connect_manage.h"
-#include "../timer/timer.h"
-#include "../send_tool/send_tool.h"
-#include "../memory_pool/memory_pool.h"
-#include "../connect_fd/connect_fd.h"
-#include "../data_struct/hash_3.h"
+#include "../include.h"
 
 int http_main(int fd,worker* worker,int ed_store_blocknum)
 {
@@ -40,7 +27,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
     {
         if(r0==0)
         {
-            fd_close(worker,fd);//对端关闭连接
+            fd_close(worker,fd,200);//对端关闭连接
             return 1;
         }
                    
@@ -63,11 +50,11 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
                 {
                     Http_ed_store_free(fd_ob->http_store,worker->store_area);
                 }
-                break;
+                    break;
                 }
-            else if(r1==0)
+            else if(r1==0)//对面断开了连接
             {
-                fd_close(worker,fd);
+                fd_close(worker,fd,200);
                 return 1;
             }
 
@@ -79,38 +66,27 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
 
 
                 
-            int h_size=source_end-fd_ob->http_store->begin+1;//要复制的文本长度
-                
-            int http_size=(h_size+sizeof(Http_analysis_1))*4;//存入一个请求，请求申请内存大小
-                //其实一般来说http也就不到2kb，然后请求体又不解析，所以膨胀的话也不会很大。
-                
+            int h_size=5+(source_end-fd_ob->http_store->begin+1);//要复制的文本长度
 
+            void* ptr=NULL;
 
-            Http_analysis_1* h;
-            Http_analysis_init(&h,worker->http_pool,http_size);
+            int notfull=0;
+            Memory_Pool_alloc2(worker->http_pool,h_size/1024,&ptr,&notfull);
+            if(notfull==0)
+            {
+                fd_close(worker,fd,503);
+                return 1;
+            }
+            char* hptr=(char*)ptr;
 
-            Http_ed_store_copy(fd_ob->http_store,source_end,h->ptr);
-            char* http_txt_begin=h->ptr;//复制之后等待被分割解析的文本
-            
-            h->ptr=h->ptr+h_size+1;
-            //如果是http_analysis或者他特有的数据结构的函数，那会自己移动指针，但这个不是，需要我操作
-            //加一是因为复制文本后，最后面还有个\0
+            Http_ed_store_copy(fd_ob->http_store,source_end,hptr);
                         
-
                 
-            Http_analysis_receive(h,http_txt_begin,&error_reason);
-
-           // if(error_reason!=200)
-            //{
-             //   Memory_Pool_free(worker->http_pool,h,http_size);
-            //}
-                
-
             http_state_reset(fd_ob->http_store);    
 
             fd_ob->ser_fina_send++;
             
-            worker_to_profession(worker,fd,h,error_reason,serial);
+            worker_to_profession(worker,fd,hptr,h_size,error_reason,serial);
             fd_ob->pack_in_path++;
 
             error_reason=200;
@@ -129,10 +105,9 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
         else if(state==0)// 发生了错误
         {
 
-
             fd_ob->ser_fina_send++;
 
-            worker_to_profession(worker,fd,NULL,error_reason,serial);
+            worker_to_profession(worker,fd,NULL,0,error_reason,serial);
             fd_ob->pack_in_path++;
             error_reason=200;
                     

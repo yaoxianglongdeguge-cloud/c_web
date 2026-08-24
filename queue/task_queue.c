@@ -1,13 +1,4 @@
-#include "task_queue.h"
-#include <stdio.h>
-#include <stdlib.h>
-
-
-
-#include "../my_thread/worker_thread.h"
-#include "../http_analysis/http_analysis.h"
-
-
+#include "../include.h"
 
 int Task_queue_init(Task_queue** sq,int blocknum)
 {
@@ -32,7 +23,8 @@ int Task_queue_init(Task_queue** sq,int blocknum)
         (*sq)->queue[i].fd=0;
         (*sq)->queue[i].http=NULL;
         (*sq)->queue[i].serial=-1;
-        (*sq)->queue[i].w;
+        (*sq)->queue[i].w=NULL;
+        (*sq)->queue[i].h_size=0;
     }
 
     sem_init(&((*sq)->sem_task_queue_notfull),0,blocknum);
@@ -45,7 +37,7 @@ int Task_queue_init(Task_queue** sq,int blocknum)
 
 }
 
-int Task_queue_push(Task_queue* sq,worker* w,int fd,int serial,int error_reason,Http_analysis_1* h)
+int Task_queue_push(Task_queue* sq,worker* w,int fd,int serial,int error_reason,char* h,int h_size)
 {
     sem_wait(&(sq->sem_task_queue_notfull));
     pthread_mutex_lock(&(sq->mutex_task));
@@ -55,6 +47,7 @@ int Task_queue_push(Task_queue* sq,worker* w,int fd,int serial,int error_reason,
     sq->queue[sq->ptr_in].http=h;
     sq->queue[sq->ptr_in].fd=fd;
     sq->queue[sq->ptr_in].serial=serial;
+    sq->queue[sq->ptr_in].h_size=h_size;
 
     if(sq->ptr_in+1==sq->end)
     {
@@ -81,6 +74,7 @@ Task_Entry Task_queue_top_and_pop(Task_queue* sq,int* error)
     s.fd=-1;
     s.serial=-1;
     s.http=NULL;
+    s.h_size=0;
     s.error_reason=-1;
     s.w=NULL;
 
@@ -88,6 +82,7 @@ Task_Entry Task_queue_top_and_pop(Task_queue* sq,int* error)
     s.fd=sq->queue[sq->ptr_out].fd;
     s.serial=sq->queue[sq->ptr_out].serial;
     s.http=sq->queue[sq->ptr_out].http;
+    s.h_size=sq->queue[sq->ptr_out].h_size;
     s.error_reason=sq->queue[sq->ptr_out].error_reason;
     s.w=sq->queue[sq->ptr_out].w;
 

@@ -1,6 +1,4 @@
-
-typedef struct prior_queue_1 prior_queue_1;
-typedef struct worker worker;
+#include "../variate.h"
 
 typedef struct timer{
 
