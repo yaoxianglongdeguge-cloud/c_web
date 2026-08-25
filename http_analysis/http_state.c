@@ -1,6 +1,7 @@
 #include "../include.h"
 
 
+#define MAX_BODY_SIZE (1024 * 1024)  // 1MB
 char* Method_p[9]={"GET ","DELETE ","HEAD ","OPTIONS ","TRACE ","CONNECT ","POST ","PUT ","PATCH "};
 
 char *strnstr(const char *haystack, const char *needle, size_t n) {
@@ -138,10 +139,22 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
             }
 
             int len=atoi(length_num);
+            if(len>MAX_BODY_SIZE)
+            {
+                *error_reason=413;
+                *error=0;
+                return NULL;
+            }
 
+            target=target+4+len;
+            if(target<hs->ptr_e){
+                *error=1;
+            }
+            else
+            {
+                *error=-1;
+            }
 
-            hs->httpstate->h_body_length=len;
-            *error=1;
         }
 
     }

@@ -4,8 +4,8 @@ int worker_init(worker** w,int Listen_fd,int id)
 {
     *w=(worker*)malloc(sizeof(worker));
 
-    Memory_Pool_init(&((*w)->http_pool),3,3,500,400);
-    Memory_Pool_init(&((*w)->store_area),6,6,500,400);
+    Memory_Pool_init(&((*w)->http_pool),6,6,500,400);
+    Memory_Pool_init(&((*w)->store_area),10,6,500,400);
     Send_thing_queue_init(&((*w)->Thing_queue),100);
     timer_init(&((*w)->my_timer),5000);
     Fd_Table_init(&((*w)->fd_table),4);
