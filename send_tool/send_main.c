@@ -18,7 +18,7 @@ int send_main(worker* w,int ed_store_blocknum)
          
             if(e1!=1)
             {
-                Memory_Queue_push(s.m_queue,s.size,s.char_ptr);
+                Memory_Queue_push(s.m_queue,s.size_resp,s.char_ptr);
 
             }
             else
@@ -34,7 +34,10 @@ int send_main(worker* w,int ed_store_blocknum)
                 fd_ob->send_tool->store[next].error_reason=s.error_reason;
                 fd_ob->send_tool->store[next].m_queue=s.m_queue;
                 fd_ob->send_tool->store[next].ptr=s.char_ptr;
-                fd_ob->send_tool->store[next].size=s.size;
+                fd_ob->send_tool->store[next].size_file=s.size_file;
+                fd_ob->send_tool->store[next].send_fd=s.send_fd;
+                fd_ob->send_tool->store[next].size_resp=s.size_resp;
+                fd_ob->send_tool->store[next].offset=s.offset;
                     
                 
                 if(s.serial==fd_ob->ser_nex_send)
@@ -60,27 +63,68 @@ int send_main(worker* w,int ed_store_blocknum)
     int next=s.serial%fd_ob->send_tool->blocknum;
 
     int len=0;//之前说过用error_reason为正数时表示要发回的文本的长度
-    len=fd_ob->send_tool->store[next].size;
+    len=fd_ob->send_tool->store[next].size_resp;
     
 
 
     while(fd_ob->send_tool->store[next].use==1)
     {
-        int n=write(send_fd,fd_ob->send_tool->store[next].ptr, len);
-        if(n==0)
+        if(fd_ob->send_tool->store[next].size_resp!=0)
         {
-            fd_close(w,send_fd,200);
-        }
-        if(fd_ob->send_tool->store[next].error_reason!=200)
+
+            int n=write(send_fd,fd_ob->send_tool->store[next].ptr, len);
+            if(n==0)
+            {
+                fd_close(w,send_fd,200);
+                return 1;
+            }
+            if(fd_ob->send_tool->store[next].error_reason!=200)
+            {
+                int error_reason=fd_ob->send_tool->store[next].error_reason;
+                fd_close(w,send_fd,error_reason);
+                return 1;
+            }
+            Memory_Queue* m=fd_ob->send_tool->store[next].m_queue;
+            int size_head=fd_ob->send_tool->store[next].size_resp;
+            char* ptr=fd_ob->send_tool->store[next].ptr;
+            Memory_Queue_push(m,size_head,ptr);
+        }//这里是处理请求头和在内存中的请求体,由于内存中的回复规定小于1mb，所以写缓存区可以装下
+
+        int size_file=fd_ob->send_tool->store[next].size_file;
+        int send_ed_fd=fd_ob->send_tool->store[next].send_fd;
+        if(size_file!=fd_ob->send_tool->store[next].offset)
         {
-            int error_reason=fd_ob->send_tool->store[next].error_reason;
-            fd_close(w,send_fd,error_reason);
-            break;
-        }
-        Memory_Queue* m=fd_ob->send_tool->store[next].m_queue;
-        int size=fd_ob->send_tool->store[next].size;
-        char* ptr=fd_ob->send_tool->store[next].ptr;
-        Memory_Queue_push(m,size,ptr);
+            ssize_t sent = sendfile(send_fd,send_ed_fd, &fd_ob->send_tool->store[next].offset,size_file-fd_ob->send_tool->store[next].offset);
+            
+            if(size_file!=fd_ob->send_tool->store[next].offset)
+            {
+
+                if(sent>0)
+                {
+                    Send_thing_queue_push(w->Thing_queue,NULL,send_fd,s.serial,200,0,size_file,NULL,send_ed_fd,fd_ob->send_tool->store[next].offset);
+                    return 1;
+                }
+                else if (sent<0 && errno == EAGAIN) {
+                    
+                    Send_thing_queue_push(w->Thing_queue,NULL,send_fd,s.serial,200,0,size_file,NULL,send_ed_fd,fd_ob->send_tool->store[next].offset);
+                    return 1;
+                }
+                else if (sent==0)
+                {
+                    fd_close(w,send_fd,200);
+                    close(send_ed_fd);
+                    return 1;
+                }
+            }
+            else
+            {
+                close(send_ed_fd);
+            }
+            
+        }//这里处理文件
+
+
+
         fd_ob->ser_nex_send++;
         fd_ob->send_tool->store[next].use=0;
         fd_ob->pack_in_path--;

@@ -1,6 +1,6 @@
 #include "../include.h"
 
-int deal_task(int * e);
+int deal_task(int * e); //处理业务任务
 int pack_task(char** c,Response);
 int Http_get(profession* profes,char* ptr,Http_analysis_1** h,int size,int* error_reason,worker* w);
 
@@ -33,12 +33,20 @@ int deal_and_pack(profession* profes)
     {
         Http_analysis_1* h;
         Http_get(profes,Http,&h,Size,&Error_reason,W);
-        Request H=(Request)h;
         
         if(Error_reason==200)
         {
-            //处理业务任务
+            Request H;
+
+            //H.Body=(const char* const)h->Body;
+            //H.Headers=(const Hash_map_2* const)h->Headers;
+            //H.Query=(const Hash_map_2* const)h->Query;
+           // H.Method=(const char* const)h->Method;
+           // H.Url=(const char* const)h->Url;
+           // H.Version=(const char* const)h->Version;
+            
             deal_task(&Error_reason);
+
             Http_analysis_free(h,profes->http_pool);
         }
     }
@@ -46,7 +54,15 @@ int deal_and_pack(profession* profes)
     int size=0;
     char* C;
     size=pack_task(&C,Rsp);
-    Send_thing_queue_push(W->Thing_queue,profes->memory_queue,Fd,Serial,Error_reason,size,C);
+
+    //int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int
+    // serial,int error_reason,int resp_size,int file_size,char*char_ptr,int send_fd,off_t offset)
+
+    int file_fd = open("test10mb.jpeg", O_RDONLY);
+    struct stat st;
+    stat("test10mb.jpeg", &st);
+    off_t size_file = st.st_size;
+    Send_thing_queue_push(W->Thing_queue,profes->memory_queue,Fd,Serial,Error_reason,size,size_file,C,file_fd,0);
     
     
     
@@ -77,10 +93,9 @@ int deal_task(int * e)
 int pack_task(char** c,Response)
 {
     *c="HTTP/1.1 200 OK\r\n"
-    "Content-Type: text/plain\r\n"
-    "Content-Length: 13\r\n"
-    "\r\n"
-    "Hello, World!";
+    "Content-Type: image/png\r\n"
+    "Content-Length: 76310\r\n"
+    "\r\n";
         
     int len = strlen(*c);
         

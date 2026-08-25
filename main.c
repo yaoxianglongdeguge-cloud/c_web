@@ -96,6 +96,7 @@ pthread_create(&tid1, NULL, func1, &m2);
 pthread_create(&tid1, NULL, func1, &m3);
 
 pthread_create(&tid1, NULL, func1, &m4);
+*/
 
 
 profession* p2;
@@ -125,7 +126,6 @@ pthread_create(&tid2, NULL, func2, &m8);
 
 
 
-*/
 
 while(1)
 {

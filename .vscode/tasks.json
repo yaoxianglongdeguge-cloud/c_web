@@ -7,7 +7,6 @@
             "command": "gcc",
             "args": [
                 "-g",
-                "-O2",
                 "-o",
                 "${workspaceFolder}/main",
                 "${workspaceFolder}/main.c",
@@ -17,6 +16,7 @@
                 "${workspaceFolder}/data_struct/hash_2.c",
                 "${workspaceFolder}/data_struct/hash_3.c",
                 "${workspaceFolder}/data_struct/prior_queue_1.c",
+                "${workspaceFolder}/data_struct/vector_1.c",
                 "${workspaceFolder}/http_analysis/http_analysis.c",
                 "${workspaceFolder}/http_analysis/http_ed_store.c",
                 "${workspaceFolder}/http_analysis/http_main.c",

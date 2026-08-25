@@ -3,10 +3,13 @@
 typedef struct Send_tool_Entry{
 
     Memory_Queue*m_queue;  
-    char* ptr;
     int use;
     int error_reason;
-    int size;
+    char* ptr;
+    int size_resp;
+    int send_fd;
+    off_t offset;
+    int size_file;
 
 }Send_tool_Entry;
 

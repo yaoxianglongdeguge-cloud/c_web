@@ -13,3 +13,5 @@
 #include <semaphore.h> 
 #include <arpa/inet.h>   
 #include <unistd.h> 
+#include <sys/sendfile.h>
+#include <sys/stat.h>

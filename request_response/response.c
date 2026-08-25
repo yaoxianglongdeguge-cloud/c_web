@@ -10,5 +10,6 @@ typedef struct Response_Header_Entry{
 
 int Response_init(Response** r,Memory_Pool* pool)
 {
-    void* ptr
+    void* ptr=NULL;
+    Memory_Pool_alloc(pool,)
 }

@@ -130,13 +130,14 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
                 body_length++;
             }
 
-            char* length_num=NULL;
+            char length_num[100];
             int i=0;
             while(length_num+i<hs->ptr_e&&length_num[i]!='\r')
             {
                 length_num[i]=body_length[i];
                 i++;
             }
+
 
             int len=atoi(length_num);
             if(len>MAX_BODY_SIZE)

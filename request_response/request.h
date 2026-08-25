@@ -9,4 +9,4 @@ typedef struct Request{
     const Hash_map_2* const Headers;
     const char* const Body;
 
-}Request
+}Request;

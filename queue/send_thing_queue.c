@@ -26,7 +26,7 @@ int Send_thing_queue_init(Send_thing_queue** sq,int blocknum)
 
 }
 
-int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int serial,int error_reason,int size,char*char_ptr)
+int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int serial,int error_reason,int resp_size,int file_size,char*char_ptr,int send_fd,off_t offset)
 {
     sem_wait(&(sq->sem_thing_queue_notfull));
     pthread_mutex_lock(&(sq->mutex_thing));
@@ -34,9 +34,12 @@ int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int 
     sq->queue[sq->ptr_in].m_queue=m_queue;
     sq->queue[sq->ptr_in].error_reason=error_reason;
     sq->queue[sq->ptr_in].fd=fd;
-    sq->queue[sq->ptr_in].size=size;
+    sq->queue[sq->ptr_in].size_file=file_size;
+    sq->queue[sq->ptr_in].size_resp=resp_size;
+    sq->queue[sq->ptr_in].send_fd=send_fd;
     sq->queue[sq->ptr_in].char_ptr=char_ptr;
     sq->queue[sq->ptr_in].serial=serial;
+    sq->queue[sq->ptr_in].offset=offset;
 
     if(sq->ptr_in+1==sq->end)
     {
@@ -61,10 +64,13 @@ Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error)//0ä¸
     Send_tq_Entry s;
     s.fd=-1;
     s.serial=-1;
-    s.size=0;
+    s.size_file=0;
+    s.size_resp=0;
+    s.send_fd=0;
     s.char_ptr=NULL;
     s.error_reason=-1;
     s.m_queue=NULL;
+    s.offset=0;
 
 
     if(sq->num!=0)
@@ -72,10 +78,13 @@ Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error)//0ä¸
 
         s.fd=sq->queue[sq->ptr_out].fd;
         s.serial=sq->queue[sq->ptr_out].serial;
-        s.size=sq->queue[sq->ptr_out].size;
+        s.size_file=sq->queue[sq->ptr_out].size_file;
+        s.size_resp=sq->queue[sq->ptr_out].size_resp;
+        s.send_fd=sq->queue[sq->ptr_out].send_fd;
         s.char_ptr=sq->queue[sq->ptr_out].char_ptr;
         s.error_reason=sq->queue[sq->ptr_out].error_reason;
         s.m_queue=sq->queue[sq->ptr_out].m_queue;
+        s.offset=sq->queue[sq->ptr_out].offset;
 
         if(sq->ptr_out+1==sq->end)
         {

@@ -40,7 +40,7 @@ int fd_close(worker* w,int client_fd,int error_reason)
     {
         char re[1024]={0};
         int len=build_error_response(re,1024,error_reason);
-        write(client_fd,re,len);
+        int n=write(client_fd,re,len);
 
     }
     Fd_Entry* fd_ob=NULL;
@@ -49,12 +49,16 @@ int fd_close(worker* w,int client_fd,int error_reason)
     Http_ed_store_destroy(fd_ob->http_store,w->store_area);
     for(int i=0;i<fd_ob->send_tool->blocknum;i++)
     {
-        if(fd_ob->send_tool->store[i].use)
+        if(fd_ob->send_tool->store[i].use==1)
         {
             Memory_Queue* m=fd_ob->send_tool->store[i].m_queue;
-            int size=fd_ob->send_tool->store[i].size;
+            int size=fd_ob->send_tool->store[i].size_resp;
             char* c=fd_ob->send_tool->store[i].ptr;
             Memory_Queue_push(m,size,c);
+            if(fd_ob->send_tool->store[i].send_fd!=-1)
+            {
+                close(fd_ob->send_tool->store[i].send_fd);
+            }
         }
     }
 
