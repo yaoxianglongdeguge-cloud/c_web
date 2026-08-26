@@ -31,6 +31,6 @@ int Http_analysis_receive(Http_analysis_1* h,char* http_request,int* error_reaso
 
 int Http_analysis_send(Http_analysis_1* h,char* http_response,Memory_Pool* store);
 
-char* Http_analysis_get(Http_analysis_1* h,char* get1,char* get2);
+
 
 
