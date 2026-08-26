@@ -2,20 +2,99 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>图片测试</title>
+    <title>星夜 · 高并发服务器测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0c0c1d 0%, #1a1a3e 50%, #0c0c1d 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #e0e0e0;
+        }
+        .hero {
+            text-align: center;
+            padding: 80px 20px 40px;
+        }
+        .hero h1 {
+            font-size: 48px;
+            background: linear-gradient(90deg, #ffd700, #ff8c00, #ffd700);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 16px;
+        }
+        .hero p { color: #aaa; font-size: 18px; }
+        .grid {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+            max-width: 1000px;
+        }
+        .card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 32px;
+            width: 280px;
+            transition: transform 0.3s;
+        }
+        .card:hover { transform: translateY(-8px); }
+        .card h2 { margin-bottom: 16px; font-size: 22px; color: #ffd700; }
+        .card p { color: #bbb; line-height: 1.7; margin-bottom: 12px; }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: linear-gradient(90deg, #ffd700, #ff8c00);
+            color: #0c0c1d;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .star {
+            width: 100%;
+            border-radius: 12px;
+            margin-top: 12px;
+            box-shadow: 0 0 30px rgba(255,215,0,0.3);
+        }
+        footer {
+            margin-top: auto;
+            padding: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
 </head>
 <body>
-    <h1>图片背景测试</h1>
-    
-    <!-- 方式1：CSS 背景 -->
-    <div style="width: 500px; height: 300px; 
-                background-image: url('/a.jpeg'); 
-                background-size: cover;">
+    <div class="hero">
+        <h1>✦ 星夜服务器测试 ✦</h1>
+        <p>从零手写的 C 高并发 Web 服务器</p>
     </div>
-
-    <hr>
-
-    <!-- 方式2：直接显示图片 -->
-    <img src="/a.jpeg" width="500">
+    <div class="grid">
+        <div class="card">
+            <h2>⚡ 性能</h2>
+            <p>epoll 事件驱动，5.4 万 QPS</p>
+            <p>非阻塞 I/O，Keep-Alive</p>
+            <a class="btn" href="/yao/xiang">测试路由 →</a>
+        </div>
+        <div class="card">
+            <h2>🖼 零拷贝</h2>
+            <p>sendfile 发送星空图，不占内存</p>
+            <img class="star" src="/star.jpg" alt="星空">
+        </div>
+        <div class="card">
+            <h2>📦 自研组件</h2>
+            <p>分页内存池</p>
+            <p>哈希表路由</p>
+            <p>顺序响应窗口</p>
+            <p>读写锁 / 信号量</p>
+        </div>
+    </div>
+    <footer>用 C 和热爱构建 ✦ 2026</footer>
 </body>
 </html>

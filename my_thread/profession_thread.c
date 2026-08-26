@@ -1,7 +1,5 @@
 #include "../include.h"
 
-int count=0;
-int count2=0;
 
 int deal_task(Request* r,Response* w); //处理业务任务
 int pack_task(char** c,Response* w);
@@ -101,7 +99,6 @@ int deal_and_pack(profession* profes)
     int notfull2=0;
     int n2=Memory_Pool_alloc2(profes->txt_pool,allocsize/1024+1,&ptr2,&notfull2);
 
-    count++;
 
     if(notfull2==0)
     {
@@ -133,7 +130,6 @@ int deal_and_pack(profession* profes)
         m=Memory_Queue_top_and_pop(profes->memory_queue,&e1);
         if(e1==1)
         {
-            count2++;
             Memory_Pool_free(profes->txt_pool,m.char_ptr,(m.size/1024+1)*1024);
         }
     }
