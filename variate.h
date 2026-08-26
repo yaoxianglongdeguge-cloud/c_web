@@ -41,6 +41,8 @@ typedef struct prior_queue_1 prior_queue_1;
 
 typedef struct my_rwlock_t my_rwlock_t;
 
+extern route_1* Router;
+
 extern Task_queue* Task_Queue;
 
 extern sem_t sem_task_queue_notfull;

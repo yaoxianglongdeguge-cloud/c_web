@@ -35,6 +35,8 @@
                 "${workspaceFolder}/server/global_resource.c",
                 "${workspaceFolder}/server/Listen.c",
                 "${workspaceFolder}/timer/timer.c",
+                "${workspaceFolder}/request_response/request.c",
+                "${workspaceFolder}/request_response/response.c",
                 "-lpthread"
             ],
             "group": {

@@ -26,7 +26,7 @@ int Send_thing_queue_init(Send_thing_queue** sq,int blocknum)
 
 }
 
-int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int serial,int error_reason,int resp_size,int file_size,char*char_ptr,int send_fd,off_t offset)
+int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int serial,int error_reason,int resp_size,off_t file_size,char*char_ptr,int send_fd,off_t offset)
 {
     sem_wait(&(sq->sem_thing_queue_notfull));
     pthread_mutex_lock(&(sq->mutex_thing));

@@ -20,7 +20,7 @@ int fd_connect(worker* w,int Listen_fd)
        }
         int flags = fcntl(client_fd, F_GETFL, 0); 
         fcntl(client_fd, F_SETFL, flags | O_NONBLOCK); 
-        ev.events = EPOLLIN;   // 边缘触发;
+        ev.events = EPOLLIN; 
         ev.data.fd = client_fd;          
         epoll_ctl(w->epfd, EPOLL_CTL_ADD, client_fd, &ev);
         
@@ -54,7 +54,11 @@ int fd_close(worker* w,int client_fd,int error_reason)
             Memory_Queue* m=fd_ob->send_tool->store[i].m_queue;
             int size=fd_ob->send_tool->store[i].size_resp;
             char* c=fd_ob->send_tool->store[i].ptr;
-            Memory_Queue_push(m,size,c);
+
+            if(m!=NULL)
+            {
+                Memory_Queue_push(m,size,c);
+            }
             if(fd_ob->send_tool->store[i].send_fd!=-1)
             {
                 close(fd_ob->send_tool->store[i].send_fd);

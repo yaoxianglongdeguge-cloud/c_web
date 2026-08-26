@@ -18,7 +18,10 @@ int send_main(worker* w,int ed_store_blocknum)
          
             if(e1!=1)
             {
-                Memory_Queue_push(s.m_queue,s.size_resp,s.char_ptr);
+                if(s.m_queue!=NULL)
+                {
+                    Memory_Queue_push(s.m_queue,s.size_resp,s.char_ptr);
+                }
 
             }
             else
@@ -85,17 +88,29 @@ int send_main(worker* w,int ed_store_blocknum)
                 return 1;
             }
             Memory_Queue* m=fd_ob->send_tool->store[next].m_queue;
-            int size_head=fd_ob->send_tool->store[next].size_resp;
+            int size_resp=fd_ob->send_tool->store[next].size_resp;
             char* ptr=fd_ob->send_tool->store[next].ptr;
-            Memory_Queue_push(m,size_head,ptr);
+            Memory_Queue_push(m,size_resp,ptr);
         }//这里是处理请求头和在内存中的请求体,由于内存中的回复规定小于1mb，所以写缓存区可以装下
 
-        int size_file=fd_ob->send_tool->store[next].size_file;
+        
+        off_t size_file=fd_ob->send_tool->store[next].size_file;
         int send_ed_fd=fd_ob->send_tool->store[next].send_fd;
         if(size_file!=fd_ob->send_tool->store[next].offset)
         {
             ssize_t sent = sendfile(send_fd,send_ed_fd, &fd_ob->send_tool->store[next].offset,size_file-fd_ob->send_tool->store[next].offset);
-            
+            if (sent < 0 && errno == EPIPE) {
+            // 对端断开，关闭连接
+                fd_close(w,send_fd,200);
+                close(send_ed_fd);
+                return 1;
+            }
+            if (sent==0)
+            {
+                    fd_close(w,send_fd,200);
+                    close(send_ed_fd);
+                    return 1;
+            }
             if(size_file!=fd_ob->send_tool->store[next].offset)
             {
 
@@ -107,12 +122,6 @@ int send_main(worker* w,int ed_store_blocknum)
                 else if (sent<0 && errno == EAGAIN) {
                     
                     Send_thing_queue_push(w->Thing_queue,NULL,send_fd,s.serial,200,0,size_file,NULL,send_ed_fd,fd_ob->send_tool->store[next].offset);
-                    return 1;
-                }
-                else if (sent==0)
-                {
-                    fd_close(w,send_fd,200);
-                    close(send_ed_fd);
                     return 1;
                 }
             }

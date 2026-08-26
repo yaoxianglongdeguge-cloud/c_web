@@ -2,6 +2,7 @@
 
 int worker_init(worker** w,int Listen_fd,int id)
 {
+
     *w=(worker*)malloc(sizeof(worker));
 
     Memory_Pool_init(&((*w)->http_pool),6,6,500,400);

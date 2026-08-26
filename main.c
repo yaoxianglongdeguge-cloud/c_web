@@ -13,6 +13,7 @@
 #include <arpa/inet.h>
 #include <netinet/tcp.h> 
 #include <string.h>       // strlen, memset, strstr 等
+#include <signal.h>
 
 typedef  struct main{
     worker* w;
@@ -42,7 +43,14 @@ void* func2(void* arg)
 
 int main() {
 
-   global_resource_init(100);
+    signal(SIGPIPE, SIG_IGN);
+     struct sigaction sa;
+    sa.sa_handler = SIG_IGN;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGPIPE, &sa, NULL);
+
+    global_resource_init(100);
 
 int fd = socket(AF_INET, SOCK_STREAM, 0);
 int opt = 1;
@@ -96,7 +104,6 @@ pthread_create(&tid1, NULL, func1, &m2);
 pthread_create(&tid1, NULL, func1, &m3);
 
 pthread_create(&tid1, NULL, func1, &m4);
-*/
 
 
 profession* p2;
@@ -123,6 +130,7 @@ pthread_create(&tid2, NULL, func2, &m7);
 
 
 pthread_create(&tid2, NULL, func2, &m8);
+*/
 
 
 

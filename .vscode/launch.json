@@ -22,9 +22,14 @@
                     "description": "将反汇编风格设置为 Intel",
                     "text": "-gdb-set disassembly-flavor intel",
                     "ignoreFailures": true
+                },
+                {
+                    "description": "不拦截 SIGPIPE",
+                    "text": "handle SIGPIPE nostop noprint pass",
+                    "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "build",  // 调试前先执行 build 任务
+            "preLaunchTask": "build",
             "miDebuggerPath": "/usr/bin/gdb"
         }
     ]

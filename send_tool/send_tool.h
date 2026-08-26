@@ -9,7 +9,7 @@ typedef struct Send_tool_Entry{
     int size_resp;
     int send_fd;
     off_t offset;
-    int size_file;
+    off_t size_file;
 
 }Send_tool_Entry;
 

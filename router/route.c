@@ -1,9 +1,9 @@
 #include"../include.h"
 
-int route_1_init(route_1* r)
+int route_1_init()
 {
     int e=0;
-    r->Hrt=Hash_Init(&e,2);
+    Router->Hrt=Hash_Init(&e,2);
 
     if(e!=1)
     {
@@ -13,9 +13,9 @@ int route_1_init(route_1* r)
     return 1;
 }
 
-int Handler_append(route_1* r,char* url,Handler func)
+int Handler_append(char* url,Handler func)
 {
-   int a = Hash_Insert(&(r->Hrt),r->Hrt,url,func);
+   int a = Hash_Insert(&(Router->Hrt),Router->Hrt,url,func);
    if(a!=1)
    {
     return -1;
@@ -24,10 +24,10 @@ int Handler_append(route_1* r,char* url,Handler func)
    return 1;
 }
 
-Handler Handler_Find(route_1* r,char* url)
+Handler Handler_Find(char* url)
 {
     int error=0;
-    Entry* e=Hash_Find(r->Hrt,url,&error);
+    Entry* e=Hash_Find(Router->Hrt,url,&error);
     if(error!=1)
     {
         return NULL;
