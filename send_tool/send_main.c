@@ -123,11 +123,14 @@ int send_main(worker* w,int ed_store_blocknum)
                 if(sent>0)
                 {
                     Send_thing_queue_push(w->Thing_queue,NULL,send_fd,s.serial,200,0,size_file,NULL,send_ed_fd,fd_ob->send_tool->store[next].offset);
+                    timer_alloc_and_reset(w->my_timer,s.fd,w);
+
                     return 1;
                 }
                 else if (sent<0 && errno == EAGAIN) {
                     
                     Send_thing_queue_push(w->Thing_queue,NULL,send_fd,s.serial,200,0,size_file,NULL,send_ed_fd,fd_ob->send_tool->store[next].offset);
+                    timer_alloc_and_reset(w->my_timer,s.fd,w);
                     return 1;
                 }
             }

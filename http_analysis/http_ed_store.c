@@ -95,12 +95,10 @@ int Http_ed_store_write(http_ed_store* h,int fd)
 {
    
     int length=h->end-h->ptr_e;
-    char C[length];
-    int n1=read(fd,C,length);
+    int n1=read(fd,h->ptr_e,length);
 
     if(n1>0)
     {
-        memcpy(h->ptr_e,C,n1);
         h->ptr_e=h->ptr_e+n1;
 
     }
