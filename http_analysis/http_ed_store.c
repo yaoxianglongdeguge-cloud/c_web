@@ -37,7 +37,12 @@ int Http_ed_store_destroy(http_ed_store* h,Memory_Pool* pool)
 int Http_ed_store_alloc(http_ed_store* h,Memory_Pool* pool,int size)//单位是kb
 {
      void* ptr=NULL;
-    Memory_Pool_alloc(pool,size,&ptr);
+     int notfull=0;
+    Memory_Pool_alloc(pool,size,&ptr,&notfull);
+    if(notfull==0)
+    {
+        return -1;
+    }
 
     h->begin=(char*)ptr;
     h->end=h->begin+(size*1024)-1;
@@ -68,11 +73,17 @@ int Http_ed_store_expend(http_ed_store* h,Memory_Pool* pool)
     int ptr_b=h->ptr_b-h->begin;
     int ptr_e=h->ptr_e-h->begin;
     void* ptr=NULL;
-    Memory_Pool_alloc(pool,expendsize,&ptr);
+
+    int notfull=0;
+    Memory_Pool_alloc(pool,expendsize,&ptr,&notfull);
+    if(notfull==0)
+    {
+        return -1;
+    }
     memcpy(ptr,h->begin,nowsize);
     Http_ed_store_free(h,pool);
     h->begin=(char*)ptr;
-    h->end=h->begin+expendsize-1;
+    h->end=h->begin+expendsize*1024-1;
     h->ptr_b=h->begin+ptr_b;
     h->ptr_e=h->begin+ptr_e;
 

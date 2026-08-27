@@ -139,6 +139,7 @@ Hash_map* Hash_Init(int* Error,int init)//1成功，0已存在，-1过程错误
     {
         *Error=-1;
     }
+    h->Elem=NULL;
 
     int bu_size=PRIME_BUCKET_SIZES[init-1];
 
@@ -203,6 +204,21 @@ int Hash_Expend(Hash_map** h)
         }
     }
 
+    for(int i=0;i<(*h)->bu_num;i++)
+    {
+        Entry* m=(*h)->Elem[i].next;
+        if(m!=NULL)
+        {
+            while(m!=NULL)
+            {
+                Entry* p=m->next;
+                free(m);
+                m=p;
+            }
+            
+        }
+    }
+    free((*h)->Elem);
     free(*h);
 
     *h=m;

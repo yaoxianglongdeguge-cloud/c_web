@@ -28,7 +28,12 @@ int send_main(worker* w,int ed_store_blocknum)
             {
                  if(fd_ob->send_tool->store==NULL)
                 {
-                    send_tool_alloc(fd_ob->send_tool,w->store_area,ed_store_blocknum);
+                    int n=send_tool_alloc(fd_ob->send_tool,w->store_area,ed_store_blocknum);
+                    if(n!=1)
+                    {
+                        fd_close(w,fd_ob->fd,503);
+                        return 1;
+                    }
                 }
 
                 int next=s.serial%fd_ob->send_tool->blocknum;

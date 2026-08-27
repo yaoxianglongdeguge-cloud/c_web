@@ -45,8 +45,8 @@ int receive_and_send_main(worker* w,int Listen_fd,int time,int ed_store_blocknum
             {
                 break;
             }
+            timer_overtime(w->my_timer,time,w);
         }
-        timer_overtime(w->my_timer,time,w);
         for(int i=0;i<n;i++)
         {
             int handle_fd=events[i].data.fd;

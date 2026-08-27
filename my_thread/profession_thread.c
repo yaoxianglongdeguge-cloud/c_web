@@ -41,7 +41,7 @@ int deal_and_pack(profession* profes)
 
     void* ptr=NULL;
     int notfull=0;
-    int n=Memory_Pool_alloc2(profes->txt_pool,63,&ptr,&notfull);
+    int n=Memory_Pool_alloc(profes->txt_pool,63,&ptr,&notfull);
     if(notfull==0)
     {
         Rsp.error_reason=503;
@@ -98,7 +98,7 @@ int deal_and_pack(profession* profes)
     int allocsize=strlen(Rsp.headers->begin)+Rsp.body_size+17;
     void* ptr2=NULL;
     int notfull2=0;
-    int n2=Memory_Pool_alloc2(profes->txt_pool,allocsize/1024+1,&ptr2,&notfull2);
+    int n2=Memory_Pool_alloc(profes->txt_pool,allocsize/1024+1,&ptr2,&notfull2);
 
 
     if(notfull2==0)
@@ -211,7 +211,7 @@ int Http_get(profession* profes,char* ptr,Http_analysis_1** h,int size,int* erro
         
     memcpy((*h)->ptr,ptr,size);
     char* ptr2=(*h)->ptr;
-    Memory_Pool_free(w->http_pool,ptr,size);
+    Memory_Pool_free(w->http_pool,ptr,1024*(size/1024+1));
     (*h)->ptr=(*h)->ptr+size;
     Http_analysis_receive(*h,ptr2,error_reason);
     if(*error_reason!=200)

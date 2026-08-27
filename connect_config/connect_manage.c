@@ -69,6 +69,7 @@ int fd_close(worker* w,int client_fd,int error_reason)
 
     send_tool_destory(fd_ob->send_tool,w->store_area);
     Fd_Table_delete(w->fd_table,client_fd);
+    timer_free(w->my_timer,client_fd);
 
     epoll_ctl(w->epfd, EPOLL_CTL_DEL, client_fd, NULL);
     close(client_fd);

@@ -61,22 +61,17 @@ int Web_Driver(char* IPaddr,int PORT, HandlerFunc Handler)
 
 
 
+    pthread_t tid2;
+    
+    profession* p1;
+    profession_init(&p1,1);
+    main_t2 m5 = {.p=p1};
+    
+    pthread_create(&tid2, NULL, func2, &m5);
 
+    /*
 // 创建worker
 pthread_t tid1;
-pthread_t tid2;
-worker* w1;
-
-worker_init(&w1, fd, 1);
-main_t m1 = {.fd = fd, .time = 1, .w = w1,.ed_store_blocknum=100};
-pthread_create(&tid1, NULL, func1, &m1);
-
-profession* p1;
-profession_init(&p1,1);
-main_t2 m5 = {.p=p1};
-
-pthread_create(&tid2, NULL, func2, &m5);
-/*
 
 worker* w2;
 worker_init(&w2, fd, 2);
@@ -127,10 +122,12 @@ pthread_create(&tid2, NULL, func2, &m8);
 
 
 
-while(1)
-{
-    sleep(100);
-}
+worker* w1;
+worker_init(&w1, fd, 1);
+main_t m1 = {.fd = fd, .time = 1, .w = w1,.ed_store_blocknum=100};
+
+receive_and_send_main(m1.w,m1.fd,m1.time,m1.ed_store_blocknum);
+
 
 
 return 0;

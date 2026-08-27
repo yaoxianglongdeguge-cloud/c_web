@@ -18,7 +18,12 @@ int Http_analysis_head(Http_analysis_1* h,char* http_request,int* error_reason);
 int Http_analysis_init(Http_analysis_1** h,Memory_Pool* pool,int h_size)//单位是字节
 {
     void* ptr=NULL;
-    int e0=Memory_Pool_alloc(pool,(h_size/1024)+1,&ptr);
+    int notfull=0;
+    int e0=Memory_Pool_alloc(pool,(h_size/1024)+1,&ptr,&notfull);
+    if(notfull==0)
+    {
+        return -1;
+    }
     (*h)=ptr;
     (*h)->size=1024*((h_size/1024)+1);
 
@@ -119,6 +124,7 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head,int* error_reason)
     int e0=Hash2_Init(h,1);
     if(e0!=1)
     {
+        *error_reason=400;
         return -1;
     }
 
@@ -147,6 +153,7 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head,int* error_reason)
             e1=Hash2_Insert(h->Headers,h,line,m);
             if(e1!=1)
             {
+                *error_reason=400;
                 return -1;
             }
         }
@@ -196,6 +203,7 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head,int* error_reason)
         
         if(e2!=1)
         {
+            *error_reason=400;
             return -1;
         }
         
@@ -212,6 +220,7 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head,int* error_reason)
                     e1=Hash2_Insert(h->Query,h,query_ing,m+1);
                     if(e1!=1)
                     {
+                        *error_reason=400;
                         return -1;
                     }
                 }
@@ -229,6 +238,7 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head,int* error_reason)
                     e1=Hash2_Insert(h->Query,h,line2,m+1);
                     if(e1!=1)
                     {
+                        *error_reason=400;
                         return -1;
                     }
                 }

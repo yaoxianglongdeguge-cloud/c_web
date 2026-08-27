@@ -86,9 +86,9 @@ int timer_overtime(timer* t,int overtime,worker* w)//超时时间
     }
     timer_entry t1=prior_queue_1_top(t->q);
     int fd=t1.fd;
-    time_t time=t1.time;
+    time_t now=time(NULL);
 
-    while(t->q->queue[0].fd>0&&time-(t->q->queue[1].time)>overtime)
+    while(t->q->queue[0].fd>0&&now-t1.time>overtime)
     {
         int e1=fd_close(w,t->q->queue[1].fd,408);
         if(e1!=1)
@@ -102,8 +102,41 @@ int timer_overtime(timer* t,int overtime,worker* w)//超时时间
         }
         t1=prior_queue_1_top(t->q);
         fd=t1.fd;
-        time=t1.time;
     }
 
     return 1;
+}
+
+int timer_free(timer* t,int fd)
+{
+    if(t->q->elem_end==1)
+    {
+        return 1;
+    }
+    int i=1;
+    int can=0;
+    for(;i<t->q->elem_end;i++)
+    {
+        if(t->q->queue[i].fd==fd)
+        {
+            can=1;
+            break;
+        }
+    }
+
+    if(can!=1)
+    {
+        return 1;
+    }
+    else
+    {
+        t->q->queue[i].fd=t->q->queue[t->q->elem_end-1].fd;
+        t->q->queue[i].time=t->q->queue[t->q->elem_end-1].time;
+        t->q->elem_end--; 
+        t->q->queue[0].fd--;
+        prior_queue_1_down(t->q,i);
+    }
+
+    return 1;
+
 }

@@ -17,7 +17,12 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
     }
     if(fd_ob->http_store->begin==NULL)
     {
-        Http_ed_store_alloc(fd_ob->http_store,worker->store_area,2);
+        int n=Http_ed_store_alloc(fd_ob->http_store,worker->store_area,2);
+        if(n!=1)
+        {
+            fd_close(worker,fd,503);
+            return 1;
+        }
     }
         
     int r0=Http_ed_store_write(fd_ob->http_store,fd);//返回-1说明，没断开但是没数据
@@ -71,7 +76,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
             void* ptr=NULL;
 
             int notfull=0;
-            Memory_Pool_alloc2(worker->http_pool,h_size/1024,&ptr,&notfull);
+            Memory_Pool_alloc(worker->http_pool,h_size/1024+1,&ptr,&notfull);
             if(notfull==0)
             {
                 fd_close(worker,fd,503);
@@ -88,6 +93,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
             
             worker_to_profession(worker,fd,hptr,h_size,error_reason,serial);
             fd_ob->pack_in_path++;
+            serial++;
 
             error_reason=200;
                 
@@ -110,6 +116,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
             worker_to_profession(worker,fd,NULL,0,error_reason,serial);
             fd_ob->pack_in_path++;
             error_reason=200;
+            serial++;
                     
             break;
         }

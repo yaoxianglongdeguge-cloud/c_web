@@ -84,8 +84,8 @@ int prior_queue_1_down(prior_queue_1* p,int t)
     
     while(t*2<p->elem_end)
     {
-        
-        if(p->queue[t*2].time<=p->queue[t*2+1].time)
+
+        if(t*2+1>=p->elem_end)
         {
             if(p->queue[t].time>p->queue[t*2].time)
             {
@@ -94,38 +94,62 @@ int prior_queue_1_down(prior_queue_1* p,int t)
                 {
                     return -1;
                 }
-                
+                    
                 t=t*2;
-                
+                    
             }
             else
             {
                 break;
             }
-            
         }
         else
         {
-            if(p->queue[t].time>p->queue[t*2+1].time)
+
+            if(p->queue[t*2].time<=p->queue[t*2+1].time)
             {
-                int a1=prior_queue_1_swap(p,t,t*2+1);
-                if(a1!=1)
+                if(p->queue[t].time>p->queue[t*2].time)
                 {
-                    return -1;
+                    int a1=prior_queue_1_swap(p,t,t*2);
+                    if(a1!=1)
+                    {
+                        return -1;
+                    }
+                    
+                    t=t*2;
+                    
                 }
-                
-                t=t*2+1;
+                else
+                {
+                    break;
+                }
                 
             }
             else
             {
-                break;
+                if(p->queue[t].time>p->queue[t*2+1].time)
+                {
+                    int a1=prior_queue_1_swap(p,t,t*2+1);
+                    if(a1!=1)
+                    {
+                        return -1;
+                    }
+                    
+                    t=t*2+1;
+                    
+                }
+                else
+                {
+                    break;
+                }
+                
             }
             
         }
         
-        
     }
+
+    return 1;
 }
 
 int prior_queue_1_insert(prior_queue_1* p,int fd,time_t time)
@@ -157,6 +181,7 @@ int prior_queue_1_pop(prior_queue_1* p)
     if(p->elem_end==2)
     {
         p->elem_end=1;
+        p->queue[0].fd--;
         return 1;
     }
 
@@ -171,6 +196,7 @@ int prior_queue_1_pop(prior_queue_1* p)
     {
         return -1;
     }
+
 
     p->queue[0].fd--;
 

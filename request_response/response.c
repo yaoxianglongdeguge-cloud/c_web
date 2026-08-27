@@ -5,7 +5,7 @@ int Response_body_set(Response* r,char* c)
     int len=strlen(c);
     void* ptr=NULL;
     int notfull=0;
-    int n=Memory_Pool_alloc2((Memory_Pool*)(r->pool),len/1024+1,&ptr,&notfull);
+    int n=Memory_Pool_alloc((Memory_Pool*)(r->pool),len/1024+1,&ptr,&notfull);
     if(notfull==0)
     {
         r->error_reason=503;

@@ -10,6 +10,9 @@ LDFLAGS = -lpthread
 # 目标程序
 TARGET = main
 
+# 静态库
+LIB_TARGET = libcweb.a
+
 # 自动查找所有 .c 文件
 SRCS = $(wildcard *.c */*.c)
 OBJS = $(SRCS:.c=.o)
@@ -18,13 +21,20 @@ OBJS = $(SRCS:.c=.o)
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
+# 编译静态库
+$(LIB_TARGET): $(OBJS)
+	ar rcs $@ $^
+
+# 一键编译静态库
+lib: $(LIB_TARGET)
+
 # 编译 .c 为 .o
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # 清理
 clean:
-	rm -f $(TARGET) $(OBJS)
+	rm -f $(TARGET) $(LIB_TARGET) $(OBJS)
 
 # 运行
 run: $(TARGET)
@@ -38,4 +48,4 @@ debug: $(TARGET)
 valgrind: $(TARGET)
 	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(TARGET)
 
-.PHONY: clean run debug valgrind
+.PHONY: clean run debug valgrind lib

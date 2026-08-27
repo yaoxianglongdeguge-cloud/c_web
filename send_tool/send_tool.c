@@ -14,7 +14,12 @@ int send_tool_alloc(Send_tool* s,Memory_Pool* pool,int blocknum)
     s->blocknum=blocknum;
     void* ptr=NULL;
     int size=sizeof(Send_tool_Entry)*blocknum/1024+1;
-    Memory_Pool_alloc(pool,size,&ptr);
+    int notfull=0;
+    Memory_Pool_alloc(pool,size,&ptr,&notfull);
+    if(notfull==0)
+    {
+        return -1;
+    }
     s->store=(Send_tool_Entry*)ptr;
 
     for(int i=0;i<blocknum;i++)

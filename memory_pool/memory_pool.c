@@ -100,9 +100,10 @@ int Memory_Entry_expend(Memory_Entry* e)
     int total_size=before_num*strip_size*1024;
 
     char* strip=(char*)malloc(expend_num*strip_size*1024);
-    memcpy(e->memory_strip,strip,total_size);
-    free(e->memory_strip);
+    memcpy(strip,e->memory_strip,total_size);
+    char* p=e->memory_strip;
     e->memory_strip=strip;
+    free(p);
     e->strip_num=e->strip_num*2;
 
     
@@ -194,28 +195,7 @@ int Memory_Pool_init(Memory_Pool** p,int max_num,int init_max,int strip_num_futu
 
 }
 
-int Memory_Pool_alloc(Memory_Pool* p,int size,void** ptr)
-{
-    int alloc_size=1;
-    int i=0;
-    for(;i<p->Entry_num;i++)
-    {
-        if(alloc_size>=size)
-        {
-            break;
-        }
-        alloc_size=alloc_size*2;
-    }
-
-    Memory_Entry* aim_entry=&(p->pool[i]);
-
-    Memory_Entry_alloc(aim_entry,ptr);
-
-    return 1;
-
-}
-
-int Memory_Pool_alloc2(Memory_Pool* p,int size,void** ptr,int* notfull)
+int Memory_Pool_alloc(Memory_Pool* p,int size,void** ptr,int* notfull)
 {
     *notfull=0;
 
