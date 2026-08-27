@@ -12,5 +12,5 @@ typedef struct Request{
 }Request;
 
 
-char* Request_get(Http_analysis_1* h,char* get1,char* get2);//2是1的子
+const char* const Request_get(Request* h,char* get1,char* get2);//2是1的子
 

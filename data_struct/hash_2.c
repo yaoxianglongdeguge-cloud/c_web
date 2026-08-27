@@ -19,16 +19,6 @@ static unsigned long hash_2(const char *str);//哈希函数：DJB2 + 盐值
 int bucket_site_2(int bucket_size,const char* url);//桶位置计算
 
 
-typedef struct Hash2_Entry_2{
-    
-    char* key;//键
-    void* value;//值
-    struct Hash2_Entry_2* next;//指向下一个元素
-
-}Hash2_Entry_2;
-
-
-
 
 Hash2_Entry_2* Hash2_Entry_Creat(char* key,void* value,void* ptr)
 {

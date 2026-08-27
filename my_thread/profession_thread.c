@@ -68,7 +68,8 @@ int deal_and_pack(profession* profes)
                 .Query=(const Hash_map_2* const)h->Query,
                 .Method=(const char* const)h->Method,
                 .Url=(const char* const)h->Url,
-                .Version=(const char* const)h->Version
+                .Version=(const char* const)h->Version,
+  
             };
             
             deal_task(&Req,&Rsp);
@@ -204,7 +205,7 @@ int pack_task(char** c,Response* w)
     
 int Http_get(profession* profes,char* ptr,Http_analysis_1** h,int size,int* error_reason,worker* w)
 {
-    int allocsize=4*(size);
+    int allocsize=4*(size)+sizeof(Http_analysis_1)+2*sizeof(Hash_map_2)+sizeof(Hash2_Entry_2)*14;
   
     Http_analysis_init(h,profes->http_pool,allocsize);
         

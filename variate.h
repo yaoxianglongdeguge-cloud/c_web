@@ -1,5 +1,6 @@
 #include "include_standard.h"
 
+
 typedef struct route_1 route_1;
 
 typedef struct worker worker; 
@@ -56,3 +57,4 @@ typedef struct Response_Header_Entry Response_Header_Entry;
 typedef struct Response Response;
 typedef struct Request Request;
 typedef void (*Handler)(Request *, Response *);//路由后处理函数类型
+typedef void (*HandlerFunc)();

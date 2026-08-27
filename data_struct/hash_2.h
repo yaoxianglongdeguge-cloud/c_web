@@ -1,6 +1,14 @@
 #include "../variate.h"
 //内存池分配专用哈希表
 
+typedef struct Hash2_Entry_2{
+    
+    char* key;//键
+    void* value;//值
+    struct Hash2_Entry_2* next;//指向下一个元素
+
+}Hash2_Entry_2;
+
 typedef struct Hash_map_2
 {
    int bu_num;

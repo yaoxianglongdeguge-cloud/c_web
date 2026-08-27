@@ -132,11 +132,12 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
 
             char length_num[100];
             int i=0;
-            while(length_num+i<hs->ptr_e&&length_num[i]!='\r')
+            while(body_length[i] != '\r' && body_length[i] != '\0' && i < 99)
             {
                 length_num[i]=body_length[i];
                 i++;
             }
+            length_num[i] = '\0';
 
 
             int len=atoi(length_num);

@@ -1,7 +1,7 @@
 #include "../include.h"
 
 
-char* Request_get(Http_analysis_1* h,char* get1,char* get2)
+const char* const Request_get(Request* h,char* get1,char* get2)
 {
     if(strcmp(get1,"Headers")==0)
     {
@@ -11,13 +11,13 @@ char* Request_get(Http_analysis_1* h,char* get1,char* get2)
             return NULL;
         }
 
-        char* Headers = Hash2_Find(h->Headers,get2,&e0);
+        char* Headers = Hash2_Find((Hash_map_2*)(h->Headers),get2,&e0);
         if(e0!=1)
         {
             return NULL;
         }
 
-        return Headers;
+        return (const char* const)Headers;
     }
 
     if(strcmp(get1,"Query")==0)
@@ -27,13 +27,13 @@ char* Request_get(Http_analysis_1* h,char* get1,char* get2)
         {
             return NULL;
         }
-        char* Query = Hash2_Find(h->Query,get2,&e0);
+        char* Query = Hash2_Find((Hash_map_2*)(h->Query),get2,&e0);
         if(e0!=1)
         {
             return NULL;
         }
 
-        return Query;
+        return (const char* const)Query;
     }
 
 

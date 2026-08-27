@@ -1,19 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include "my_thread/worker_thread.h"
-#include "my_thread/profession_thread.h"
-#include "http_analysis/http_main.h"
-#include "memory_pool/memory_pool.h"
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <fcntl.h>
-#include "server/global_resource.h"
-#include <time.h>
-#include <arpa/inet.h>
-#include <netinet/tcp.h> 
-#include <string.h>       // strlen, memset, strstr 等
-#include <signal.h>
+#include "include.h"
 
 typedef  struct main{
     worker* w;
@@ -41,10 +26,14 @@ void* func2(void* arg)
     }
 }
 
-int main() {
+
+typedef void (*HandlerFunc)();
+
+int Web_Driver(char* IPaddr,int PORT, HandlerFunc Handler) 
+{
 
     signal(SIGPIPE, SIG_IGN);
-     struct sigaction sa;
+    struct sigaction sa;
     sa.sa_handler = SIG_IGN;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
@@ -52,19 +41,21 @@ int main() {
 
     global_resource_init(100);
 
-int fd = socket(AF_INET, SOCK_STREAM, 0);
-int opt = 1;
-setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    Handler();
 
-struct sockaddr_in addr;
-addr.sin_family = AF_INET;
-addr.sin_addr.s_addr = INADDR_ANY;
-addr.sin_port = htons(8080);
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    int opt = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+  
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = inet_addr(IPaddr);  
+    addr.sin_port = htons(PORT);
 
-bind(fd, (struct sockaddr*)&addr, sizeof(addr));
-listen(fd, 100);
-int flags = fcntl(fd, F_GETFL, 0);
-fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    bind(fd, (struct sockaddr*)&addr, sizeof(addr));
+    listen(fd, 100);
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
 
 
@@ -104,13 +95,15 @@ pthread_create(&tid1, NULL, func1, &m2);
 pthread_create(&tid1, NULL, func1, &m3);
 
 pthread_create(&tid1, NULL, func1, &m4);
-
+*/
 
 profession* p2;
 profession_init(&p2,2);
 
 main_t2 m6 = {.p=p2};
+pthread_create(&tid2, NULL, func2, &m6);
 
+/*
 profession* p3;
 profession_init(&p3,3);
 
@@ -123,15 +116,14 @@ main_t2 m8 = {.p=p4};
 
 
 
-pthread_create(&tid2, NULL, func2, &m6);
 
 
 pthread_create(&tid2, NULL, func2, &m7);
 
 
 pthread_create(&tid2, NULL, func2, &m8);
-*/
 
+*/
 
 
 

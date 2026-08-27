@@ -72,6 +72,13 @@ int send_main(worker* w,int ed_store_blocknum)
 
     while(fd_ob->send_tool->store[next].use==1)
     {
+        if(fd_ob->send_tool->store[next].error_reason!=200)
+        {
+            int error_reason=fd_ob->send_tool->store[next].error_reason;
+            fd_close(w,send_fd,error_reason);
+            return 1;
+        }
+        
         if(fd_ob->send_tool->store[next].size_resp!=0)
         {
 
@@ -79,12 +86,6 @@ int send_main(worker* w,int ed_store_blocknum)
             if(n==0)
             {
                 fd_close(w,send_fd,200);
-                return 1;
-            }
-            if(fd_ob->send_tool->store[next].error_reason!=200)
-            {
-                int error_reason=fd_ob->send_tool->store[next].error_reason;
-                fd_close(w,send_fd,error_reason);
                 return 1;
             }
             Memory_Queue* m=fd_ob->send_tool->store[next].m_queue;

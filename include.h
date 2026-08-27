@@ -1,5 +1,6 @@
 #include "server/global_resource.h"
 #include "router/route.h"
+#include "main.h"
 
 //connect_config
 #include "connect_config/connect_manage.h"
@@ -22,7 +23,6 @@
 #include "data_struct/hash_2.h"
 #include "data_struct/hash_3.h"
 #include "data_struct/prior_queue_1.h"
-#include "data_struct/vector_1.h"
 
 //my_thread
 #include "my_thread/worker_thread.h"

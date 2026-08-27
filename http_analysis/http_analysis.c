@@ -116,7 +116,7 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head,int* error_reason)
 
     //处理header
     h->Headers=(Hash_map_2*)h->ptr;
-    int e0=Hash2_Init(h,2);
+    int e0=Hash2_Init(h,1);
     if(e0!=1)
     {
         return -1;
@@ -192,7 +192,7 @@ int Http_analysis_head(Http_analysis_1* h,char* http_head,int* error_reason)
         
 
         h->Query=(Hash_map_2*)h->ptr;
-        int e2=Hash2_Init(h,2);
+        int e2=Hash2_Init(h,1);
         
         if(e2!=1)
         {
