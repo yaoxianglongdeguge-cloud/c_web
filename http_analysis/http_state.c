@@ -125,7 +125,7 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
         {
             *error=0;
             body_length=body_length+15;
-            while(*body_length!=' ')
+            while(*body_length==' ')
             {
                 body_length++;
             }

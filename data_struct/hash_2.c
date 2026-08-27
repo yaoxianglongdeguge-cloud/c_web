@@ -178,13 +178,14 @@ int Hash2_Insert(Hash_map_2* h,Http_analysis_1* Http, char* url,void* func)
 
     Hash2_Entry_2* head=&(h->Elem[b_site]);
 
+    int e=Hash2_Entry_Insert(head,url,func,Http->ptr);
     Http->ptr=Http->ptr+sizeof(Hash2_Entry_2);
+    
     if(Http->ptr>=Http->end)
     {
         return 0;
     }
-    int e=Hash2_Entry_Insert(head,url,func,Http->ptr);
-
+    
     if(e!=1)
     {
         return -1;

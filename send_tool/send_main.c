@@ -139,7 +139,7 @@ int send_main(worker* w,int ed_store_blocknum)
         fd_ob->send_tool->store[next].use=0;
         fd_ob->pack_in_path--;
 
-        next=next+1%fd_ob->send_tool->blocknum;
+        next=(next+1)%fd_ob->send_tool->blocknum;
     }
 
 

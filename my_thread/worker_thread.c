@@ -41,12 +41,12 @@ int receive_and_send_main(worker* w,int Listen_fd,int time,int ed_store_blocknum
         {
             n=epoll_wait(w->epfd,events,1024,50);
             int e2=send_main(w,ed_store_blocknum);
-            timer_overtime(w->my_timer,time,w);
             if(n>0)
             {
                 break;
             }
         }
+        timer_overtime(w->my_timer,time,w);
         for(int i=0;i<n;i++)
         {
             int handle_fd=events[i].data.fd;

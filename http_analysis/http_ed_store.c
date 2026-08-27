@@ -49,7 +49,7 @@ int Http_ed_store_alloc(http_ed_store* h,Memory_Pool* pool,int size)//单位是k
 
 int Http_ed_store_free(http_ed_store* h,Memory_Pool* pool)
 {
-    int size=h->end-h->begin;
+    int size=h->end-h->begin+1;
     Memory_Pool_free(pool,h->begin,size);
     h->begin=NULL;
     h->end=h->begin;

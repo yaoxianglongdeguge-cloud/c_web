@@ -45,7 +45,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
             int r1=Http_ed_store_write(fd_ob->http_store,fd);
             if(r1==-1)
             {
-                if(fd_ob->http_store->ptr_b=fd_ob->http_store->ptr_e)
+                if(fd_ob->http_store->ptr_b==fd_ob->http_store->ptr_e)
                 //说明连接里没数据并且暂存区也没有残留数据,所以可以释放占有的暂存区
                 {
                     Http_ed_store_free(fd_ob->http_store,worker->store_area);
