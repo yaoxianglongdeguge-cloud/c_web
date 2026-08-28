@@ -7,6 +7,7 @@ typedef struct Send_tool_Entry{
     int error_reason;
     char* ptr;
     int size_resp;
+    int off;
     int send_fd;
     off_t offset;
     off_t size_file;

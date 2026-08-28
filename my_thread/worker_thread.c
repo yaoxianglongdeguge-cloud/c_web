@@ -40,7 +40,15 @@ int receive_and_send_main(worker* w,int Listen_fd,int time,int ed_store_blocknum
         while(1)
         {
             n=epoll_wait(w->epfd,events,1024,50);
-            int e2=send_main(w,ed_store_blocknum);
+            for(int i=0;i<100;i++)
+            {
+                int send_info=0;
+                int e2=send_main(w,ed_store_blocknum,&send_info);
+                if(send_info==0)
+                {
+                    break;
+                }
+            }
             if(n>0)
             {
                 break;
@@ -63,7 +71,6 @@ int receive_and_send_main(worker* w,int Listen_fd,int time,int ed_store_blocknum
             {
                 timer_alloc_and_reset(w->my_timer,handle_fd,w);
                 int e1=http_main(handle_fd,w,ed_store_blocknum);//错误包已经通过发送程序发了，所以这里的返回值不验证
-                int e2=send_main(w,ed_store_blocknum);
             }
 
 

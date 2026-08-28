@@ -8,6 +8,7 @@ typedef struct Send_tq_Entry{
     int error_reason;
     char* char_ptr;
     int size_resp;
+    int off;
     int send_fd;
     off_t size_file;
     off_t offset;
@@ -36,6 +37,6 @@ typedef struct Send_thing_queue{
 
 int Send_thing_queue_init(Send_thing_queue** sq,int blocknum);
 
-int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int serial,int error_reason,int resp_size,off_t file_size,char*char_ptr,int send_fd,off_t offset);
+int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int serial,int error_reason,int resp_size,int off,off_t file_size,char*char_ptr,int send_fd,off_t offset);
 
 Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error);

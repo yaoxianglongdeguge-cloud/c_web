@@ -26,7 +26,7 @@ int Send_thing_queue_init(Send_thing_queue** sq,int blocknum)
 
 }
 
-int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int serial,int error_reason,int resp_size,off_t file_size,char*char_ptr,int send_fd,off_t offset)
+int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int serial,int error_reason,int resp_size,int off,off_t file_size,char*char_ptr,int send_fd,off_t offset)
 {
     sem_wait(&(sq->sem_thing_queue_notfull));
     pthread_mutex_lock(&(sq->mutex_thing));
@@ -40,6 +40,7 @@ int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int 
     sq->queue[sq->ptr_in].char_ptr=char_ptr;
     sq->queue[sq->ptr_in].serial=serial;
     sq->queue[sq->ptr_in].offset=offset;
+    sq->queue[sq->ptr_in].off=off;
 
     if(sq->ptr_in+1==sq->end)
     {
@@ -71,6 +72,7 @@ Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error)//0ä¸
     s.error_reason=-1;
     s.m_queue=NULL;
     s.offset=0;
+    s.off=0;
 
 
     if(sq->num!=0)
@@ -85,6 +87,7 @@ Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error)//0ä¸
         s.error_reason=sq->queue[sq->ptr_out].error_reason;
         s.m_queue=sq->queue[sq->ptr_out].m_queue;
         s.offset=sq->queue[sq->ptr_out].offset;
+        s.off=sq->queue[sq->ptr_out].off;
 
         if(sq->ptr_out+1==sq->end)
         {
@@ -96,9 +99,15 @@ Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error)//0ä¸
         }
         sq->num--;
         *error=1;
+        pthread_mutex_unlock(&(sq->mutex_thing));
+        sem_post(&(sq->sem_thing_queue_notfull));
+
+        return s;
+    }
+    else
+    {
+        pthread_mutex_unlock(&(sq->mutex_thing));
     }
 
-    pthread_mutex_unlock(&(sq->mutex_thing));
-    sem_post(&(sq->sem_thing_queue_notfull));
     return s;
 }

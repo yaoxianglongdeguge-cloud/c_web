@@ -32,6 +32,7 @@ int send_tool_alloc(Send_tool* s,Memory_Pool* pool,int blocknum)
         s->store[i].offset=0;
         s->store[i].send_fd=-1;
         s->store[i].size_file=0;
+        s->store[i].off=0;
     }
 
     return 1;

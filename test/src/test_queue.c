@@ -81,7 +81,7 @@ static void test_send_thing_queue(void)
     Send_thing_queue_init(&q, 3);
     int e = 0;
     for (int i = 0; i < 3; i++)
-        Send_thing_queue_push(q, NULL, 10 + i, i, 200, 10, 0, (char*)(long)i, -1, 0);
+        Send_thing_queue_push(q, NULL, 10 + i, i, 200, 10, 0, 0, (char*)(long)i, -1, 0);
     Send_tq_Entry s;
     for (int i = 0; i < 3; i++) {
         s = Send_thing_queue_top_and_pop(q, &e);

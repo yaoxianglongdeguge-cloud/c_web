@@ -1,8 +1,9 @@
 #include "../include.h"
 
 
-int send_main(worker* w,int ed_store_blocknum)
+int send_main(worker* w,int ed_store_blocknum,int* send_info)
 {
+    *send_info=0;
     int send_fd=-2;
     Send_tq_Entry s;
     //这里是看返回事件队列里能现在立刻发的包，然后顺便发他后面顺延的包
@@ -13,6 +14,7 @@ int send_main(worker* w,int ed_store_blocknum)
         s = Send_thing_queue_top_and_pop(w->Thing_queue,&e0);
         if(e0==1)
         {
+            *send_info=1;
             Fd_Entry* fd_ob=NULL;
             int e1=Fd_Table_find(w->fd_table,s.fd,&fd_ob);
          
@@ -46,6 +48,7 @@ int send_main(worker* w,int ed_store_blocknum)
                 fd_ob->send_tool->store[next].send_fd=s.send_fd;
                 fd_ob->send_tool->store[next].size_resp=s.size_resp;
                 fd_ob->send_tool->store[next].offset=s.offset;
+                 fd_ob->send_tool->store[next].off=s.off;
                     
                 
                 if(s.serial==fd_ob->ser_nex_send)
@@ -77,6 +80,10 @@ int send_main(worker* w,int ed_store_blocknum)
 
     while(fd_ob->send_tool->store[next].use==1)
     {
+        int len=0;//之前说过用error_reason为正数时表示要发回的文本的长度
+        int off1=fd_ob->send_tool->store[next].off;
+        len=fd_ob->send_tool->store[next].size_resp-off1;
+
         if(fd_ob->send_tool->store[next].error_reason!=200)
         {
             int error_reason=fd_ob->send_tool->store[next].error_reason;
@@ -84,19 +91,49 @@ int send_main(worker* w,int ed_store_blocknum)
             return 1;
         }
         
-        if(fd_ob->send_tool->store[next].size_resp!=0)
+        if(fd_ob->send_tool->store[next].size_resp!=fd_ob->send_tool->store[next].off)
         {
 
-            int n=write(send_fd,fd_ob->send_tool->store[next].ptr, len);
+            int n=write(send_fd,fd_ob->send_tool->store[next].ptr+off1, len);
             if(n==0)
             {
                 fd_close(w,send_fd,200);
                 return 1;
             }
-            Memory_Queue* m=fd_ob->send_tool->store[next].m_queue;
-            int size_resp=fd_ob->send_tool->store[next].size_resp;
-            char* ptr=fd_ob->send_tool->store[next].ptr;
-            Memory_Queue_push(m,size_resp,ptr);
+            else if(n<len&&n>0)
+            {
+                off1=off1+n;
+                char* ptr=fd_ob->send_tool->store[next].ptr;
+                off_t offset=fd_ob->send_tool->store[next].offset;
+                int size_resp=fd_ob->send_tool->store[next].size_resp;
+                off_t size_file=fd_ob->send_tool->store[next].size_file;
+                int send_ed_fd=fd_ob->send_tool->store[next].send_fd;
+
+                Send_thing_queue_push(w->Thing_queue,NULL,send_fd,s.serial,200,size_resp,off1,size_file,ptr,send_ed_fd,offset);
+                timer_alloc_and_reset(w->my_timer,s.fd,w);
+                return 1;
+            }
+            else if(n==-1&&errno==EAGAIN)
+            {
+                char* ptr=fd_ob->send_tool->store[next].ptr;
+                off_t offset=fd_ob->send_tool->store[next].offset;
+                int size_resp=fd_ob->send_tool->store[next].size_resp;
+                off_t size_file=fd_ob->send_tool->store[next].size_file;
+                int send_ed_fd=fd_ob->send_tool->store[next].send_fd;
+
+                Send_thing_queue_push(w->Thing_queue,NULL,send_fd,s.serial,200,size_resp,off1,size_file,ptr,send_ed_fd,offset);
+                timer_alloc_and_reset(w->my_timer,s.fd,w);
+                return 1;
+            }
+            else if(n>=len)
+            {
+
+                Memory_Queue* m=fd_ob->send_tool->store[next].m_queue;
+                int size_resp=fd_ob->send_tool->store[next].size_resp;
+                char* ptr=fd_ob->send_tool->store[next].ptr;
+                Memory_Queue_push(m,size_resp,ptr);
+                fd_ob->send_tool->store[next].size_resp=0;
+            }
         }//这里是处理请求头和在内存中的请求体,由于内存中的回复规定小于1mb，所以写缓存区可以装下
 
         
@@ -122,14 +159,13 @@ int send_main(worker* w,int ed_store_blocknum)
 
                 if(sent>0)
                 {
-                    Send_thing_queue_push(w->Thing_queue,NULL,send_fd,s.serial,200,0,size_file,NULL,send_ed_fd,fd_ob->send_tool->store[next].offset);
+                    Send_thing_queue_push(w->Thing_queue,NULL,send_fd,s.serial,200,0,0,size_file,NULL,send_ed_fd,fd_ob->send_tool->store[next].offset);
                     timer_alloc_and_reset(w->my_timer,s.fd,w);
-
                     return 1;
                 }
                 else if (sent<0 && errno == EAGAIN) {
                     
-                    Send_thing_queue_push(w->Thing_queue,NULL,send_fd,s.serial,200,0,size_file,NULL,send_ed_fd,fd_ob->send_tool->store[next].offset);
+                    Send_thing_queue_push(w->Thing_queue,NULL,send_fd,s.serial,200,0,0,size_file,NULL,send_ed_fd,fd_ob->send_tool->store[next].offset);
                     timer_alloc_and_reset(w->my_timer,s.fd,w);
                     return 1;
                 }
@@ -149,6 +185,8 @@ int send_main(worker* w,int ed_store_blocknum)
 
         next=(next+1)%fd_ob->send_tool->blocknum;
     }
+
+
 
 
  

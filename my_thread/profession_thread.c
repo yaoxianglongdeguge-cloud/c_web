@@ -113,12 +113,12 @@ int deal_and_pack(profession* profes)
     pack_task(&C,&Rsp);
     if(Rsp.error_reason!=200)
     {
-        Send_thing_queue_push(W->Thing_queue, NULL,Fd,Serial,Rsp.error_reason,0,0,NULL,-1, 0);
+        Send_thing_queue_push(W->Thing_queue, NULL,Fd,Serial,Rsp.error_reason,0,0,0,NULL,-1, 0);
     }
     else
     {
 
-        Send_thing_queue_push(W->Thing_queue, profes->memory_queue,Fd,Serial,200,allocsize,file_size,C,Rsp.send_fd,Rsp.offset);
+        Send_thing_queue_push(W->Thing_queue, profes->memory_queue,Fd,Serial,200,allocsize,0,file_size,C,Rsp.send_fd,Rsp.offset);
     }
     
     

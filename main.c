@@ -124,7 +124,7 @@ pthread_create(&tid2, NULL, func2, &m8);
 
 worker* w1;
 worker_init(&w1, fd, 1);
-main_t m1 = {.fd = fd, .time = 10, .w = w1,.ed_store_blocknum=100};
+main_t m1 = {.fd = fd, .time = 60, .w = w1,.ed_store_blocknum=100};
 
 receive_and_send_main(m1.w,m1.fd,m1.time,m1.ed_store_blocknum);
 
