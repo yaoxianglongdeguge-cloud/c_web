@@ -90,7 +90,7 @@ int timer_overtime(timer* t,int overtime,worker* w)//超时时间
 
     while(t->q->queue[0].fd>0&&now-t1.time>overtime)
     {
-        int e1=fd_close(w,t->q->queue[1].fd,408);
+        int e1=FdClose(w,t->q->queue[1].fd,408);
         if(e1!=1)
         {
             return -1;

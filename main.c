@@ -132,3 +132,16 @@ receive_and_send_main(m1.w,m1.fd,m1.time,m1.ed_store_blocknum);
 
 return 0;
 }
+
+void asd(){
+
+    printf("%c","o");
+
+}
+
+int main(){
+
+
+    Web_Driver("127.0.0.1",5343,asd);
+    return 0;
+}

@@ -108,31 +108,31 @@ static void test_hash2(void)
 static void test_hash3(void)
 {
     Fd_Table* t = NULL;
-    CHECK(Fd_Table_init(&t, 4) == 1, "hash3 (Fd_Table) init");
+    CHECK(FdTableInit(&t, 4) == 1, "hash3 (Fd_Table) init");
 
     for (int fd = 3; fd < 300; fd++) {
-        if (Fd_Table_insert(t, fd) != 1) { CHECK(0, "hash3 批量插入"); break; }
+        if (FdTableInsert(t, fd) != 1) { CHECK(0, "hash3 批量插入"); break; }
     }
     int found = 0;
     Fd_Entry* e = NULL;
     for (int fd = 3; fd < 300; fd++) {
-        if (Fd_Table_find(t, fd, &e) == 1 && e->fd == fd) found++;
+        if (FdTableFind(t, fd, &e) == 1 && e->fd == fd) found++;
     }
     CHECK(found == 297, "hash3 297 个 fd 全部可查");
 
     /* 删除一半 */
     int deleted = 0;
     for (int fd = 3; fd < 300; fd += 2) {
-        if (Fd_Table_delete(t, fd) == 1) deleted++;
+        if (FdTableDelete(t, fd) == 1) deleted++;
     }
     CHECK(deleted == 149, "hash3 删除 149 个成功");
     Fd_Entry* e2 = NULL;
     int rem_ok = 1;
     for (int fd = 4; fd < 300; fd += 2) {
-        if (Fd_Table_find(t, fd, &e2) != 1) { rem_ok = 0; break; }
+        if (FdTableFind(t, fd, &e2) != 1) { rem_ok = 0; break; }
     }
     for (int fd = 3; fd < 300; fd += 2) {
-        if (Fd_Table_find(t, fd, &e2) == 1) { rem_ok = 0; break; }
+        if (FdTableFind(t, fd, &e2) == 1) { rem_ok = 0; break; }
     }
     CHECK(rem_ok, "hash3 剩余偶数fd可查、已删奇数fd查不到");
 }

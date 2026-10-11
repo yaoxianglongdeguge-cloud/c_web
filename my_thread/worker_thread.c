@@ -9,7 +9,7 @@ int worker_init(worker** w,int Listen_fd,int id)
     Memory_Pool_init(&((*w)->store_area),10,6,500,400);
     Send_thing_queue_init(&((*w)->Thing_queue),100);
     timer_init(&((*w)->my_timer),5000);
-    Fd_Table_init(&((*w)->fd_table),4);
+    FdTableInit(&((*w)->fd_table),4);
 
 
 
@@ -65,7 +65,7 @@ int receive_and_send_main(worker* w,int Listen_fd,int time,int ed_store_blocknum
 
             if(handle_fd==Listen_fd)
             {
-               int e0=fd_connect(w,handle_fd);
+               int e0=FdConnect(w,handle_fd);
             }
             else
             {

@@ -4,7 +4,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
 {
 
     Fd_Entry* fd_ob=NULL;
-    int o0=Fd_Table_find(worker->fd_table,fd,&fd_ob);
+    int o0=FdTableFind(worker->fd_table,fd,&fd_ob);
 
     if(o0==0)
     {
@@ -20,7 +20,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
         int n=Http_ed_store_alloc(fd_ob->http_store,worker->store_area,2);
         if(n!=1)
         {
-            fd_close(worker,fd,503);
+            FdClose(worker,fd,503);
             return 1;
         }
     }
@@ -32,7 +32,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
     {
         if(r0==0)
         {
-            fd_close(worker,fd,200);//对端关闭连接
+            FdClose(worker,fd,200);//对端关闭连接
             return 1;
         }
                    
@@ -59,7 +59,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
                 }
             else if(r1==0)//对面断开了连接
             {
-                fd_close(worker,fd,200);
+                FdClose(worker,fd,200);
                 return 1;
             }
 
@@ -79,7 +79,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
             Memory_Pool_alloc(worker->http_pool,h_size/1024+1,&ptr,&notfull);
             if(notfull==0)
             {
-                fd_close(worker,fd,503);
+                FdClose(worker,fd,503);
                 return 1;
             }
             char* hptr=(char*)ptr;

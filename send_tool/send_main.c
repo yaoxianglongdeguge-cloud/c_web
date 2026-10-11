@@ -23,7 +23,7 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
             {
                 *send_info=1;
                 Fd_Entry* fd_ob=NULL;
-                int e1=Fd_Table_find(w->fd_table,s.fd,&fd_ob);
+                int e1=FdTableFind(w->fd_table,s.fd,&fd_ob);
                 
                 if(e1!=1)
                 {
@@ -40,7 +40,7 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
                         int n=send_tool_alloc(fd_ob->send_tool,w->store_area,ed_store_blocknum);
                         if(n!=1)
                         {
-                            fd_close(w,fd_ob->fd,503);
+                            FdClose(w,fd_ob->fd,503);
                             return 1;
                         }
                     }
@@ -78,7 +78,7 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
     }
 
     Fd_Entry* fd_ob=NULL;
-    Fd_Table_find(w->fd_table,send_fd,&fd_ob);
+    FdTableFind(w->fd_table,send_fd,&fd_ob);
     int next=fd_ob->ser_nex_send%fd_ob->send_tool->blocknum;
 
     int len=0;//之前说过用error_reason为正数时表示要发回的文本的长度
@@ -94,7 +94,7 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
         if(fd_ob->send_tool->store[next].error_reason!=200)
         {
             int error_reason=fd_ob->send_tool->store[next].error_reason;
-            fd_close(w,send_fd,error_reason);
+            FdClose(w,send_fd,error_reason);
             return 1;
         }
         
@@ -104,7 +104,7 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
             int n=write(send_fd,fd_ob->send_tool->store[next].ptr+off1, len);
             if(n==0)
             {
-                fd_close(w,send_fd,200);
+                FdClose(w,send_fd,200);
                 return 1;
             }
             else if(n<len&&n>0)
@@ -161,13 +161,13 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
             ssize_t sent = sendfile(send_fd,send_ed_fd, &fd_ob->send_tool->store[next].offset,size_file-fd_ob->send_tool->store[next].offset);
             if (sent < 0 && errno == EPIPE) {
             // 对端断开，关闭连接
-                fd_close(w,send_fd,200);
+                FdClose(w,send_fd,200);
                 close(send_ed_fd);
                 return 1;
             }
             if (sent==0)
             {
-                    fd_close(w,send_fd,200);
+                    FdClose(w,send_fd,200);
                     close(send_ed_fd);
                     return 1;
             }

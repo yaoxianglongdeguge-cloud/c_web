@@ -6,8 +6,8 @@ typedef struct route_1 route_1;
 typedef struct worker worker; 
 typedef struct profession profession;
 
-typedef struct Hash_Entry_3 Fd_Entry;
-typedef struct Hash_map_3 Fd_Table;
+typedef struct Fd_Entry Fd_Entry;
+typedef struct Fd_Table Fd_Table;
 
 typedef struct Memory_Queue_Entry Memory_Queue_Entry;
 typedef struct Memory_Queue Memory_Queue;
@@ -35,8 +35,6 @@ typedef struct Entry Entry;
 typedef struct Hash_map Hash_map;
 typedef struct Hash2_Entry_2 Hash2_Entry_2;
 typedef struct Hash_map_2 Hash_map_2;
-typedef struct Hash_Entry_3 Hash_Entry_3;
-typedef struct Hash_map_3 Hash_map_3;
 typedef struct timer_entry timer_entry;
 typedef struct prior_queue_1 prior_queue_1;
 

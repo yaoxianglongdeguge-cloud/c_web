@@ -1,10 +1,12 @@
 #include "../include.h"
 
-int build_error_response(char *buf, int buf_size, int error_reason);
-char *status_text(int error_reason);
+int BuildErrorResponse(char *buf, int buf_size, int error_reason);
+char *StatusText(int error_reason);
 
+//一个连接来了，需要三个挂载，epoll，连接计时器，连接管理表
+//一个连接可能获得的资源，
 
-int fd_connect(worker* w,int Listen_fd)
+int FdConnect(worker* w,int Listen_fd)
 {
     struct epoll_event ev;
     int client_fd;
@@ -18,15 +20,19 @@ int fd_connect(worker* w,int Listen_fd)
             return -1;
         }
        }
+
+       //挂载epoll
         int flags = fcntl(client_fd, F_GETFL, 0); 
         fcntl(client_fd, F_SETFL, flags | O_NONBLOCK); 
         ev.events = EPOLLIN; 
         ev.data.fd = client_fd;          
         epoll_ctl(w->epfd, EPOLL_CTL_ADD, client_fd, &ev);
-        
-        
+
+        //挂载连接计时器
         timer_alloc_and_reset(w->my_timer,client_fd,w);
-        Fd_Table_insert(w->fd_table,client_fd);
+
+        //挂载连接管理表
+        FdTableInsert(w->fd_table,client_fd);
 
         
     }
@@ -34,17 +40,18 @@ int fd_connect(worker* w,int Listen_fd)
     return 1;
 }
 
-int fd_close(worker* w,int client_fd,int error_reason)
+int FdClose(worker* w,int client_fd,int error_reason)
 {
     if(error_reason!=200)
     {
         char re[1024]={0};
-        int len=build_error_response(re,1024,error_reason);
+        int len=BuildErrorResponse(re,1024,error_reason);
         int n=write(client_fd,re,len);
 
     }
+
     Fd_Entry* fd_ob=NULL;
-    Fd_Table_find(w->fd_table,client_fd,&fd_ob);
+    FdTableFind(w->fd_table,client_fd,&fd_ob);
     
     Http_ed_store_destroy(fd_ob->http_store,w->store_area);
     for(int i=0;i<fd_ob->send_tool->blocknum;i++)
@@ -68,7 +75,7 @@ int fd_close(worker* w,int client_fd,int error_reason)
 
 
     send_tool_destory(fd_ob->send_tool,w->store_area);
-    Fd_Table_delete(w->fd_table,client_fd);
+    FdTableDelete(w->fd_table,client_fd);
     timer_free(w->my_timer,client_fd);
 
     epoll_ctl(w->epfd, EPOLL_CTL_DEL, client_fd, NULL);
@@ -77,7 +84,7 @@ int fd_close(worker* w,int client_fd,int error_reason)
     return 1;
 }
 
-char *status_text(int error_reason)
+char* StatusText(int error_reason)
 {
     switch (error_reason) {
         case 400: return "Bad Request";
@@ -94,9 +101,9 @@ char *status_text(int error_reason)
     }
 }
 
-int build_error_response(char *buf, int buf_size, int error_reason) 
+int BuildErrorResponse(char *buf, int buf_size, int error_reason) 
 {
-    char *reason = status_text(error_reason);
+    char *reason = StatusText(error_reason);
     int body_len = strlen(reason);
 
     return snprintf(buf, buf_size,

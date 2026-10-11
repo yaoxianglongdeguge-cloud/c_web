@@ -62,7 +62,7 @@ accept → epoll → http_main 读入暂存区 → http_state 判定完整请求
 | `server/` | 全局资源：路由表 + 任务队列初始化 |
 | `my_thread/` | `worker_thread`（收发线程）、`profession_thread`（业务线程） |
 | `connect_fd/` | 连接 fd 哈希表（fd → 暂存区/发送槽/序号） |
-| `connect_config/` | 连接管理：accept / 统一关闭 `fd_close` |
+| `connect_config/` | 连接管理：accept / 统一关闭 `FdClose` |
 | `http_analysis/` | HTTP 读入、暂存区、状态机、头部/URL/Query 解析 |
 | `send_tool/` | 有序发送槽环形缓冲 + 发送主逻辑 |
 | `queue/` | `task_queue`（全局任务）、`send_thing_queue`（发送事件）、`memory_queue`（内存回收） |
