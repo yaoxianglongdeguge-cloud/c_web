@@ -12,7 +12,7 @@
 //http_analysis
 #include "http_analysis/http_main.h"
 #include "http_analysis/http_analysis.h"
-#include "http_analysis/http_ed_store.h"
+#include "http_analysis/Request_Temp_Pool.h"
 #include "http_analysis/StateMachine.h"
 
 //send_tool

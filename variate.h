@@ -16,19 +16,19 @@ typedef struct Task_queue Task_queue;
 typedef struct Send_tq_Entry Send_tq_Entry;
 typedef struct Send_thing_queue Send_thing_queue;
 
-typedef struct http_ed_store http_ed_store;
+typedef struct Request_Temp_Pool Request_Temp_Pool;
 typedef struct StateMachine StateMachine;
 typedef struct Http_analysis_1 Http_analysis_1;
 
-typedef struct Send_tool_Entry Send_tool_Entry;
-typedef struct Send_tool Send_tool;
+typedef struct Send_Pointer_Pool_Entry Send_Pointer_Pool_Entry;
+typedef struct Send_Pointer_Pool Send_Pointer_Pool;
 
 typedef struct Memory_Stack Memory_Stack;
 typedef struct Memory_Entry Memory_Entry;
 typedef struct Memory_Pool Memory_Pool;
 
 
-typedef struct timer timer;
+typedef struct Timer Timer;
 
 
 typedef struct Entry Entry;

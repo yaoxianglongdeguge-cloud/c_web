@@ -1,9 +1,9 @@
 #include "../include.h"
 
 
-int Http_ed_store_init(http_ed_store** h)//分配整个存储大小，单位是字节
+int RequestTempPoolInit(Request_Temp_Pool** h)//分配整个存储大小，单位是字节
 {
-    (*h)=(http_ed_store*)malloc(sizeof(http_ed_store));
+    (*h)=(Request_Temp_Pool*)malloc(sizeof(Request_Temp_Pool));
   ;
     (*h)->begin=NULL;
     (*h)->end=(*h)->begin;
@@ -23,18 +23,18 @@ int Http_ed_store_init(http_ed_store** h)//分配整个存储大小，单位是�
 
 }
 
-int Http_ed_store_destroy(http_ed_store* h,Memory_Pool* pool)
+int RequestTempPoolDestory(Request_Temp_Pool* h,Memory_Pool* pool)
 {
     if(h->begin!=NULL)
     {
-        Http_ed_store_free(h,pool);
+        RequestTempPoolFree(h,pool);
     }
 
     free(h);
     return 1;
 }
 
-int Http_ed_store_alloc(http_ed_store* h,Memory_Pool* pool,int size)//单位是kb
+int RequestTempPoolAlloc(Request_Temp_Pool* h,Memory_Pool* pool,int size)//单位是kb
 {
      void* ptr=NULL;
      int notfull=0;
@@ -52,7 +52,7 @@ int Http_ed_store_alloc(http_ed_store* h,Memory_Pool* pool,int size)//单位是k
     return 1;
 }
 
-int Http_ed_store_free(http_ed_store* h,Memory_Pool* pool)
+int RequestTempPoolFree(Request_Temp_Pool* h,Memory_Pool* pool)
 {
     int size=h->end-h->begin+1;
     Memory_Pool_free(pool,h->begin,size);
@@ -66,7 +66,7 @@ int Http_ed_store_free(http_ed_store* h,Memory_Pool* pool)
     return 1;
 }
 
-int Http_ed_store_expend(http_ed_store* h,Memory_Pool* pool)
+int RequestTempPoolExpend(Request_Temp_Pool* h,Memory_Pool* pool)
 {
     int nowsize=h->end-h->begin;
     int expendsize=nowsize*2/1024+1;
@@ -81,7 +81,7 @@ int Http_ed_store_expend(http_ed_store* h,Memory_Pool* pool)
         return -1;
     }
     memcpy(ptr,h->begin,nowsize);
-    Http_ed_store_free(h,pool);
+    RequestTempPoolFree(h,pool);
     h->begin=(char*)ptr;
     h->end=h->begin+expendsize*1024-1;
     h->ptr_b=h->begin+ptr_b;
@@ -91,7 +91,7 @@ int Http_ed_store_expend(http_ed_store* h,Memory_Pool* pool)
 
 }
 
-int Http_ed_store_write(http_ed_store* h,int fd)
+int RequestTempPoolWrite(Request_Temp_Pool* h,int fd)
 {
    
     int length=h->end-h->ptr_e;
@@ -114,7 +114,7 @@ int Http_ed_store_write(http_ed_store* h,int fd)
     return 1;
 }
 
-int Http_ed_store_copy(http_ed_store* h,char*end,char* target)//把一整个请求拷走，然后把后面的数据拷到开头
+int RequestTempPoolCopy(Request_Temp_Pool* h,char*end,char* target)//把一整个请求拷走，然后把后面的数据拷到开头
 {
     if(end>=h->end)
     {

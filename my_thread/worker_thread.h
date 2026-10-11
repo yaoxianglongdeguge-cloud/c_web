@@ -8,7 +8,7 @@ typedef struct worker{
     Fd_Table* fd_table;
     Memory_Pool* store_area;
     Memory_Pool* http_pool;
-    timer* my_timer;//断连计时器
+    Timer* my_Timer;//断连计时器
     
     Send_thing_queue* Thing_queue;//接收已经准备好的要发的包的事件
 

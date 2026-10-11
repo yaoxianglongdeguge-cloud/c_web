@@ -37,7 +37,7 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
                 {
                     if(fd_ob->send_tool->store==NULL)
                     {
-                        int n=send_tool_alloc(fd_ob->send_tool,w->store_area,ed_store_blocknum);
+                        int n=SendPointerPoolAlloc(fd_ob->send_tool,w->store_area,ed_store_blocknum);
                         if(n!=1)
                         {
                             FdClose(w,fd_ob->fd,503);
@@ -116,7 +116,7 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
                 EpollChangeReAndWr(w->epdf,send_fd);      
 
 
-                TimerReset(w->my_timer,send_fd,w);
+                TimerReset(w->my_Timer,send_fd,w);
                 return 1;
             }
             else if(n==-1&&errno==EAGAIN)
@@ -124,7 +124,7 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
                 
                 EpollChangeReAndWr(w->epdf,send_fd);       
 
-                TimerReset(w->my_timer,send_fd,w);
+                TimerReset(w->my_Timer,send_fd,w);
                 return 1;
             }
             else if(n>=len)
@@ -169,14 +169,14 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
                 {
                    EpollChangeReAndWr(w->epdf,send_fd);
 
-                    TimerReset(w->my_timer,send_fd,w);
+                    TimerReset(w->my_Timer,send_fd,w);
                     return 1;
                 }
                 else if (sent<0 && errno == EAGAIN) {
 
                     EpollChangeReAndWr(w->epdf,send_fd);
                     
-                    TimerReset(w->my_timer,send_fd,w);
+                    TimerReset(w->my_Timer,send_fd,w);
                     return 1;
                 }
             }
@@ -204,10 +204,10 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
  
     if( fd_ob->ser_nex_send>= fd_ob->ser_fina_send)
     {
-        send_tool_free(fd_ob->send_tool,w->store_area);
+        SendPointerPoolFree(fd_ob->send_tool,w->store_area);
     }
 
-    TimerReset(w->my_timer,send_fd,w);
+    TimerReset(w->my_Timer,send_fd,w);
 
 
     return 1;

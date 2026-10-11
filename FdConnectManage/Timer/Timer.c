@@ -1,10 +1,10 @@
 #include "../include.h"
 
 
-int TimerInit(timer** t,int num)
+int TimerInit(Timer** t,int num)
 {
     *t=NULL;
-    *t=(timer*)malloc(sizeof(timer));
+    *t=(Timer*)malloc(sizeof(Timer));
     if(*t==NULL)
     {
         return -1;
@@ -19,7 +19,7 @@ int TimerInit(timer** t,int num)
     return 1;
 }
 
-int TimerExpend(timer* t)
+int TimerExpend(Timer* t)
 {
     Prior_Queue_Timer* q2=NULL;
     PriorQueueTimerInit(&q2,2*(t->q->queue[0].fd));
@@ -37,7 +37,7 @@ int TimerExpend(timer* t)
 }
 
 
-int TimerAlloc(timer* t,int fd,worker* w)//分配给连接计时器并重置，如果已经有了那么直接找出并重置
+int TimerAlloc(Timer* t,int fd,worker* w)//分配给连接计时器并重置，如果已经有了那么直接找出并重置
 {
     int which=1;
     int f=0;
@@ -78,7 +78,7 @@ int TimerAlloc(timer* t,int fd,worker* w)//分配给连接计时器并重置，�
     return 1;
 }
 
-int TimerReset(timer* t,int fd,worker* w)
+int TimerReset(Timer* t,int fd,worker* w)
 {
     int which=1;
 
@@ -104,7 +104,7 @@ int TimerReset(timer* t,int fd,worker* w)
     return 1;
 }
 
-int TimerOvertime(timer* t,int overtime,worker* w)//超时时间
+int TimerOvertime(Timer* t,int overtime,worker* w)//超时时间
 {
     if(t->q->elem_end==1)
     {
@@ -133,7 +133,7 @@ int TimerOvertime(timer* t,int overtime,worker* w)//超时时间
     return 1;
 }
 
-int TimerFree(timer* t,int fd)
+int TimerFree(Timer* t,int fd)
 {
     if(t->q->elem_end==1)
     {

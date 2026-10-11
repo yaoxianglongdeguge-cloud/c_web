@@ -6,7 +6,7 @@ char *StatusText(int error_reason);
 //一个连接来了，需要三个挂载，epoll，连接计时器，连接管理表
 //一个连接可能获得的资源，http请求暂存池，send发送指针池
 //一个连接结束需要清理的，epoll读/写，计时器，连接管理表，
-//   还有可能分配也可能没有或者已经收回的：http请求暂存池，send发送池，并且send池要把剩下的请求发走或者至少通知给业务线程。
+//   还有可能分配也可能没有或者已经收回的,请求暂存池，send发送池，并且send池要把剩下的请求发走或者至少通知给业务线程。
 
 int FdConnect(worker* w,int Listen_fd)
 {
@@ -26,7 +26,7 @@ int FdConnect(worker* w,int Listen_fd)
         EpollReadMount(w->epfd,client_fd){
 
         //挂载连接计时器
-        TimerAlloc(w->my_timer,client_fd,w);
+        TimerAlloc(w->my_Timer,client_fd,w);
 
         //挂载连接管理表
         FdTableInsert(w->fd_table,client_fd);
@@ -50,35 +50,15 @@ int FdClose(worker* w,int client_fd,int error_reason)
     Fd_Entry* fd_ob=NULL;
     FdTableFind(w->fd_table,client_fd,&fd_ob);
     
-    
-    //把send池里残留的返回请求通知给业务线程
-    for(int i=0;i<fd_ob->send_tool->blocknum;i++)
-    {
-        if(fd_ob->send_tool->store[i].use==1)
-        {
-            Memory_Queue* m=fd_ob->send_tool->store[i].m_queue;
-            int size=fd_ob->send_tool->store[i].size_resp;
-            char* c=fd_ob->send_tool->store[i].ptr;
-            
-            if(m!=NULL)
-            {
-                Memory_Queue_push(m,size,c);
-            }
-            if(fd_ob->send_tool->store[i].send_fd!=-1)
-            {
-                close(fd_ob->send_tool->store[i].send_fd);
-            }
-        }
-    }
     //回收send池
-    send_tool_destory(fd_ob->send_tool,w->store_area);
+    SendPointerPoolDestory(fd_ob->send_tool,w->store_area);
     //回收http暂存区
-    Http_ed_store_destroy(fd_ob->http_store,w->store_area);
+    RequestTempPoolDestory(fd_ob->http_store,w->store_area);
 
     //连接管理表拆下
     FdTableDelete(w->fd_table,client_fd);
     //计时器
-    TimerFree(w->my_timer,client_fd);
+    TimerFree(w->my_Timer,client_fd);
     //epoll
     EpollDelete(w->epfd,client_fd){
     close(client_fd);

@@ -96,8 +96,8 @@ int FdTableInsert(Fd_Table* h,int fd)
 
     Fd_Entry* ptr=NULL;
     FdTableFind(h,fd,&ptr);
-    Http_ed_store_init(&(ptr->http_store));
-    send_tool_init(&(ptr->send_tool));
+    RequestTempPoolInit(&(ptr->http_store));
+    SendPointerPoolInit(&(ptr->send_tool));
 
     return 1;
 

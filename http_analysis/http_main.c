@@ -17,7 +17,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
     }
     if(fd_ob->http_store->begin==NULL)
     {
-        int n=Http_ed_store_alloc(fd_ob->http_store,worker->store_area,2);
+        int n=RequestTempPoolAlloc(fd_ob->http_store,worker->store_area,2);
         if(n!=1)
         {
             FdClose(worker,fd,503);
@@ -25,7 +25,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
         }
     }
         
-    int r0=Http_ed_store_write(fd_ob->http_store,fd);//返回-1说明，没断开但是没数据
+    int r0=RequestTempPoolWrite(fd_ob->http_store,fd);//返回-1说明，没断开但是没数据
     int serial=fd_ob->ser_fina_send;
 
     while(1)
@@ -47,13 +47,13 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
         //不够一个请求的，
         //但是还不需要更大的存储区
         {
-            int r1=Http_ed_store_write(fd_ob->http_store,fd);
+            int r1=RequestTempPoolWrite(fd_ob->http_store,fd);
             if(r1==-1)
             {
                 if(fd_ob->http_store->ptr_b==fd_ob->http_store->ptr_e)
                 //说明连接里没数据并且暂存区也没有残留数据,所以可以释放占有的暂存区
                 {
-                    Http_ed_store_free(fd_ob->http_store,worker->store_area);
+                    RequestTempPoolFree(fd_ob->http_store,worker->store_area);
                 }
                     break;
                 }
@@ -84,7 +84,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
             }
             char* hptr=(char*)ptr;
 
-            Http_ed_store_copy(fd_ob->http_store,source_end,hptr);
+            RequestTempPoolCopy(fd_ob->http_store,source_end,hptr);
                         
                 
             StateMachine_reset(fd_ob->http_store);    
@@ -103,8 +103,8 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
         else if(state==-1&&fd_ob->http_store->ptr_e==fd_ob->http_store->end)
         //这个暂存区根本装不下连接发来的一个请求
         {
-                Http_ed_store_expend(fd_ob->http_store,worker->store_area);//换更大的暂存区
-                Http_ed_store_write(fd_ob->http_store,fd);
+                RequestTempPoolExpend(fd_ob->http_store,worker->store_area);//换更大的暂存区
+                RequestTempPoolWrite(fd_ob->http_store,fd);
         }
                 
 

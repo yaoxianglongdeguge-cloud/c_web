@@ -1,17 +1,17 @@
 #include "../variate.h"
 
-typedef struct timer{
+typedef struct Timer{
 
     Prior_Queue_Timer* q;
 
-}timer;
+}Timer;
 
-int TimerInit(timer** t,int num);
+int TimerInit(Timer** t,int num);
 
-int TimerAlloc(timer* t,int fd,worker* w);//分配给连接计时器并重置，如果已经有了那么直接找出并重置
+int TimerAlloc(Timer* t,int fd,worker* w);//分配给连接计时器并重置，如果已经有了那么直接找出并重置
 
-int TimerReset(timer* t,int fd,worker* w);
+int TimerReset(Timer* t,int fd,worker* w);
 
-int TimerOvertime(timer* t,int overtime,worker* w);//超时时间
+int TimerOvertime(Timer* t,int overtime,worker* w);//超时时间
 
-int TimerFree(timer* t,int fd);
+int TimerFree(Timer* t,int fd);

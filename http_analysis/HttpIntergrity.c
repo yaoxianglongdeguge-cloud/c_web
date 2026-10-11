@@ -34,7 +34,7 @@ int minm(int a,int b)
     return 0;
 }
 
-char* StateMachine_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代表不完整，需要accept,0时代表错误，1时代表对
+char* StateMachine_judge(Request_Temp_Pool* hs,int* error,int* error_reason)//-1时代表不完整，需要accept,0时代表错误，1时代表对
 {
     *error=0;
     *error_reason=200;
@@ -153,7 +153,7 @@ char* StateMachine_judge(http_ed_store* hs,int* error,int* error_reason)//-1时�
 
 }
 
-int StateMachine_reset(http_ed_store* hs)
+int StateMachine_reset(Request_Temp_Pool* hs)
 {
     hs->httpstate->h_body_length=0;
     hs->httpstate->h_method=0;

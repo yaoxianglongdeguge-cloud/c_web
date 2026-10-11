@@ -9,8 +9,8 @@ typedef struct Fd_Entry{
     int ser_nex_send;//下一个要发的包的序号
     int pack_in_path;//在途的包个数
 
-    http_ed_store* http_store;
-    Send_tool* send_tool;
+    Request_Temp_Pool* http_store;
+    Send_Pointer_Pool* send_tool;
 
     struct Fd_Entry* next;
 

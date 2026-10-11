@@ -16,7 +16,7 @@
                 "${workspaceFolder}/data_struct/hash_2.c",
                 "${workspaceFolder}/data_struct/Prior_Queue_Timer.c",
                 "${workspaceFolder}/http_analysis/http_analysis.c",
-                "${workspaceFolder}/http_analysis/http_ed_store.c",
+                "${workspaceFolder}/http_analysis/Request_Temp_Pool.c",
                 "${workspaceFolder}/http_analysis/http_main.c",
                 "${workspaceFolder}/http_analysis/StateMachine.c",
                 "${workspaceFolder}/memory_pool/memory_pool.c",
@@ -30,7 +30,7 @@
                 "${workspaceFolder}/send_tool/send_main.c",
                 "${workspaceFolder}/send_tool/send_tool.c",
                 "${workspaceFolder}/server/global_resource.c",
-                "${workspaceFolder}/timer/timer.c",
+                "${workspaceFolder}/Timer/Timer.c",
                 "${workspaceFolder}/request_response/request.c",
                 "${workspaceFolder}/request_response/response.c",
                 "-lpthread"

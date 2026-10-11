@@ -1,6 +1,6 @@
 #include "../variate.h"
 
-typedef struct Send_tool_Entry{
+typedef struct Send_Pointer_Pool_Entry{
 
     Memory_Queue*m_queue;  
     int use;
@@ -12,22 +12,22 @@ typedef struct Send_tool_Entry{
     off_t offset;
     off_t size_file;
 
-}Send_tool_Entry;
+}Send_Pointer_Pool_Entry;
 
-typedef struct Send_tool{
+typedef struct Send_Pointer_Pool{
 
-    Send_tool_Entry* store;
+    Send_Pointer_Pool_Entry* store;
     int blocknum;
 
-}Send_tool;
+}Send_Pointer_Pool;
 
  //由于我们假设发回包的速度比接收返回包更快，
 //所以指针队列不会满，所以说那个下一个要发挥哪一个不需要特别一个变量注明，只需要根据此时指向的数组位置有没有要发的就可以
 
-int send_tool_init(Send_tool** s);
+int SendPointerPoolInit(Send_Pointer_Pool** s);
 
-int send_tool_alloc(Send_tool* s,Memory_Pool* pool,int blocknum);
+int SendPointerPoolAlloc(Send_Pointer_Pool* s,Memory_Pool* pool,int blocknum);
 
-int send_tool_free(Send_tool* s,Memory_Pool* pool);
+int SendPointerPoolFree(Send_Pointer_Pool* s,Memory_Pool* pool);
 
-int send_tool_destory(Send_tool* s,Memory_Pool* pool);
+int SendPointerPoolDestory(Send_Pointer_Pool* s,Memory_Pool* pool);
