@@ -135,7 +135,7 @@ return 0;
 
 void asd(){
 
-    printf("%c","o");
+    printf("%s","o");
 
 }
 

@@ -10,8 +10,8 @@ int Http_ed_store_init(http_ed_store** h)//分配整个存储大小，单位是�
     (*h)->ptr_b=(*h)->begin;
     (*h)->ptr_e=(*h)->begin;
 
-    http_state* ht=NULL;
-    int a=http_state_init(&ht);
+    StateMachine* ht=NULL;
+    int a=StateMachineInit(&ht);
     if(a!=1)
     {
         return -1;
@@ -61,7 +61,7 @@ int Http_ed_store_free(http_ed_store* h,Memory_Pool* pool)
     h->ptr_b=h->begin;
     h->ptr_e=h->begin;
 
-    http_state_reset(h);
+    StateMachine_reset(h);
 
     return 1;
 }

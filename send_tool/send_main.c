@@ -113,33 +113,24 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
                 fd_ob->send_tool->store[next].off=off1;    
 
 
-                struct epoll_event ev;
-                ev.events  = EPOLLIN | EPOLLOUT;   
-                ev.data.fd = send_fd;             
-                epoll_ctl(w->epfd, EPOLL_CTL_MOD, send_fd, &ev);        
+                EpollChangeReAndWr(w->epdf,send_fd);      
 
 
-                timer_alloc_and_reset(w->my_timer,send_fd,w);
+                TimerReset(w->my_timer,send_fd,w);
                 return 1;
             }
             else if(n==-1&&errno==EAGAIN)
             {
                 
-                struct epoll_event ev;
-                ev.events  = EPOLLIN | EPOLLOUT;   
-                ev.data.fd = send_fd;             
-                epoll_ctl(w->epfd, EPOLL_CTL_MOD, send_fd, &ev);        
+                EpollChangeReAndWr(w->epdf,send_fd);       
 
-                timer_alloc_and_reset(w->my_timer,send_fd,w);
+                TimerReset(w->my_timer,send_fd,w);
                 return 1;
             }
             else if(n>=len)
             {
                 
-                struct epoll_event ev;
-                ev.events  = EPOLLIN;
-                ev.data.fd = send_fd;             
-                epoll_ctl(w->epfd, EPOLL_CTL_MOD, send_fd, &ev);        
+                EpollChangeRead(w->epfd,send_fd);    
 
                 Memory_Queue* m=fd_ob->send_tool->store[next].m_queue;
                 int size_resp=fd_ob->send_tool->store[next].size_resp;
@@ -176,31 +167,22 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
 
                 if(sent>0)
                 {
-                   struct epoll_event ev;
-                   ev.events  = EPOLLIN | EPOLLOUT;   
-                   ev.data.fd = send_fd;             
-                   epoll_ctl(w->epfd, EPOLL_CTL_MOD, send_fd, &ev); 
+                   EpollChangeReAndWr(w->epdf,send_fd);
 
-                    timer_alloc_and_reset(w->my_timer,send_fd,w);
+                    TimerReset(w->my_timer,send_fd,w);
                     return 1;
                 }
                 else if (sent<0 && errno == EAGAIN) {
 
-                    struct epoll_event ev;
-                   ev.events  = EPOLLIN | EPOLLOUT;   
-                   ev.data.fd = send_fd;             
-                   epoll_ctl(w->epfd, EPOLL_CTL_MOD, send_fd, &ev); 
+                    EpollChangeReAndWr(w->epdf,send_fd);
                     
-                    timer_alloc_and_reset(w->my_timer,send_fd,w);
+                    TimerReset(w->my_timer,send_fd,w);
                     return 1;
                 }
             }
             else
             {
-                struct epoll_event ev;
-                ev.events  = EPOLLIN;   
-                ev.data.fd = send_fd;             
-                epoll_ctl(w->epfd, EPOLL_CTL_MOD, send_fd, &ev); 
+                EpollChangeRead(w->epfd,send_fd);  
 
                 close(send_ed_fd);
             }
@@ -225,7 +207,7 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
         send_tool_free(fd_ob->send_tool,w->store_area);
     }
 
-    timer_alloc_and_reset(w->my_timer,send_fd,w);
+    TimerReset(w->my_timer,send_fd,w);
 
 
     return 1;

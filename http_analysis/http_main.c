@@ -40,7 +40,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
     //状态机开始检索http请求
         int state=0;
         int error_reason=200;
-        char* source_end=http_state_judge(fd_ob->http_store,&state,&error_reason);//要复制的文本结尾，此处在文本中
+        char* source_end=StateMachine_judge(fd_ob->http_store,&state,&error_reason);//要复制的文本结尾，此处在文本中
             
             
         if(state==-1&&fd_ob->http_store->ptr_e!=fd_ob->http_store->end)
@@ -87,7 +87,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
             Http_ed_store_copy(fd_ob->http_store,source_end,hptr);
                         
                 
-            http_state_reset(fd_ob->http_store);    
+            StateMachine_reset(fd_ob->http_store);    
 
             fd_ob->ser_fina_send++;
             

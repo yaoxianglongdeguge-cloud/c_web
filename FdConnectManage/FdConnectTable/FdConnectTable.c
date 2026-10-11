@@ -95,7 +95,7 @@ int FdTableInsert(Fd_Table* h,int fd)
     h->elem_num++;
 
     Fd_Entry* ptr=NULL;
-    FdTableFind(f,fd,&ptr);
+    FdTableFind(h,fd,&ptr);
     Http_ed_store_init(&(ptr->http_store));
     send_tool_init(&(ptr->send_tool));
 

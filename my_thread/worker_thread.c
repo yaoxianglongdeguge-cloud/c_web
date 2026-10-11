@@ -8,7 +8,7 @@ int worker_init(worker** w,int Listen_fd,int id)
     Memory_Pool_init(&((*w)->http_pool),6,6,500,400);
     Memory_Pool_init(&((*w)->store_area),10,6,500,400);
     Send_thing_queue_init(&((*w)->Thing_queue),100);
-    timer_init(&((*w)->my_timer),5000);
+    TimerInit(&((*w)->my_timer),5000);
     FdTableInit(&((*w)->fd_table),4);
 
 
@@ -53,7 +53,7 @@ int receive_and_send_main(worker* w,int Listen_fd,int time,int ed_store_blocknum
             {
                 break;
             }
-            timer_overtime(w->my_timer,time,w);
+            TimerOvertime(w->my_timer,time,w);
         }
         for(int i=0;i<n;i++)
         {
@@ -69,7 +69,7 @@ int receive_and_send_main(worker* w,int Listen_fd,int time,int ed_store_blocknum
             }
             else
             {
-                timer_alloc_and_reset(w->my_timer,handle_fd,w);
+                TimerReset(w->my_timer,handle_fd,w);
                 if(events[i].events & EPOLLIN)
                 {
                     int e1=http_main(handle_fd,w,ed_store_blocknum);//错误包已经通过发送程序发了，所以这里的返回值不验证

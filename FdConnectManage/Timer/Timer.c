@@ -1,8 +1,7 @@
 #include "../include.h"
 
 
-
-int timer_init(timer** t,int num)
+int TimerInit(timer** t,int num)
 {
     *t=NULL;
     *t=(timer*)malloc(sizeof(timer));
@@ -11,7 +10,7 @@ int timer_init(timer** t,int num)
         return -1;
     }
 
-    int e0=prior_queue_1_init(&((*t)->q),num);
+    int e0=PriorQueueTimerInit(&((*t)->q),num);
     if(e0!=1)
     {
         return -1;
@@ -20,10 +19,10 @@ int timer_init(timer** t,int num)
     return 1;
 }
 
-int timer_expend(timer* t)
+int TimerExpend(timer* t)
 {
-    prior_queue_1* q2=NULL;
-    prior_queue_1_init(&q2,2*(t->q->queue[0].fd));
+    Prior_Queue_Timer* q2=NULL;
+    PriorQueueTimerInit(&q2,2*(t->q->queue[0].fd));
     for(int i=0;i<t->q->end;i++)
     {
         q2->queue[i].fd=t->q->queue[i].fd;
@@ -37,7 +36,8 @@ int timer_expend(timer* t)
 
 }
 
-int timer_alloc_and_reset(timer* t,int fd,worker* w)//分配给连接计时器并重置，如果已经有了那么直接找出并重置
+
+int TimerAlloc(timer* t,int fd,worker* w)//分配给连接计时器并重置，如果已经有了那么直接找出并重置
 {
     int which=1;
     int f=0;
@@ -55,7 +55,7 @@ int timer_alloc_and_reset(timer* t,int fd,worker* w)//分配给连接计时器�
     if(f==1)
     {
         t->q->queue[which].time=time(NULL);
-        int e1=prior_queue_1_down(t->q,which);
+        int e1=PriorQueueTimerDown(t->q,which);
         if(e1!=1)
         {
             return -1;
@@ -65,10 +65,10 @@ int timer_alloc_and_reset(timer* t,int fd,worker* w)//分配给连接计时器�
     {
         if(t->q->elem_end==t->q->end)
         {
-            timer_expend(t);
+            TimerExpend(t);
         }
         time_t now=time(NULL);
-        int e1 = prior_queue_1_insert(t->q,fd,now);
+        int e1 = PriorQueueTimerInsert(t->q,fd,now);
         if(e1!=1)
         {
             return -1;
@@ -78,13 +78,39 @@ int timer_alloc_and_reset(timer* t,int fd,worker* w)//分配给连接计时器�
     return 1;
 }
 
-int timer_overtime(timer* t,int overtime,worker* w)//超时时间
+int TimerReset(timer* t,int fd,worker* w)
+{
+    int which=1;
+
+    while(which>=1&&which<t->q->elem_end)
+    {
+        if(t->q->queue[which].fd==fd)
+        {
+            f=1;
+            break;
+        }
+        which++;
+    }
+
+
+    t->q->queue[which].time=time(NULL);
+    int e1=PriorQueueTimerDown(t->q,which);
+    if(e1!=1)
+    {
+        return -1;
+    }
+
+
+    return 1;
+}
+
+int TimerOvertime(timer* t,int overtime,worker* w)//超时时间
 {
     if(t->q->elem_end==1)
     {
         return 1;
     }
-    timer_entry t1=prior_queue_1_top(t->q);
+    Timer_Entry t1=PriorQueueTimerTop(t->q);
     int fd=t1.fd;
     time_t now=time(NULL);
 
@@ -95,19 +121,19 @@ int timer_overtime(timer* t,int overtime,worker* w)//超时时间
         {
             return -1;
         }
-        int e0=prior_queue_1_pop(t->q);
+        int e0=PriorQueueTimerPop(t->q);
         if(e0!=1)
         {
             return -1;
         }
-        t1=prior_queue_1_top(t->q);
+        t1=PriorQueueTimerTop(t->q);
         fd=t1.fd;
     }
 
     return 1;
 }
 
-int timer_free(timer* t,int fd)
+int TimerFree(timer* t,int fd)
 {
     if(t->q->elem_end==1)
     {
@@ -134,7 +160,7 @@ int timer_free(timer* t,int fd)
         t->q->queue[i].time=t->q->queue[t->q->elem_end-1].time;
         t->q->elem_end--; 
         t->q->queue[0].fd--;
-        prior_queue_1_down(t->q,i);
+        PriorQueueTimerDown(t->q,i);
     }
 
     return 1;

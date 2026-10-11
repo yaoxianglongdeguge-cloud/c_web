@@ -21,18 +21,6 @@ char *strnstr_match(char *haystack, char *needle, size_t n) {
 }//匹配并返回指针函数，如果以后有需要，可以换成KMP算法
 
 
-int http_state_init(http_state** h)
-{
-    (*h)=(http_state*)malloc(sizeof(http_state));
-
-    (*h)->h_body_length=0;
-    (*h)->h_method=0;
-    (*h)->h_rnrn=0;
-
-    return 1;
-
-}
-
 int minm(int a,int b)
 {
     if(a<=b)
@@ -46,7 +34,7 @@ int minm(int a,int b)
     return 0;
 }
 
-char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代表不完整，需要accept,0时代表错误，1时代表对
+char* StateMachine_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代表不完整，需要accept,0时代表错误，1时代表对
 {
     *error=0;
     *error_reason=200;
@@ -165,7 +153,7 @@ char* http_state_judge(http_ed_store* hs,int* error,int* error_reason)//-1时代
 
 }
 
-int http_state_reset(http_ed_store* hs)
+int StateMachine_reset(http_ed_store* hs)
 {
     hs->httpstate->h_body_length=0;
     hs->httpstate->h_method=0;
@@ -173,7 +161,3 @@ int http_state_reset(http_ed_store* hs)
 
     return 1;
 }
-
-
-
-

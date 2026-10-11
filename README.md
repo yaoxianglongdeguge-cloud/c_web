@@ -10,7 +10,7 @@ HTTP 状态机解析、有序发送、断连定时器与跨线程内存所有权
   + `profession`（业务线程，负责 HTTP 解析 / 路由分发 / 构造响应），通过全局任务队列解耦。
 - **请求保序**：每个请求从读入起分配递增序号 `serial`，发送端用环形槽位
   `serial % blocknum` 保证同连接上响应顺序与请求顺序一致（乱序处理、有序发出）。
-- **HTTP 状态机 + 分块暂存**：`http_ed_store` 处理拆包/粘包；`http_state` 判定请求完整性；
+- **HTTP 状态机 + 分块暂存**：`http_ed_store` 处理拆包/粘包；`StateMachine` 判定请求完整性；
   请求超过暂存区大小时自动扩容。
 - **内存池**：按 2 的幂分级，非扩容分配（池满返回 `notfull=0`，由调用方降级为 503）；
   跨线程内存通过 `Memory_Queue` 归还，绝不跨线程 free。
@@ -49,7 +49,7 @@ HTTP 状态机解析、有序发送、断连定时器与跨线程内存所有权
 一次请求的生命周期：
 
 ```
-accept → epoll → http_main 读入暂存区 → http_state 判定完整请求 → 复制到 http_pool
+accept → epoll → http_main 读入暂存区 → StateMachine 判定完整请求 → 复制到 http_pool
 → 投递 Task_Queue → profession: 解析头部/URL/Query → Handler_Find(url) → 业务函数写 Response
 → pack_task 打包 → Send_thing_queue → worker 按 serial 保序发送 → 内存经 Memory_Queue 归还
 ```
@@ -67,8 +67,8 @@ accept → epoll → http_main 读入暂存区 → http_state 判定完整请求
 | `send_tool/` | 有序发送槽环形缓冲 + 发送主逻辑 |
 | `queue/` | `task_queue`（全局任务）、`send_thing_queue`（发送事件）、`memory_queue`（内存回收） |
 | `memory_pool/` | 分级内存池（非扩容，notfull 降级） |
-| `timer/` | 断连计时器（小顶堆 + `timer_free` 移除） |
-| `data_struct/` | hash_1 路由表 / hash_2 请求头键值 / hash_3 fd 表 / prior_queue_1 小顶堆 |
+| `timer/` | 断连计时器（小顶堆 + `TimerFree` 移除） |
+| `data_struct/` | hash_1 路由表 / hash_2 请求头键值 / hash_3 fd 表 / Prior_Queue_Timer 小顶堆 |
 | `router/` | URL → Handler 路由 |
 | `request_response/` | Request 只读接口、Response 构造接口 |
 | `my_lock/` | 写优先读写锁（预置组件） |

@@ -33,7 +33,7 @@ int main(void)
     CHECK(r == 1, "write 读到数据(返回1)");
 
     int state = 0, er = 0;
-    char* target = http_state_judge(h, &state, &er);
+    char* target = StateMachine_judge(h, &state, &er);
     CHECK(state == 1 && er == 200, "状态机判定完整请求(state=1,er=200)");
 
     char out[256] = {0};
@@ -41,7 +41,7 @@ int main(void)
     CHECK(strcmp(out, "GET / HTTP/1.1\r\nHost: x") == 0,
           "copy 切出的请求文本正确(不含分隔符\\r\\n\\r\\n)");
     CHECK(h->ptr_b == h->ptr_e, "切分后暂存区无残留数据");
-    http_state_reset(h);
+    StateMachine_reset(h);
 
     /* ---------- 场景2: 一个 read 读到两个请求, 第二个请求残留应保留 ---------- */
     const char* req2 = "GET /a HTTP/1.1\r\nHost: x\r\n\r\nGET /b HTTP/1.1\r\n\r\n";
@@ -50,7 +50,7 @@ int main(void)
     CHECK(r == 1, "write 读到两个请求的数据");
 
     char out2[256] = {0};
-    target = http_state_judge(h, &state, &er);
+    target = StateMachine_judge(h, &state, &er);
     CHECK(state == 1, "第一个请求完整");
     Http_ed_store_copy(h, target, out2);
     CHECK(strcmp(out2, "GET /a HTTP/1.1\r\nHost: x") == 0, "第一个请求切分正确");
@@ -58,18 +58,18 @@ int main(void)
     CHECK(h->ptr_b != NULL && strncmp(h->ptr_b, "GET /b", 6) == 0,
           "残留数据是第二个请求(GET /b 保留完好)");
 
-    /* http_main 的真实流程: 每切出一个请求后要 http_state_reset 再判下一个 */
-    http_state_reset(h);
+    /* http_main 的真实流程: 每切出一个请求后要 StateMachine_reset 再判下一个 */
+    StateMachine_reset(h);
 
     /* 残留再切一次 */
-    target = http_state_judge(h, &state, &er);
+    target = StateMachine_judge(h, &state, &er);
     CHECK(state == 1, "残留请求判定完整");
     char out3[256] = {0};
     if (state == 1) {
         Http_ed_store_copy(h, target, out3);
         CHECK(strcmp(out3, "GET /b HTTP/1.1") == 0, "第二个请求切分正确");
     }
-    http_state_reset(h);
+    StateMachine_reset(h);
 
     /* ---------- 场景3: 扩容后 end 指针一致性 (重点 bug) ---------- */
     {
@@ -84,7 +84,7 @@ int main(void)
         r = Http_ed_store_write(h, sv[0]);
         CHECK(r == 1 && h->ptr_e == h->end, "2KB 暂存区被填满(ptr_e==end)");
 
-        target = http_state_judge(h, &state, &er);
+        target = StateMachine_judge(h, &state, &er);
         CHECK(state == -1, "未找到完整请求(判定不完整)");
 
         /* 触发扩容 */
