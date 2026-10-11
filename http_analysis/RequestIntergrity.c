@@ -34,7 +34,7 @@ int minm(int a,int b)
     return 0;
 }
 
-char* StateMachine_judge(Request_Temp_Pool* hs,int* error,int* error_reason)//-1时代表不完整，需要accept,0时代表错误，1时代表对
+char* RequestIntergrityJudge(Request_Temp_Pool* hs,int* error,int* error_reason)//-1时代表不完整，需要accept,0时代表错误，1时代表对
 {
     *error=0;
     *error_reason=200;
@@ -43,7 +43,7 @@ char* StateMachine_judge(Request_Temp_Pool* hs,int* error,int* error_reason)//-1
     int check_size=hs->ptr_e-hs->ptr_b;
     int pipei_size=minm(8,check_size);//匹配方法用的长度
 
-    if(hs->httpstate->h_method==0)
+    if(hs->state_machine->h_method==0)
     {
 
         char* method=NULL;
@@ -75,11 +75,12 @@ char* StateMachine_judge(Request_Temp_Pool* hs,int* error,int* error_reason)//-1
         }
         else
         { 
-           hs->httpstate->h_method=i;
+           hs->state_machine->h_method=i;
         }
         
     }
-    if(hs->httpstate->h_rnrn==0)
+
+    if(hs->state_machine->h_rnrn==0)
     {
 
         char* rnrn=strnstr_match(hs->begin,"\r\n\r\n",check_size);
@@ -91,23 +92,23 @@ char* StateMachine_judge(Request_Temp_Pool* hs,int* error,int* error_reason)//-1
         else
         {
             *error=1;
-            hs->httpstate->h_rnrn=1;
+            hs->state_machine->h_rnrn=1;
             target=rnrn-1;//\r前一个字符
         }
     }
 
-    if(hs->httpstate->h_body_length==0)
+    if(hs->state_machine->h_body_length==0)
     {
         char* body_length=strnstr_match(hs->begin,"Content-Length:",check_size);
         if(body_length==NULL)
         {
-            if(hs->httpstate->h_method>=7)
+            if(hs->state_machine->h_method>=7)
             {
                 *error_reason=411;
                 *error=0;
                 return NULL;
             }
-            hs->httpstate->h_body_length=0;
+            hs->state_machine->h_body_length=0;
         }
         else
         {
@@ -151,13 +152,4 @@ char* StateMachine_judge(Request_Temp_Pool* hs,int* error,int* error_reason)//-1
 
     return target;
 
-}
-
-int StateMachine_reset(Request_Temp_Pool* hs)
-{
-    hs->httpstate->h_body_length=0;
-    hs->httpstate->h_method=0;
-    hs->httpstate->h_rnrn=0;
-
-    return 1;
 }

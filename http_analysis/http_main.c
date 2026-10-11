@@ -15,9 +15,9 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
     {
         return 1;
     }
-    if(fd_ob->http_store->begin==NULL)
+    if(fd_ob->request_temp_pool->begin==NULL)
     {
-        int n=RequestTempPoolAlloc(fd_ob->http_store,worker->store_area,2);
+        int n=RequestTempPoolAlloc(fd_ob->request_temp_pool,worker->store_area,2);
         if(n!=1)
         {
             FdClose(worker,fd,503);
@@ -25,7 +25,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
         }
     }
         
-    int r0=RequestTempPoolWrite(fd_ob->http_store,fd);//返回-1说明，没断开但是没数据
+    int r0=RequestTempPoolWrite(fd_ob->request_temp_pool,fd);//返回-1说明，没断开但是没数据
     int serial=fd_ob->ser_fina_send;
 
     while(1)
@@ -40,20 +40,20 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
     //状态机开始检索http请求
         int state=0;
         int error_reason=200;
-        char* source_end=StateMachine_judge(fd_ob->http_store,&state,&error_reason);//要复制的文本结尾，此处在文本中
+        char* source_end=RequestIntergrityJudge(fd_ob->request_temp_pool,&state,&error_reason);//要复制的文本结尾，此处在文本中
             
             
-        if(state==-1&&fd_ob->http_store->ptr_e!=fd_ob->http_store->end)
+        if(state==-1&&fd_ob->request_temp_pool->ptr_e!=fd_ob->request_temp_pool->end)
         //不够一个请求的，
         //但是还不需要更大的存储区
         {
-            int r1=RequestTempPoolWrite(fd_ob->http_store,fd);
+            int r1=RequestTempPoolWrite(fd_ob->request_temp_pool,fd);
             if(r1==-1)
             {
-                if(fd_ob->http_store->ptr_b==fd_ob->http_store->ptr_e)
+                if(fd_ob->request_temp_pool->ptr_b==fd_ob->request_temp_pool->ptr_e)
                 //说明连接里没数据并且暂存区也没有残留数据,所以可以释放占有的暂存区
                 {
-                    RequestTempPoolFree(fd_ob->http_store,worker->store_area);
+                    RequestTempPoolFree(fd_ob->request_temp_pool,worker->store_area);
                 }
                     break;
                 }
@@ -71,7 +71,7 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
 
 
                 
-            int h_size=5+(source_end-fd_ob->http_store->begin+1);//要复制的文本长度
+            int h_size=5+(source_end-fd_ob->request_temp_pool->begin+1);//要复制的文本长度
 
             void* ptr=NULL;
 
@@ -84,10 +84,10 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
             }
             char* hptr=(char*)ptr;
 
-            RequestTempPoolCopy(fd_ob->http_store,source_end,hptr);
+            RequestTempPoolCopy(fd_ob->request_temp_pool,source_end,hptr);
                         
                 
-            StateMachine_reset(fd_ob->http_store);    
+            RequestTempPoolStateReset(fd_ob->request_temp_pool);    
 
             fd_ob->ser_fina_send++;
             
@@ -100,11 +100,11 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
         }
             
             
-        else if(state==-1&&fd_ob->http_store->ptr_e==fd_ob->http_store->end)
+        else if(state==-1&&fd_ob->request_temp_pool->ptr_e==fd_ob->request_temp_pool->end)
         //这个暂存区根本装不下连接发来的一个请求
         {
-                RequestTempPoolExpend(fd_ob->http_store,worker->store_area);//换更大的暂存区
-                RequestTempPoolWrite(fd_ob->http_store,fd);
+                RequestTempPoolExpend(fd_ob->request_temp_pool,worker->store_area);//换更大的暂存区
+                RequestTempPoolWrite(fd_ob->request_temp_pool,fd);
         }
                 
 

@@ -15,9 +15,9 @@
 #include "http_analysis/Request_Temp_Pool.h"
 #include "http_analysis/StateMachine.h"
 
-//send_tool
-#include "send_tool/send_tool.h"
-#include "send_tool/send_main.h"
+//send_pointer_pool
+#include "send_pointer_pool/send_pointer_pool.h"
+#include "send_pointer_pool/send_main.h"
 
 //data_struct
 #include "data_struct/hash_1.h"

@@ -64,7 +64,7 @@ accept → epoll → http_main 读入暂存区 → StateMachine 判定完整请�
 | `connect_fd/` | 连接 fd 哈希表（fd → 暂存区/发送槽/序号） |
 | `connect_config/` | 连接管理：accept / 统一关闭 `FdClose` |
 | `http_analysis/` | HTTP 读入、暂存区、状态机、头部/URL/Query 解析 |
-| `send_tool/` | 有序发送槽环形缓冲 + 发送主逻辑 |
+| `send_pointer_pool/` | 有序发送槽环形缓冲 + 发送主逻辑 |
 | `queue/` | `task_queue`（全局任务）、`send_thing_queue`（发送事件）、`memory_queue`（内存回收） |
 | `memory_pool/` | 分级内存池（非扩容，notfull 降级） |
 | `Timer/` | 断连计时器（小顶堆 + `TimerFree` 移除） |
@@ -238,6 +238,6 @@ gcc -g -O0 test/src/test_memory_pool.c memory_pool/memory_pool.c -o /tmp/t && /t
 ## 版本记录
 
 - 多轮修复（2026-08）：管道化保序、>2KB 请求崩溃、重复请求头崩溃、超时失效、
-  内存池扩容悬垂（改非扩容）、定时器陈旧 fd、优先队列越界/计数、send_tool 503、hash 泄漏。
+  内存池扩容悬垂（改非扩容）、定时器陈旧 fd、优先队列越界/计数、send_pointer_pool 503、hash 泄漏。
   详见《代码检查与测试报告.md》。
 

@@ -17,7 +17,7 @@ int RequestTempPoolInit(Request_Temp_Pool** h)//分配整个存储大小，单�
         return -1;
     }
 
-    (*h)->httpstate=ht;
+    (*h)->state_machine=ht;
 
     return 1;
 
@@ -61,7 +61,7 @@ int RequestTempPoolFree(Request_Temp_Pool* h,Memory_Pool* pool)
     h->ptr_b=h->begin;
     h->ptr_e=h->begin;
 
-    StateMachine_reset(h);
+    RequestTempPoolStateReset(h);
 
     return 1;
 }
@@ -145,7 +145,14 @@ int RequestTempPoolCopy(Request_Temp_Pool* h,char*end,char* target)//把一整�
     return 1;
 }
 
+int RequestTempPoolStateReset(Request_Temp_Pool* hs)
+{
+    hs->state_machine->h_body_length=0;
+    hs->state_machine->h_method=0;
+    hs->state_machine->h_rnrn=0;
 
+    return 1;
+}
 
 
 

@@ -51,9 +51,9 @@ int FdClose(worker* w,int client_fd,int error_reason)
     FdTableFind(w->fd_table,client_fd,&fd_ob);
     
     //回收send池
-    SendPointerPoolDestory(fd_ob->send_tool,w->store_area);
+    SendPointerPoolDestory(fd_ob->send_pointer_pool,w->store_area);
     //回收http暂存区
-    RequestTempPoolDestory(fd_ob->http_store,w->store_area);
+    RequestTempPoolDestory(fd_ob->request_temp_pool,w->store_area);
 
     //连接管理表拆下
     FdTableDelete(w->fd_table,client_fd);

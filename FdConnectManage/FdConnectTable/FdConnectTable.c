@@ -96,8 +96,8 @@ int FdTableInsert(Fd_Table* h,int fd)
 
     Fd_Entry* ptr=NULL;
     FdTableFind(h,fd,&ptr);
-    RequestTempPoolInit(&(ptr->http_store));
-    SendPointerPoolInit(&(ptr->send_tool));
+    RequestTempPoolInit(&(ptr->request_temp_pool));
+    SendPointerPoolInit(&(ptr->send_pointer_pool));
 
     return 1;
 
@@ -133,8 +133,8 @@ Fd_Entry* FdEntryCreat(int fd)
     e->ser_fina_send=0;
     e->ser_nex_send=0;
     e->pack_in_path=0;
-    e->http_store=NULL;
-    e->send_tool=NULL;
+    e->request_temp_pool=NULL;
+    e->send_pointer_pool=NULL;
     e->next=NULL;
 
     return e;
@@ -226,8 +226,8 @@ int FdTableAllocate(Fd_Table* h,int size_h)
         h->Elem[i].ser_fina_send=-1;
         h->Elem[i].ser_nex_send=-1;
         h->Elem[i].pack_in_path=-1;
-        h->Elem[i].http_store=NULL;
-        h->Elem[i].send_tool=NULL;
+        h->Elem[i].request_temp_pool=NULL;
+        h->Elem[i].send_pointer_pool=NULL;
         h->Elem[i].next=NULL;
 
     }
