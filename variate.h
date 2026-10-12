@@ -18,7 +18,7 @@ typedef struct Send_thing_queue Send_thing_queue;
 
 typedef struct Request_Temp_Pool Request_Temp_Pool;
 typedef struct StateMachine StateMachine;
-typedef struct Http_analysis_1 Http_analysis_1;
+typedef struct Request_Analysiser Request_Analysiser;
 
 typedef struct Send_Pointer_Pool_Entry Send_Pointer_Pool_Entry;
 typedef struct Send_Pointer_Pool Send_Pointer_Pool;

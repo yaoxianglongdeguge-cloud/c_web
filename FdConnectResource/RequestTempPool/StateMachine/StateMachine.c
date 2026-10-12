@@ -1,8 +1,8 @@
-#include "../include.h"
+#include "../../../include.h"
 
-int StateMachineInit(StateMachine** h)
+int StateMachineInit(State_Machine** h)
 {
-    (*h)=(StateMachine*)malloc(sizeof(StateMachine));
+    (*h)=(State_Machine*)malloc(sizeof(State_Machine));
 
     (*h)->h_body_length=0;
     (*h)->h_method=0;

@@ -12,7 +12,7 @@ Hash2_Entry_2* Hash2_Entry_Find(Hash2_Entry_2* head,char* url,int* Error);//查�
 
 int Hash2_Entry_Insert(Hash2_Entry_2* head,char* url,void* func,void* ptr);//插入节点，head为一个链表开头，之后查找，没找到就插入.要指明用哪个类型内存池
 
-int Hash2_Allocate(Hash_map_2* h,int size_h,Http_analysis_1* Http);//分配特定大小内存.要指明用哪个类型内存池
+int Hash2_Allocate(Hash_map_2* h,int size_h,Request_Analysiser* Http);//分配特定大小内存.要指明用哪个类型内存池
 
 static unsigned long hash_2(const char *str);//哈希函数：DJB2 + 盐值
 
@@ -80,7 +80,7 @@ int Hash2_Entry_Insert(Hash2_Entry_2* head,char* url,void* func,void* ptr)//返�
     return -1;
 }
 
-int Hash2_Allocate(Hash_map_2* h,int size_h,Http_analysis_1* Http)
+int Hash2_Allocate(Hash_map_2* h,int size_h,Request_Analysiser* Http)
 {
 
     h->Elem=(Hash2_Entry_2*)(Http->ptr);
@@ -109,7 +109,7 @@ int Hash2_Allocate(Hash_map_2* h,int size_h,Http_analysis_1* Http)
     return 1;
 }
 
-int Hash2_Init(Http_analysis_1* Http, int init)//1成功，0已存在，-1过程错误,init是哈希表初始大小
+int Hash2_Init(Request_Analysiser* Http, int init)//1成功，0已存在，-1过程错误,init是哈希表初始大小
 {
     Hash_map_2* h;
     h=(Hash_map_2*)Http->ptr;
@@ -171,7 +171,7 @@ char* Hash2_Find(Hash_map_2* h,char* url,int* Error)//-1为过程错误，用来
 
 }
 
-int Hash2_Insert(Hash_map_2* h,Http_analysis_1* Http, char* url,void* func)
+int Hash2_Insert(Hash_map_2* h,Request_Analysiser* Http, char* url,void* func)
 {
 
     int b_site=bucket_site_2(h->bu_num,url);

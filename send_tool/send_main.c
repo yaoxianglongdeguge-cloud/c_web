@@ -113,7 +113,7 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
                 fd_ob->send_pointer_pool->store[next].off=off1;    
 
 
-                EpollChangeReAndWr(w->epdf,send_fd);      
+                EpollChangeReAndWr(w->epfd,send_fd);      
 
 
                 TimerReset(w->my_Timer,send_fd,w);
@@ -122,7 +122,7 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
             else if(n==-1&&errno==EAGAIN)
             {
                 
-                EpollChangeReAndWr(w->epdf,send_fd);       
+                EpollChangeReAndWr(w->epfd,send_fd);       
 
                 TimerReset(w->my_Timer,send_fd,w);
                 return 1;
@@ -167,14 +167,14 @@ int send_main(worker* w,int fd,int ed_store_blocknum,int* send_info)
 
                 if(sent>0)
                 {
-                   EpollChangeReAndWr(w->epdf,send_fd);
+                   EpollChangeReAndWr(w->epfd,send_fd);
 
                     TimerReset(w->my_Timer,send_fd,w);
                     return 1;
                 }
                 else if (sent<0 && errno == EAGAIN) {
 
-                    EpollChangeReAndWr(w->epdf,send_fd);
+                    EpollChangeReAndWr(w->epfd,send_fd);
                     
                     TimerReset(w->my_Timer,send_fd,w);
                     return 1;

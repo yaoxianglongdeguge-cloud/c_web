@@ -6,23 +6,13 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
     Fd_Entry* fd_ob=NULL;
     int o0=FdTableFind(worker->fd_table,fd,&fd_ob);
 
-    if(o0==0)
-    {
-        return 1;
-    }
+    if(o0==0) return 1;
 
-    if(fd_ob->pack_in_path>=ed_store_blocknum)
-    {
-        return 1;
-    }
-    if(fd_ob->request_temp_pool->begin==NULL)
-    {
+    if(fd_ob->pack_in_path>=ed_store_blocknum) return 1;
+    
+    if(fd_ob->request_temp_pool->begin==NULL){
         int n=RequestTempPoolAlloc(fd_ob->request_temp_pool,worker->store_area,2);
-        if(n!=1)
-        {
-            FdClose(worker,fd,503);
-            return 1;
-        }
+        if(n!=1) {  FdClose(worker,fd,503);  return 1;} 
     }
         
     int r0=RequestTempPoolWrite(fd_ob->request_temp_pool,fd);//返回-1说明，没断开但是没数据
@@ -30,17 +20,16 @@ int http_main(int fd,worker* worker,int ed_store_blocknum)
 
     while(1)
     {
-        if(r0==0)
-        {
-            FdClose(worker,fd,200);//对端关闭连接
-            return 1;
-        }
+        //对端关闭连接
+        if(r0==0) { FdClose(worker,fd,200); return 1; }
                    
 
     //状态机开始检索http请求
         int state=0;
         int error_reason=200;
-        char* source_end=RequestIntergrityJudge(fd_ob->request_temp_pool,&state,&error_reason);//要复制的文本结尾，此处在文本中
+        char* source_end=NULL;
+
+        RequestIntergrityJudge(fd_ob->request_temp_pool,&source_end,&state,&error_reason);//要复制的文本结尾，此处在文本中
             
             
         if(state==-1&&fd_ob->request_temp_pool->ptr_e!=fd_ob->request_temp_pool->end)

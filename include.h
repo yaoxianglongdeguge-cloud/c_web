@@ -2,27 +2,32 @@
 #include "router/route.h"
 #include "main.h"
 
-//connect_config
-#include "connect_config/connect_manage.h"
-
 //FdConnectManage
+#include "FdConnectManage/EpollOperate/EpollOperate.h"
 #include "FdConnectManage/FdConnectTable/FdConnectTable.h"
 #include "FdConnectManage/Timer/Timer.h"
+#include "FdConnectManage/Timer/TimerDataStruct/PriorQueueTimer.h"
+
+//FdConnectOrClose
+#include "FdConnectOrClose/FdConnectOrClose.h"
+
+//FdConnectResource
+#include "FdConnectResource/RequestTempPool/StateMachine/StateMachine.h"
+#include "FdConnectResource/RequestTempPool/RequestTempPool.h"
+#include "FdConnectResource/RequestTempPool/StateMachine/StateMachine.h"
+#include "FdConnectResource/SendPointerPool/SendPointerPool.h"
 
 //http_analysis
 #include "http_analysis/http_main.h"
 #include "http_analysis/http_analysis.h"
-#include "http_analysis/Request_Temp_Pool.h"
-#include "http_analysis/StateMachine.h"
+#include "http_analysis/RequestIntergrity.h"
 
-//send_pointer_pool
-#include "send_pointer_pool/send_pointer_pool.h"
-#include "send_pointer_pool/send_main.h"
+//send_tool
+#include "send_tool/send_main.h"
 
 //data_struct
 #include "data_struct/hash_1.h"
 #include "data_struct/hash_2.h"
-#include "data_struct/Prior_Queue_Timer.h"
 
 //my_thread
 #include "my_thread/worker_thread.h"

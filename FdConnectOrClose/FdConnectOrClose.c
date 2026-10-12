@@ -23,7 +23,7 @@ int FdConnect(worker* w,int Listen_fd)
         }
         
         //挂载epoll
-        EpollReadMount(w->epfd,client_fd){
+        EpollReadMount(w->epfd,client_fd);
 
         //挂载连接计时器
         TimerAlloc(w->my_Timer,client_fd,w);
@@ -60,7 +60,7 @@ int FdClose(worker* w,int client_fd,int error_reason)
     //计时器
     TimerFree(w->my_Timer,client_fd);
     //epoll
-    EpollDelete(w->epfd,client_fd){
+    EpollDelete(w->epfd,client_fd);
     close(client_fd);
 
     return 1;

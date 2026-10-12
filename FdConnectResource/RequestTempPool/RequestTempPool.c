@@ -1,4 +1,4 @@
-#include "../include.h"
+#include "../../include.h"
 
 
 int RequestTempPoolInit(Request_Temp_Pool** h)//分配整个存储大小，单位是字节
@@ -10,7 +10,7 @@ int RequestTempPoolInit(Request_Temp_Pool** h)//分配整个存储大小，单�
     (*h)->ptr_b=(*h)->begin;
     (*h)->ptr_e=(*h)->begin;
 
-    StateMachine* ht=NULL;
+    State_Machine* ht=NULL;
     int a=StateMachineInit(&ht);
     if(a!=1)
     {

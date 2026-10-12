@@ -1,4 +1,4 @@
-#include "../variate.h"
+#include "../../variate.h"
 
 //typedef struct Request_Temp_Pool Request_Temp_Pool;
 //这个就是http解析前存储的地方，需要解决的问题是，如果我们一次读固定长度数据，那就有可能除了读到所要的请求之外还读到下一个请求的一部分，而如果没有标记，

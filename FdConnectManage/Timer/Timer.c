@@ -1,4 +1,4 @@
-#include "../include.h"
+#include "../../include.h"
 
 
 int TimerInit(Timer** t,int num)
@@ -86,7 +86,6 @@ int TimerReset(Timer* t,int fd,worker* w)
     {
         if(t->q->queue[which].fd==fd)
         {
-            f=1;
             break;
         }
         which++;

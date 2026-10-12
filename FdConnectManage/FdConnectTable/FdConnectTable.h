@@ -1,4 +1,4 @@
-#include "../variate.h"
+#include "../../variate.h"
 
 
 typedef struct Fd_Entry{

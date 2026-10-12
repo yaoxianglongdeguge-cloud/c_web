@@ -1,4 +1,4 @@
-#include "../include.h"
+#include "../../include.h"
 
 int EpollReadMount(int epfd,int fd){
 
@@ -17,7 +17,7 @@ int EpollChangeRead(int epfd,int fd){
 
     struct epoll_event ev;
     ev.events  = EPOLLIN;   
-    ev.data.fd = send_fd;             
+    ev.data.fd = fd;             
     epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &ev); 
 
     return 1;
@@ -28,7 +28,7 @@ int EpollChangeReAndWr(int epfd,int fd){
 
     struct epoll_event ev;
     ev.events  = EPOLLIN || EPOLLOUT;   
-    ev.data.fd = send_fd;             
+    ev.data.fd = fd;             
     epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &ev); 
 
     return 1;

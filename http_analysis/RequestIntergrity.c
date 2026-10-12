@@ -20,136 +20,104 @@ char *strnstr_match(char *haystack, char *needle, size_t n) {
     return strnstr(haystack, needle, n);
 }//匹配并返回指针函数，如果以后有需要，可以换成KMP算法
 
+int MethodMatch(int* sit,char** method){
+    char* method=NULL;
 
-int minm(int a,int b)
-{
-    if(a<=b)
-    {
-        return a;
+    for(;*i<9;(*i)++){
+
+        *method=strnstr_match(hs->begin,Method_p[i],);8
+        if(*method!=NULL)
+        {
+            break;
+        }
+
     }
-    else
-    {
-        return b;
-    }
-    return 0;
+
+    return 1;
+
 }
 
-char* RequestIntergrityJudge(Request_Temp_Pool* hs,int* error,int* error_reason)//-1时代表不完整，需要accept,0时代表错误，1时代表对
+int BodyLength(int* len,char* bodylength){
+    bodylength=bodylength+15;
+    while(*body_length==' ') body_length++;
+
+    char length_num[100];
+    int i=0;
+    while(body_length[i] != '\r' && body_length[i] != '\0' && i < 99){
+
+        length_num[i] = body_length[i];
+        i++;
+    }
+    length_num[i] = '\0';
+
+    *len=atoi(length_num);
+
+    return 1;
+
+}
+
+int minm(int a,int b){
+    if(a<=b)  return a;
+    return b;
+}
+
+int RequestIntergrityJudge(Request_Temp_Pool* hs,char** ptr,int* fail,int* fail_reason)//-1时代表不完整，需要accept,0时代表错误，1时代表对
 {
-    *error=0;
-    *error_reason=200;
+    *fail=0;
+    *fail_reason=200;
     char* target;
     
     int check_size=hs->ptr_e-hs->ptr_b;
-    int pipei_size=minm(8,check_size);//匹配方法用的长度
+    
+    //判断方法存在
+    if(hs->state_machine->h_method==0){
+        if(check_size<=7){  *fail=-1;  return;  }
 
-    if(hs->state_machine->h_method==0)
-    {
-
-        char* method=NULL;
         int i=0;
-        for(;i<9;i++)
-        {
-           method=strnstr_match(hs->begin,Method_p[i],pipei_size);
-           if(method!=NULL)
-           {
-            break;
-           }
+        char* method;
+        MethodMatch(&i,&method);
 
-        }
-
-        if(method==NULL)
-        {
-            if(pipei_size<=7)
-            {
-                *error=-1;
-                return NULL;
-            }
-            else//因为匹配的字符数不一定够一个方法的，所以需要返回字符不够出去再写一次
-            {
-
-                *error=0;
-                *error_reason=400;
-                return NULL;
-            }
-        }
-        else
-        { 
-           hs->state_machine->h_method=i;
-        }
-        
+        if(method==NULL){  *fail=0;  *fail_reason=400;  return ;  }
+         
+        hs->state_machine->h_method=i;     
     }
 
-    if(hs->state_machine->h_rnrn==0)
-    {
+    //判断分隔符存在
+    if(hs->state_machine->h_rnrn==0){
 
         char* rnrn=strnstr_match(hs->begin,"\r\n\r\n",check_size);
-        if(rnrn==NULL)
-        {
-            *error=-1;
-            return NULL;
-        }
-        else
-        {
-            *error=1;
-            hs->state_machine->h_rnrn=1;
-            target=rnrn-1;//\r前一个字符
-        }
+        if(rnrn==NULL){  *fail=-1;  return;  }
+
+        *fail=1;
+        hs->state_machine->h_rnrn=1;
+        target=rnrn-1;//\r前一个字符
     }
 
-    if(hs->state_machine->h_body_length==0)
-    {
+    //判断请求体存在并求长度
+    if(hs->state_machine->h_body_length==0){
         char* body_length=strnstr_match(hs->begin,"Content-Length:",check_size);
-        if(body_length==NULL)
-        {
-            if(hs->state_machine->h_method>=7)
-            {
-                *error_reason=411;
-                *error=0;
-                return NULL;
-            }
+        if(body_length==NULL){
+
             hs->state_machine->h_body_length=0;
-        }
-        else
-        {
-            *error=0;
+
+            if(hs->state_machine->h_method>=7){  *fail_reason=411;  *fail=0;  return ;  }
+
+        }else{
+            *fail=0;
             body_length=body_length+15;
-            while(*body_length==' ')
-            {
-                body_length++;
-            }
+            int len=0;
+            BodyLength(&len,body_length);
 
-            char length_num[100];
-            int i=0;
-            while(body_length[i] != '\r' && body_length[i] != '\0' && i < 99)
-            {
-                length_num[i]=body_length[i];
-                i++;
-            }
-            length_num[i] = '\0';
-
-
-            int len=atoi(length_num);
-            if(len>MAX_BODY_SIZE)
-            {
-                *error_reason=413;
-                *error=0;
-                return NULL;
-            }
+            if(len>MAX_BODY_SIZE){  *fail_reason=413;  *fail=0;  return ;  }
 
             target=target+4+len;
-            if(target<hs->ptr_e){
-                *error=1;
-            }
-            else
-            {
-                *error=-1;
-            }
+            if(target<hs->ptr_e){ *fail=1; } else { *fail=-1; }
 
         }
 
     }
 
-    return target;
+    *ptr = target;
+    return ;
 
 }

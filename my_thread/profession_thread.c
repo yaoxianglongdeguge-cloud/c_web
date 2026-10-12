@@ -3,7 +3,7 @@
 
 int deal_task(Request* r,Response* w); //处理业务任务
 int pack_task(char** c,Response* w);
-int Http_get(profession* profes,char* ptr,Http_analysis_1** h,int size,int* error_reason,worker* w);
+int Http_get(profession* profes,char* ptr,Request_Analysiser** h,int size,int* error_reason,worker* w);
 
 int profession_init(profession** profes,int id)
 {
@@ -55,7 +55,7 @@ int deal_and_pack(profession* profes)
 
     if(Error_reason==200)
     {
-        Http_analysis_1* h;
+        Request_Analysiser* h;
         Http_get(profes,Http,&h,Size,&Error_reason,W);
         
         if(Error_reason==200)
@@ -74,7 +74,7 @@ int deal_and_pack(profession* profes)
             
             deal_task(&Req,&Rsp);
             
-            Http_analysis_free(h,profes->http_pool);
+            RequestAnalysisFree(h,profes->http_pool);
         }
     }
 
@@ -203,20 +203,20 @@ int pack_task(char** c,Response* w)
     return 1;
 }
     
-int Http_get(profession* profes,char* ptr,Http_analysis_1** h,int size,int* error_reason,worker* w)
+int Http_get(profession* profes,char* ptr,Request_Analysiser** h,int size,int* error_reason,worker* w)
 {
-    int allocsize=4*(size)+sizeof(Http_analysis_1)+2*sizeof(Hash_map_2)+sizeof(Hash2_Entry_2)*14;
+    int allocsize=4*(size)+sizeof(Request_Analysiser)+2*sizeof(Hash_map_2)+sizeof(Hash2_Entry_2)*14;
   
-    Http_analysis_init(h,profes->http_pool,allocsize);
+    RequestAnalysisInit(h,profes->http_pool,allocsize);
         
     memcpy((*h)->ptr,ptr,size);
     char* ptr2=(*h)->ptr;
     Memory_Pool_free(w->http_pool,ptr,1024*(size/1024+1));
     (*h)->ptr=(*h)->ptr+size;
-    Http_analysis_receive(*h,ptr2,error_reason);
+    RequestAnalysisReceive(*h,ptr2,error_reason);
     if(*error_reason!=200)
     {
-        Http_analysis_free((*h),profes->http_pool);
+        RequestAnalysisFree((*h),profes->http_pool);
     }
         
     return 1;
