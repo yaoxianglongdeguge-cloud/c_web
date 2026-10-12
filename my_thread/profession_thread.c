@@ -11,8 +11,8 @@ int profession_init(profession** profes,int id)
     *profes=(profession*)malloc(sizeof(profession));
     (*profes)->id=id;
     Memory_Queue_init(&((*profes)->memory_queue),100);
-    Memory_Pool_init(&((*profes)->txt_pool),7,7,200,120);
-    Memory_Pool_init(&((*profes)->http_pool),6,6,10,10);
+    MemoryPoolInit(&((*profes)->txt_pool),7,7,200,120);
+    MemoryPoolInit(&((*profes)->http_pool),6,6,10,10);
     return 1;
 }
 
@@ -41,7 +41,7 @@ int deal_and_pack(profession* profes)
 
     void* ptr=NULL;
     int notfull=0;
-    int n=Memory_Pool_alloc(profes->txt_pool,63,&ptr,&notfull);
+    int n=MemoryPoolAlloc(profes->txt_pool,63,&ptr,&notfull);
     if(notfull==0)
     {
         Rsp.error_reason=503;
@@ -98,7 +98,7 @@ int deal_and_pack(profession* profes)
     int allocsize=strlen(Rsp.headers->begin)+Rsp.body_size+17;
     void* ptr2=NULL;
     int notfull2=0;
-    int n2=Memory_Pool_alloc(profes->txt_pool,allocsize/1024+1,&ptr2,&notfull2);
+    int n2=MemoryPoolAlloc(profes->txt_pool,allocsize/1024+1,&ptr2,&notfull2);
 
 
     if(notfull2==0)
@@ -131,7 +131,7 @@ int deal_and_pack(profession* profes)
         m=Memory_Queue_top_and_pop(profes->memory_queue,&e1);
         if(e1==1)
         {
-            Memory_Pool_free(profes->txt_pool,m.char_ptr,(m.size/1024+1)*1024);
+            MemoryPoolFree(profes->txt_pool,m.char_ptr,(m.size/1024+1)*1024);
         }
     }
         //把打包好的返回文本在内存池里填上，或者如果是错误包也指向对应错误包        
@@ -166,12 +166,12 @@ int pack_task(char** c,Response* w)
     {
         if(w->body!=NULL)
         {
-            Memory_Pool_free((Memory_Pool*)(w->pool),w->body,(w->body_size/1024+1)*1024);
+            MemoryPoolFree((Memory_Pool*)(w->pool),w->body,(w->body_size/1024+1)*1024);
         }
 
         if(w->headers!=NULL)
         {
-            Memory_Pool_free((Memory_Pool*)(w->pool),w->headers,64512);
+            MemoryPoolFree((Memory_Pool*)(w->pool),w->headers,64512);
         }
 
         if(w->send_fd!=-1)
@@ -189,12 +189,12 @@ int pack_task(char** c,Response* w)
         if(w->headers->begin<w->headers->ptr)
         {
             strcat(*c,w->headers->begin);
-            Memory_Pool_free((Memory_Pool*)(w->pool),w->headers,64512);
+            MemoryPoolFree((Memory_Pool*)(w->pool),w->headers,64512);
         }
         if(w->body!=NULL)
         {
             strcat(*c,w->body);
-            Memory_Pool_free((Memory_Pool*)(w->pool),w->body,(w->body_size/1024+1)*1024);
+            MemoryPoolFree((Memory_Pool*)(w->pool),w->body,(w->body_size/1024+1)*1024);
         }
         
 
@@ -211,7 +211,7 @@ int Http_get(profession* profes,char* ptr,Request_Analysiser** h,int size,int* e
         
     memcpy((*h)->ptr,ptr,size);
     char* ptr2=(*h)->ptr;
-    Memory_Pool_free(w->http_pool,ptr,1024*(size/1024+1));
+    MemoryPoolFree(w->http_pool,ptr,1024*(size/1024+1));
     (*h)->ptr=(*h)->ptr+size;
     RequestAnalysisReceive(*h,ptr2,error_reason);
     if(*error_reason!=200)

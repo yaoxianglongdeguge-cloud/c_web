@@ -49,7 +49,7 @@ HTTP 状态机解析、有序发送、断连定时器与跨线程内存所有权
 一次请求的生命周期：
 
 ```
-accept → epoll → http_main 读入暂存区 → StateMachine 判定完整请求 → 复制到 http_pool
+accept → epoll → RequestComeMain 读入暂存区 → StateMachine 判定完整请求 → 复制到 http_pool
 → 投递 Task_Queue → profession: 解析头部/URL/Query → Handler_Find(url) → 业务函数写 Response
 → pack_task 打包 → Send_thing_queue → worker 按 serial 保序发送 → 内存经 Memory_Queue 归还
 ```

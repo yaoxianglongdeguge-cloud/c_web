@@ -18,12 +18,12 @@
 #include "FdConnectResource/SendPointerPool/SendPointerPool.h"
 
 //http_analysis
-#include "http_analysis/http_main.h"
+#include "http_analysis/RequestComeMain.h"
 #include "http_analysis/http_analysis.h"
 #include "http_analysis/RequestIntergrity.h"
 
 //send_tool
-#include "send_tool/send_main.h"
+#include "send_tool/ResponseSendMain.h"
 
 //data_struct
 #include "data_struct/hash_1.h"

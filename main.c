@@ -15,7 +15,7 @@ typedef  struct main2{
 void* func1(void* arg)
 {
     main_t* m=(main_t*)arg;
-    receive_and_send_main(m->w,m->fd,m->time,m->ed_store_blocknum);
+    receive_and_ResponseSendMain(m->w,m->fd,m->time,m->ed_store_blocknum);
 }
 void* func2(void* arg)
 {
@@ -126,7 +126,7 @@ worker* w1;
 worker_init(&w1, fd, 1);
 main_t m1 = {.fd = fd, .time = 60, .w = w1,.ed_store_blocknum=100};
 
-receive_and_send_main(m1.w,m1.fd,m1.time,m1.ed_store_blocknum);
+receive_and_ResponseSendMain(m1.w,m1.fd,m1.time,m1.ed_store_blocknum);
 
 
 

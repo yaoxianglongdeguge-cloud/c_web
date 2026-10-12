@@ -22,22 +22,13 @@ int FdTableInit(Fd_Table** h,int init)//1成功，0已存在，-1过程错误
 {
 
     (*h)=(Fd_Table*)malloc(sizeof(Fd_Table));
-    if(h==NULL)
-    {
-        return -1;
-    }
+    if(h==NULL) return -1;
 
     int bu_size=PRIME_BUCKET_SIZES_3[init-1];
 
     int a=FdTableAllocate(*h,bu_size);
-    if(a==-1)
-    {
-        return -1;
-    }
-    else if(a==0)
-    {
-        return 0;
-    }
+    if(a==-1) return -1;
+    else if(a==0) return 0;
 
    (*h)->bu_num=bu_size;
    (*h)->elem_num=0;
@@ -51,10 +42,7 @@ int FdTableFind(Fd_Table* h,int fd,Fd_Entry** ptr)//-1为过程错误，用来�
 {
     *ptr=NULL;
 
-    if(h==NULL||h->Elem==NULL)
-    {
-        return 0;
-    }
+    if(h==NULL||h->Elem==NULL) return 0;
 
     int b_site=bucket_site_3(h->bu_num,fd);
 
@@ -64,15 +52,8 @@ int FdTableFind(Fd_Table* h,int fd,Fd_Entry** ptr)//-1为过程错误，用来�
 
     Fd_Entry* p=FdEntryFind(head,fd,&e);
 
-    if(e==1&&p->next!=NULL&&p->next->fd==fd)
-    {
-        *ptr=p->next;
-        return 1;
-    }
-    else
-    {
-        return -1;
-    }
+    if(e==1&&p->next!=NULL&&p->next->fd==fd) *ptr=p->next; return 1;
+    else return -1;
 
     return 0;
 
@@ -87,10 +68,7 @@ int FdTableInsert(Fd_Table* h,int fd)
 
     int e=FdEntryInsert(head,fd);
 
-    if(e!=1)
-    {
-        return -1;
-    }
+    if(e!=1) return -1;
 
     h->elem_num++;
 
@@ -112,10 +90,8 @@ int FdTableDelete(Fd_Table* h,int fd)
 
     int e=FdEntryDelete(head,fd);
 
-    if(e!=1)
-    {
-        return -1;
-    }
+    if(e!=1) return -1;
+    
 
     h->elem_num--;
 
@@ -125,10 +101,8 @@ int FdTableDelete(Fd_Table* h,int fd)
 Fd_Entry* FdEntryCreat(int fd)
 {
     Fd_Entry* e=(Fd_Entry*)malloc(sizeof(Fd_Entry));
-    if(e==NULL)
-    {
-        return NULL;
-    }
+    if(e==NULL) return NULL;
+    
     e->fd=fd;
     e->ser_fina_send=0;
     e->ser_nex_send=0;
@@ -147,11 +121,7 @@ Fd_Entry* FdEntryFind(Fd_Entry* head,int url,int* Error)
     *Error=0;
     while(h->next!=NULL)
     {
-        if(h->next->fd==url)
-        {
-            *Error=1;
-            return h;
-        }
+        if(h->next->fd==url){ *Error=1; return h; }
         h=h->next;
     }
 
@@ -166,24 +136,13 @@ int FdEntryInsert(Fd_Entry* head,int url)//返回1插入成功，0已经有该�
     if(i->next==NULL)
     {
         i->next=FdEntryCreat(url);
-        if(i->next!=NULL)
-        {
-            return 1;
-        }
-        else
-        {
-            return -1;
-        }
+        if(i->next!=NULL) return 1;
+        else return -1;
+        
     }
 
-    if(i->next->fd==url)
-    {
-        return 0;
-    }
-    else
-    {
-        return -1;
-    }
+    if(i->next->fd==url) return 0;
+    else return -1;
 
     return -1;
 }
@@ -193,10 +152,7 @@ int FdEntryDelete(Fd_Entry* head,int url)//返回1插入成功，0已经有该�
     int e;
     Fd_Entry* i=FdEntryFind(head,url,&e);
     
-    if(i->next==NULL)
-    {
-        return 1;
-    }
+    if(i->next==NULL) return 1;
 
     if(i->next->fd==url)
     {
@@ -215,10 +171,7 @@ int FdTableAllocate(Fd_Table* h,int size_h)
     h->Elem=NULL;
     h->Elem=(Fd_Entry*)malloc(sizeof(Fd_Entry)*size_h);
 
-    if(h->Elem==NULL)
-    {
-        return -1;
-    }
+    if(h->Elem==NULL) return -1;
 
     for(int i=0;i<size_h;i++)
     {
@@ -236,6 +189,4 @@ int FdTableAllocate(Fd_Table* h,int size_h)
 }
 
 int bucket_site_3(int bucket_size,int url)
-{
-    return url % bucket_size;
-}
+{ return url % bucket_size; }

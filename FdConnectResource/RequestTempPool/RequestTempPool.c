@@ -38,7 +38,7 @@ int RequestTempPoolAlloc(Request_Temp_Pool* h,Memory_Pool* pool,int size)//å•ä½
 {
      void* ptr=NULL;
      int notfull=0;
-    Memory_Pool_alloc(pool,size,&ptr,&notfull);
+    MemoryPoolAlloc(pool,size,&ptr,&notfull);
     if(notfull==0)
     {
         return -1;
@@ -55,7 +55,7 @@ int RequestTempPoolAlloc(Request_Temp_Pool* h,Memory_Pool* pool,int size)//å•ä½
 int RequestTempPoolFree(Request_Temp_Pool* h,Memory_Pool* pool)
 {
     int size=h->end-h->begin+1;
-    Memory_Pool_free(pool,h->begin,size);
+    MemoryPoolFree(pool,h->begin,size);
     h->begin=NULL;
     h->end=h->begin;
     h->ptr_b=h->begin;
@@ -66,7 +66,7 @@ int RequestTempPoolFree(Request_Temp_Pool* h,Memory_Pool* pool)
     return 1;
 }
 
-int RequestTempPoolExpend(Request_Temp_Pool* h,Memory_Pool* pool)
+int RequestTempPoolExpend(Request_Temp_Pool* h,Memory_Pool* pool,int* hadBigest)
 {
     int nowsize=h->end-h->begin;
     int expendsize=nowsize*2/1024+1;
@@ -75,11 +75,9 @@ int RequestTempPoolExpend(Request_Temp_Pool* h,Memory_Pool* pool)
     void* ptr=NULL;
 
     int notfull=0;
-    Memory_Pool_alloc(pool,expendsize,&ptr,&notfull);
-    if(notfull==0)
-    {
-        return -1;
-    }
+    MemoryPoolAlloc(pool,expendsize,&ptr,&notfull);
+    if(notfull==0) { *hadBigest = 1; return -1; }
+    
     memcpy(ptr,h->begin,nowsize);
     RequestTempPoolFree(h,pool);
     h->begin=(char*)ptr;

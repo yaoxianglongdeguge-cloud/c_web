@@ -24,7 +24,7 @@ int RequestTempPoolAlloc(Request_Temp_Pool* h,Memory_Pool* pool,int size);//单�
 
 int RequestTempPoolFree(Request_Temp_Pool* h,Memory_Pool* pool);
 
-int RequestTempPoolExpend(Request_Temp_Pool* h,Memory_Pool* pool);
+int RequestTempPoolExpend(Request_Temp_Pool* h,Memory_Pool* pool,int* hadBigest);
 
 int RequestTempPoolWrite(Request_Temp_Pool* h,int fd);//从连接中读数据填满无效位
 
