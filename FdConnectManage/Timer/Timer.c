@@ -31,7 +31,7 @@ int TimerExpend(Timer* t)
 }
 
 
-int TimerAlloc(Timer* t,int fd,worker* w)//分配给连接计时器并重置，如果已经有了那么直接找出并重置
+int TimerAlloc(Timer* t,int fd,Receiver_Thread* w)//分配给连接计时器并重置，如果已经有了那么直接找出并重置
 {
     int which=1;
     int f=0;
@@ -62,7 +62,7 @@ int TimerAlloc(Timer* t,int fd,worker* w)//分配给连接计时器并重置，�
     return 1;
 }
 
-int TimerReset(Timer* t,int fd,worker* w)
+int TimerReset(Timer* t,int fd,Receiver_Thread* w)
 {
     int which=1;
 
@@ -79,7 +79,7 @@ int TimerReset(Timer* t,int fd,worker* w)
     return 1;
 }
 
-int TimerOvertime(Timer* t,int overtime,worker* w)//超时时间
+int TimerOvertime(Timer* t,int overtime,Receiver_Thread* w)//超时时间
 {
     if(t->q->elem_end==1) return 1;
 

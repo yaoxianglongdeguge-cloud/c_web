@@ -1,15 +1,15 @@
 #include "../variate.h"
 
-typedef struct Memory_Queue_Entry{
+typedef struct Worker_Queue_Entry{
 
     int size;
     char* char_ptr;
 
-}Memory_Queue_Entry;
+}Worker_Queue_Entry;
 
-typedef struct Memory_Queue{
+typedef struct Worker_Queue{
 
-    Memory_Queue_Entry* queue;
+    Worker_Queue_Entry* queue;
     int begin;
     int end;
     int ptr_in;
@@ -21,11 +21,11 @@ typedef struct Memory_Queue{
     sem_t queue_notfull;//返回包事件的队列的信号量，用来指示队列还有多少个业务线程可以进入
     pthread_mutex_t mutex;
 
-}Memory_Queue;
+}Worker_Queue;
 
 
-int Memory_Queue_init(Memory_Queue** sq,int blocknum);
+int MemoryQueueInitMemory_Queue** sq,int blocknum);
 
-int Memory_Queue_push(Memory_Queue*sq,int size,char*char_ptr);
+int WorkerQueuePush(Worker_Queue*sq,int size,char*char_ptr);
 
-Memory_Queue_Entry Memory_Queue_top_and_pop(Memory_Queue* sq,int* error);
+Worker_Queue_Entry WorkerQueueTopAndPop(Worker_Queue* sq,int* error);

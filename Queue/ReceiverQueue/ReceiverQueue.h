@@ -1,8 +1,8 @@
 #include "../variate.h"
 
-typedef struct Send_tq_Entry{
+typedef struct Receiver_Queue_Entry{
 
-    Memory_Queue* m_queue;
+    Worker_Queue* m_queue;
     int fd;
     int serial;
     int error_reason;
@@ -14,11 +14,11 @@ typedef struct Send_tq_Entry{
     off_t offset;
 
 
-}Send_tq_Entry;
+}Receiver_Queue_Entry;
 
-typedef struct Send_thing_queue{
+typedef struct Receiver_Queue{
 
-    Send_tq_Entry* queue;
+    Receiver_Queue_Entry* queue;
     int begin;
     int end;
     int ptr_in;
@@ -31,12 +31,12 @@ typedef struct Send_thing_queue{
     pthread_mutex_t mutex_thing;
 
 
-}Send_thing_queue;
+}Receiver_Queue;
 
 
 
-int Send_thing_queue_init(Send_thing_queue** sq,int blocknum);
+int ReceiverQueueInit(Receiver_Queue** sq,int blocknum);
 
-int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int serial,int error_reason,int resp_size,int off,off_t file_size,char*char_ptr,int send_fd,off_t offset);
+int ReceiverQueuePush(Receiver_Queue* sq,Worker_Queue* m_queue,int fd,int serial,int error_reason,int resp_size,int off,off_t file_size,char*char_ptr,int send_fd,off_t offset);
 
-Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error);
+Receiver_Queue_Entry ReceiverQueueTopAndPop(Receiver_Queue* sq,int* error);

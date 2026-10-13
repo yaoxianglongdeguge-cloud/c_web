@@ -12,5 +12,5 @@ typedef struct Request{
 }Request;
 
 
-const char* const Request_get(Request* h,char* get1,char* get2);//2是1的子
+const char* const RequestGetter(Request* h,char* get1,char* get2);//2是1的子
 

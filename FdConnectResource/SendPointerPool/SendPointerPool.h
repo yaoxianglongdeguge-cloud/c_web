@@ -2,7 +2,7 @@
 
 typedef struct Send_Pointer_Pool_Entry{
 
-    Memory_Queue*m_queue;  
+    Worker_Queue*m_queue;  
     int use;
     int error_reason;
     char* ptr;

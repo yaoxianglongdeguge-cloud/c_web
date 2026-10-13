@@ -20,12 +20,12 @@ typedef struct Response{
 
 }Response;
 
-int Response_body_set(Response* r,char* c);
+int ResponseBodySet(Response* r,char* c);
 
-int Response_error_set(Response* r,int error);
+int ResponseErrorSet(Response* r,int error);
 
-int Response_header_set(Response* r,char* key,char* value);
+int ResponseHeaderSet(Response* r,char* key,char* value);
 
-int Response_fd_set(Response* r,int fd,off_t offset);
+int ResponseFileSet(Response* r,int fd,off_t offset);
 
 

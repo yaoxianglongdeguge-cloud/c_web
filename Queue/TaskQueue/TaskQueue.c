@@ -1,15 +1,13 @@
 #include "../include.h"
 
-int Task_queue_init(Task_queue** sq,int blocknum)
+int TasKQueueInit(Task_Queue** sq,int blocknum)
 {
     *sq=NULL;
-    *sq=(Task_queue*)malloc(sizeof(Task_queue));
-    if(*sq==NULL)
-    {
-        return -1;
-    }
+    *sq=(Task_Queue*)malloc(sizeof(Task_Queue));
+    if(*sq==NULL)  return -1;
+    
 
-    (*sq)->queue=(Task_Entry*)malloc(sizeof(Task_Entry)*blocknum);
+    (*sq)->queue=(Task_Queue_Entry*)malloc(sizeof(Task_Queue_Entry)*blocknum);
     (*sq)->begin=0;
     (*sq)->end=(*sq)->begin+blocknum;
     (*sq)->ptr_in=(*sq)->begin;
@@ -17,8 +15,8 @@ int Task_queue_init(Task_queue** sq,int blocknum)
     (*sq)->num=0;
     (*sq)->blocknum=blocknum;
 
-    for(int i=0;i<blocknum;i++)
-    {
+    for(int i=0;i<blocknum;i++){
+
         (*sq)->queue[i].error_reason=0;
         (*sq)->queue[i].fd=0;
         (*sq)->queue[i].http=NULL;
@@ -37,7 +35,7 @@ int Task_queue_init(Task_queue** sq,int blocknum)
 
 }
 
-int Task_queue_push(Task_queue* sq,worker* w,int fd,int serial,int error_reason,char* h,int h_size)
+int TasKQueuePush(Task_Queue* sq,Receiver_Thread* w,int fd,int serial,int error_reason,char* h,int h_size)
 {
     sem_wait(&(sq->sem_task_queue_notfull));
     pthread_mutex_lock(&(sq->mutex_task));
@@ -49,12 +47,9 @@ int Task_queue_push(Task_queue* sq,worker* w,int fd,int serial,int error_reason,
     sq->queue[sq->ptr_in].serial=serial;
     sq->queue[sq->ptr_in].h_size=h_size;
 
-    if(sq->ptr_in+1==sq->end)
-    {
+    if(sq->ptr_in+1==sq->end){
         sq->ptr_in=sq->begin;
-    }
-    else
-    {
+    }else{
         sq->ptr_in++;
     }
 
@@ -65,12 +60,12 @@ int Task_queue_push(Task_queue* sq,worker* w,int fd,int serial,int error_reason,
     return 1;
 }
 
-Task_Entry Task_queue_top_and_pop(Task_queue* sq,int* error)
+Task_Queue_Entry TasKQueueTopAndPop(Task_Queue* sq,int* error)
 {
     sem_wait(&(sq->sem_task_queue_notempty));
     pthread_mutex_lock(&(sq->mutex_task));
     *error=0;
-    Task_Entry s;
+    Task_Queue_Entry s;
     s.fd=-1;
     s.serial=-1;
     s.http=NULL;
@@ -86,12 +81,9 @@ Task_Entry Task_queue_top_and_pop(Task_queue* sq,int* error)
     s.error_reason=sq->queue[sq->ptr_out].error_reason;
     s.w=sq->queue[sq->ptr_out].w;
 
-    if(sq->ptr_out+1==sq->end)
-    {
+    if(sq->ptr_out+1==sq->end){
         sq->ptr_out=sq->begin;
-    }
-    else
-    {
+    }else{
         sq->ptr_out++;
     }
     sq->num--;

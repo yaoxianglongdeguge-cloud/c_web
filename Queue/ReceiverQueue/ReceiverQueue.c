@@ -1,15 +1,13 @@
 #include "../include.h"
 
-int Send_thing_queue_init(Send_thing_queue** sq,int blocknum)
+int ReceiverQueueInit(Receiver_Queue** sq,int blocknum)
 {
     *sq=NULL;
-    *sq=(Send_thing_queue*)malloc(sizeof(Send_thing_queue));
-    if(*sq==NULL)
-    {
-        return -1;
-    }
+    *sq=(Receiver_Queue*)malloc(sizeof(Receiver_Queue));
+    if(*sq==NULL)  return -1;
 
-    (*sq)->queue=(Send_tq_Entry*)malloc(sizeof(Send_tq_Entry)*blocknum);
+
+    (*sq)->queue=(Receiver_Queue_Entry*)malloc(sizeof(Receiver_Queue_Entry)*blocknum);
     (*sq)->begin=0;
     (*sq)->end=(*sq)->begin+blocknum;
     (*sq)->ptr_in=(*sq)->begin;
@@ -26,7 +24,7 @@ int Send_thing_queue_init(Send_thing_queue** sq,int blocknum)
 
 }
 
-int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int serial,int error_reason,int resp_size,int off,off_t file_size,char*char_ptr,int send_fd,off_t offset)
+int ReceiverQueuePush(Receiver_Queue* sq,Worker_Queue* m_queue,int fd,int serial,int error_reason,int resp_size,int off,off_t file_size,char*char_ptr,int send_fd,off_t offset)
 {
     sem_wait(&(sq->sem_thing_queue_notfull));
     pthread_mutex_lock(&(sq->mutex_thing));
@@ -42,12 +40,9 @@ int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int 
     sq->queue[sq->ptr_in].offset=offset;
     sq->queue[sq->ptr_in].off=off;
 
-    if(sq->ptr_in+1==sq->end)
-    {
+    if(sq->ptr_in+1==sq->end){
         sq->ptr_in=sq->begin;
-    }
-    else
-    {
+    }else{
         sq->ptr_in++;
     }
 
@@ -57,12 +52,12 @@ int Send_thing_queue_push(Send_thing_queue* sq,Memory_Queue* m_queue,int fd,int 
     return 1;
 }
 
-Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error)//0ä¸ºç©º
+Receiver_Queue_Entry ReceiverQueueTopAndPop(Receiver_Queue* sq,int* error)//0ä¸ºç©º
 {
     pthread_mutex_lock(&(sq->mutex_thing));
 
     *error=0;
-    Send_tq_Entry s;
+    Receiver_Queue_Entry s;
     s.fd=-1;
     s.serial=-1;
     s.size_file=0;
@@ -75,8 +70,7 @@ Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error)//0ä¸
     s.off=0;
 
 
-    if(sq->num!=0)
-    {
+    if(sq->num!=0){
 
         s.fd=sq->queue[sq->ptr_out].fd;
         s.serial=sq->queue[sq->ptr_out].serial;
@@ -89,12 +83,9 @@ Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error)//0ä¸
         s.offset=sq->queue[sq->ptr_out].offset;
         s.off=sq->queue[sq->ptr_out].off;
 
-        if(sq->ptr_out+1==sq->end)
-        {
+        if(sq->ptr_out+1==sq->end){
             sq->ptr_out=sq->begin;
-        }
-        else
-        {
+        }else{
             sq->ptr_out++;
         }
         sq->num--;
@@ -103,9 +94,7 @@ Send_tq_Entry Send_thing_queue_top_and_pop(Send_thing_queue* sq,int* error)//0ä¸
         sem_post(&(sq->sem_thing_queue_notfull));
 
         return s;
-    }
-    else
-    {
+    }else{
         pthread_mutex_unlock(&(sq->mutex_thing));
     }
 

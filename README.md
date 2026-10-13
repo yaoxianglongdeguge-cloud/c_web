@@ -6,14 +6,14 @@ HTTP 状态机解析、有序发送、断连定时器与跨线程内存所有权
 
 ## 核心特性
 
-- **半同步/半异步线程模型**：`worker`（收发线程，负责 accept / epoll / 读请求 / 发响应）
+- **半同步/半异步线程模型**：`Receiver_Thread`（收发线程，负责 accept / epoll / 读请求 / 发响应）
   + `Worker_Thread`（业务线程，负责 HTTP 解析 / 路由分发 / 构造响应），通过全局任务队列解耦。
 - **请求保序**：每个请求从读入起分配递增序号 `serial`，发送端用环形槽位
   `serial % blocknum` 保证同连接上响应顺序与请求顺序一致（乱序处理、有序发出）。
 - **HTTP 状态机 + 分块暂存**：`Request_Temp_Pool` 处理拆包/粘包；`StateMachine` 判定请求完整性；
   请求超过暂存区大小时自动扩容。
 - **内存池**：按 2 的幂分级，非扩容分配（池满返回 `notfull=0`，由调用方降级为 503）；
-  跨线程内存通过 `Memory_Queue` 归还，绝不跨线程 free。
+  跨线程内存通过 `Worker_Queue` 归还，绝不跨线程 free。
 - **大文件零拷贝**：文件响应使用 `sendfile`，内存中响应支持 1MB 以内。
 - **断连定时器**：小顶堆 + 线性扫描重置，空闲连接超时返回 408（默认 1 秒）。
 - **路由表**：DJB2+盐值哈希，URL 精确匹配，支持启动时静态注册。
@@ -22,13 +22,13 @@ HTTP 状态机解析、有序发送、断连定时器与跨线程内存所有权
 ## 架构概览
 
 ```
-        ┌──────────────────────────── Web_Driver(IP, PORT, Handler) ───────────────────────────┐
+        ┌──────────────────────────── WebStater(IP, PORT, Handler) ───────────────────────────┐
         │  ① 忽略 SIGPIPE → ② 初始化全局路由表/任务队列 → ③ 回调 Handler() 注册路由              │
         │  ④ 创建监听 socket → ⑤ 启动线程                                                    │
         └──────────────────────────────┬───────────────────────────────────────────────────────┘
                                        │
                 ┌──────────────────────┴───────────────────────┐
-                │  worker 线程（当前直接跑在 Web_Driver 调用线程）│
+                │  Receiver_Thread 线程（当前直接跑在 WebStater 调用线程）│
                 │  · epoll 事件循环（50ms 超时）                │
                 │  · accept / fd 表 / 定时器 / 有序发送         │
                 └──────────────────────┬───────────────────────┘
@@ -36,13 +36,13 @@ HTTP 状态机解析、有序发送、断连定时器与跨线程内存所有权
                 ┌──────────────────────▼───────────────────────┐
                 │  Worker_Thread 线程 ×2（业务处理）                │
                 │  · HTTP 解析 / 路由分发 / 构造响应            │
-                │  · 结果投回对应 worker 的发送队列             │
+                │  · 结果投回对应 Receiver_Thread 的发送队列             │
                 └──────────────────────┬───────────────────────┘
-                                       │ Send_thing_queue（每 worker 一个）
+                                       │ Receiver_Queue（每 Receiver_Thread 一个）
                 ┌──────────────────────▼───────────────────────┐
-                │  worker 发送端：按 serial 保序 write / sendfile│
+                │  Receiver_Thread 发送端：按 serial 保序 write / sendfile│
                 └──────────────────────┬───────────────────────┘
-                                       │ Memory_Queue（响应内存归还给 Worker_Thread 释放）
+                                       │ Worker_Queue（响应内存归还给 Worker_Thread 释放）
                                        ▼
 ```
 
@@ -51,14 +51,14 @@ HTTP 状态机解析、有序发送、断连定时器与跨线程内存所有权
 ```
 accept → epoll → RequestComeMain 读入暂存区 → StateMachine 判定完整请求 → 复制到 http_pool
 → 投递 Task_Queue → Worker_Thread: 解析头部/URL/Query → RouterHandlerFind(url) → 业务函数写 Response
-→ PackBackHead 打包 → Send_thing_queue → worker 按 serial 保序发送 → 内存经 Memory_Queue 归还
+→ PackBackHead 打包 → Receiver_Queue → Receiver_Thread 按 serial 保序发送 → 内存经 Worker_Queue 归还
 ```
 
 ## 目录结构
 
 | 目录/文件 | 职责 |
 |---|---|
-| `main.c` / `main.h` | `Web_Driver()` 启动驱动（框架入口） |
+| `main.c` / `main.h` | `WebStater()` 启动驱动（框架入口） |
 | `server/` | 全局资源：路由表 + 任务队列初始化 |
 | `my_thread/` | `worker_thread`（收发线程）、`profession_thread`（业务线程） |
 | `connect_fd/` | 连接 fd 哈希表（fd → 暂存区/发送槽/序号） |
@@ -89,7 +89,7 @@ make clean      # 清理目标文件/可执行/静态库
 gcc app.c -I<c_web路径> -L<c_web路径> -lcweb -lpthread -o app
 ```
 
-> 注意：本仓库 `main.c` 只提供 `Web_Driver()` 启动驱动，**不含 `main()` 入口**，
+> 注意：本仓库 `main.c` 只提供 `WebStater()` 启动驱动，**不含 `main()` 入口**，
 > 由上层框架提供程序入口（服务器实例）。Makefile 的 `main` 目标仅为本地调试预留。
 
 ## 快速上手
@@ -101,19 +101,19 @@ gcc app.c -I<c_web路径> -L<c_web路径> -lcweb -lpthread -o app
 static void handler_home(Request* r, Response* w)
 {
     (void)r;
-    Response_body_set(w, "hello cweb");                    /* 写响应体 */
-    Response_header_set(w, "Content-Type", "text/plain");  /* 自定义响应头 */
+    ResponseBodySet(w, "hello cweb");                    /* 写响应体 */
+    ResponseHeaderSet(w, "Content-Type", "text/plain");  /* 自定义响应头 */
 }
 
 static void handler_echo(Request* r, Response* w)
 {
-    const char* name = Request_get(r, "Query", "name");    /* 取查询参数 */
+    const char* name = RequestGetter(r, "Query", "name");    /* 取查询参数 */
     char buf[128];
     snprintf(buf, sizeof(buf), "echo:%s", name ? name : "(null)");
-    Response_body_set(w, buf);
+    ResponseBodySet(w, buf);
 }
 
-/* 路由注册回调：在监听 socket 建立前被 Web_Driver 调用 */
+/* 路由注册回调：在监听 socket 建立前被 WebStater 调用 */
 static void register_routes(void)
 {
     RouterAppend("/", handler_home);
@@ -122,8 +122,8 @@ static void register_routes(void)
 
 int main(void)
 {
-    /* 阻塞运行：Web_Driver 会直接在当前线程跑 worker 事件循环 */
-    Web_Driver("127.0.0.1", 8899, register_routes);
+    /* 阻塞运行：WebStater 会直接在当前线程跑 Receiver_Thread 事件循环 */
+    WebStater("127.0.0.1", 8899, register_routes);
     return 0;
 }
 ```
@@ -133,12 +133,12 @@ int main(void)
 ### 启动
 
 ```c
-int Web_Driver(char* IPaddr, int PORT, HandlerFunc Handler);
+int WebStater(char* IPaddr, int PORT, HandlerFunc Handler);
 ```
 
 - `Handler`：`void (*)(void)` 回调，在 socket 建立**之前**执行，用于 `RouterAppend` 注册路由。
 - 内部流程：忽略 SIGPIPE → 初始化全局路由表与任务队列 → 回调注册路由 →
-  创建监听 socket → 启动 2 个 Worker_Thread 线程 → **当前线程进入 worker 事件循环（阻塞）**。
+  创建监听 socket → 启动 2 个 Worker_Thread 线程 → **当前线程进入 Receiver_Thread 事件循环（阻塞）**。
 
 ### 路由
 
@@ -160,46 +160,46 @@ typedef struct Request {
     const char* const Body;        // 请求体
 } Request;
 
-const char* const Request_get(Request* r, "Method"|"Url"|"Version"|"Body", NULL);
-const char* const Request_get(Request* r, "Headers"|"Query", "键名");  // 查头/查参数
+const char* const RequestGetter(Request* r, "Method"|"Url"|"Version"|"Body", NULL);
+const char* const RequestGetter(Request* r, "Headers"|"Query", "键名");  // 查头/查参数
 ```
 
 ### 响应
 
 ```c
-int Response_body_set(Response* r, char* c);      // 设置文本响应体（自动分配内存）
-int Response_header_set(Response* r, char* key, char* value);  // 追加自定义头
-int Response_fd_set(Response* r, int fd, off_t offset);        // 文件响应（sendfile 零拷贝）
-int Response_error_set(Response* r, int error);                 // 设置错误码
+int ResponseBodySet(Response* r, char* c);      // 设置文本响应体（自动分配内存）
+int ResponseHeaderSet(Response* r, char* key, char* value);  // 追加自定义头
+int ResponseFileSet(Response* r, int fd, off_t offset);        // 文件响应（sendfile 零拷贝）
+int ResponseErrorSet(Response* r, int error);                 // 设置错误码
 ```
 
 - `Content-Length` 由框架自动补齐（body + 文件大小）。
-- 文件响应示例：业务函数里 `open()` 静态文件后 `Response_fd_set(w, fd, 0)`，
+- 文件响应示例：业务函数里 `open()` 静态文件后 `ResponseFileSet(w, fd, 0)`，
   发送完毕由框架负责 `close(fd)`。
 - 响应头/体内存不足时自动降级为 **503**。
 
 ## 配置与调优
 
-参数在 `main.c` 的 `Web_Driver` 与各 `*_init` 中集中设置：
+参数在 `main.c` 的 `WebStater` 与各 `*_init` 中集中设置：
 
 | 参数 | 位置 | 默认 | 说明 |
 |---|---|---|---|
 | 空闲超时 | `main_t m1 = {.time = 1}` | 1 秒 | 超过无活动返回 408 |
 | 在途请求上限 | `ed_store_blocknum` | 100 | 每连接未发完请求数上限（发送槽数） |
-| worker 内存池 | `worker_init` → `http_pool(6,6,500,400)` / `store_area(10,6,500,400)` | — | 读侧：请求副本 / 暂存区 / 发送槽 |
+| Receiver_Thread 内存池 | `ReceiverThreadInit` → `http_pool(6,6,500,400)` / `store_area(10,6,500,400)` | — | 读侧：请求副本 / 暂存区 / 发送槽 |
 | Worker_Thread 内存池 | `WorkerThreadInit` → `txt_pool(7,7,200,120)` / `http_pool(6,6,10,10)` | — | 写侧：响应头/体/解析结构 |
-| 任务队列容量 | `global_resource_init(100)` | 100 | 全局 Task_Queue |
-| Worker_Thread 线程数 | `Web_Driver` 内 `pthread_create(func2)` | 2 | 可增减 |
+| 任务队列容量 | `GlobalResourceInit(100)` | 100 | 全局 Task_Queue |
+| Worker_Thread 线程数 | `WebStater` 内 `pthread_create(func2)` | 2 | 可增减 |
 
 > 内存池为**非扩容**语义：某大小类并发占用超过预分配条数时，新分配返回 `notfull=0`，
 > 上层降级 503。压测规模大时请调大 `*_init` 的 `strip_num` 参数。
 
 ## 内存管理约定
 
-- **所有权明确**：worker 侧内存池（`http_pool`/`store_area`）与 Worker_Thread 侧内存池
+- **所有权明确**：Receiver_Thread 侧内存池（`http_pool`/`store_area`）与 Worker_Thread 侧内存池
   （`txt_pool`/`http_pool`）各自独立，跨线程只转移"使用权"，最终由所属线程释放。
-- 响应文本发完后经 `Memory_Queue` 交回 Worker_Thread 释放；请求副本解析完即归还 worker 的 `http_pool`。
-- `Response_body_set` / `Response_header_set` 内部自动从 `txt_pool` 分配，业务代码**无需手动释放**
+- 响应文本发完后经 `Worker_Queue` 交回 Worker_Thread 释放；请求副本解析完即归还 Receiver_Thread 的 `http_pool`。
+- `ResponseBodySet` / `ResponseHeaderSet` 内部自动从 `txt_pool` 分配，业务代码**无需手动释放**
   （打包完成后框架统一回收）。文件 fd 由框架在发送完毕后 `close`。
 - 路由表 URL 以**指针保存不复制**：注册时请传静态字符串或确保字符串生命周期覆盖整个服务期。
 
@@ -214,7 +214,7 @@ int Response_error_set(Response* r, int error);                 // 设置错误�
 | `test_hash` | hash_1/2/3 插入/查找/扩容/删除 |
 | `test_Request_Temp_Pool` | 暂存区读入/请求切分/残留保留/扩容 |
 | `test_queue` | 三个队列单线程 + 多线程压力 |
-| `test_server` | 真实 `Web_Driver` 集成：200/404/query/8KB/管道化/半包/408/重复头/大请求 |
+| `test_server` | 真实 `WebStater` 集成：200/404/query/8KB/管道化/半包/408/重复头/大请求 |
 
 运行示例：
 

@@ -8,7 +8,7 @@ char *StatusText(int error_reason);
 //一个连接结束需要清理的，epoll读/写，计时器，连接管理表，
 //   还有可能分配也可能没有或者已经收回的,请求暂存池，send发送池，并且send池要把剩下的请求发走或者至少通知给业务线程。
 
-int FdConnect(worker* w,int Listen_fd)
+int FdConnect(Receiver_Thread* w,int Listen_fd)
 {
     int client_fd;
     while(1)
@@ -37,7 +37,7 @@ int FdConnect(worker* w,int Listen_fd)
     return 1;
 }
 
-int FdClose(worker* w,int client_fd,int error_reason)
+int FdClose(Receiver_Thread* w,int client_fd,int error_reason)
 {
     if(error_reason!=200)
     {

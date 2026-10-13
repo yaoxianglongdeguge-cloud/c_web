@@ -1,81 +1,64 @@
 #include "../include.h"
 
-int worker_init(worker** w,int Listen_fd,int id)
+int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id)
 {
 
-    *w=(worker*)malloc(sizeof(worker));
+    *w=(Receiver_Thread*)malloc(sizeof(Receiver_Thread));
 
     MemoryPoolInit(&((*w)->http_pool),6,6,500,400);
     MemoryPoolInit(&((*w)->store_area),10,6,500,400);
-    Send_thing_queue_init(&((*w)->Thing_queue),100);
+    ReceiverQueueInit(&((*w)->Thing_queue),100);
     TimerInit(&((*w)->my_Timer),5000);
     FdTableInit(&((*w)->fd_table),4);
 
 
-
-
     (*w)->epfd=epoll_create1(0);
     (*w)->id=id;
-    struct epoll_event ev;
-    ev.events = EPOLLIN;
-    ev.data.fd = Listen_fd;
-    epoll_ctl((*w)->epfd, EPOLL_CTL_ADD, Listen_fd, &ev);
+    EpollReadMount(w->epdf,Listen_fd);
 
     return 1;
 
 }
 
-int worker_to_profession(worker* w,int fd,char* h,int h_size,int error_reason,int serial)
+int ReceiverToWorker(Receiver_Thread* w,int fd,char* h,int h_size,int error_reason,int serial)
 {
-    int e0=Task_queue_push(Task_Queue,w,fd,serial,error_reason,h,h_size);
+    int e0=TasKQueuePush(Task_Queue,w,fd,serial,error_reason,h,h_size);
 }
 
-int receive_and_ResponseSendMain(worker* w,int Listen_fd,int time,int ed_store_blocknum)
+int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_blocknum)
 {
     
     struct epoll_event events[1024];
     while(1)
     {
         int n=-1;
-        while(1)
-        {
+        while(1){
             n=epoll_wait(w->epfd,events,1024,50);
             for(int i=0;i<100;i++)
             {
                 int send_info=0;
                 int e2=ResponseSendMain(w,-2,ed_store_blocknum,&send_info);
-                if(send_info==0)
-                {
-                    break;
-                }
-            }
-            if(n>0)
-            {
-                break;
-            }
-            TimerOvertime(w->my_Timer,time,w);
-        }
-        for(int i=0;i<n;i++)
-        {
-            int handle_fd=events[i].data.fd;
-            if(handle_fd<3)
-            {
-                continue;
+                if(send_info==0)  break;
+            
             }
 
-            if(handle_fd==Listen_fd)
-            {
-               int e0=FdConnect(w,handle_fd);
-            }
-            else
-            {
+            if(n>0)  break;
+            TimerOvertime(w->my_Timer,time,w);
+        }
+        for(int i=0;i<n;i++){
+
+            int handle_fd=events[i].data.fd;
+            if(handle_fd<3)  continue;
+
+            if(handle_fd==Listen_fd) 
+            { int e0=FdConnect(w,handle_fd); }
+            else{
+
                 TimerReset(w->my_Timer,handle_fd,w);
-                if(events[i].events & EPOLLIN)
-                {
+                if(events[i].events & EPOLLIN){
                     int e1=RequestComeMain(handle_fd,w,ed_store_blocknum);//错误包已经通过发送程序发了，所以这里的返回值不验证
                 }
-                if(events[i].events & EPOLLOUT)
-                {
+                if(events[i].events & EPOLLOUT){
                     int send_info=1;
                     ResponseSendMain(w,handle_fd,ed_store_blocknum,&send_info);
                 }

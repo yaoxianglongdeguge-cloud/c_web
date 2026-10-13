@@ -3,18 +3,18 @@
 
 typedef struct Router Router;
 
-typedef struct worker worker; 
+typedef struct Receiver_Thread Receiver_Thread; 
 typedef struct Worker_Thread Worker_Thread;
 
 typedef struct Fd_Entry Fd_Entry;
 typedef struct Fd_Table Fd_Table;
 
-typedef struct Memory_Queue_Entry Memory_Queue_Entry;
-typedef struct Memory_Queue Memory_Queue;
-typedef struct Task_Entry Task_Entry;
-typedef struct Task_queue Task_queue;
-typedef struct Send_tq_Entry Send_tq_Entry;
-typedef struct Send_thing_queue Send_thing_queue;
+typedef struct Worker_Queue_Entry Worker_Queue_Entry;
+typedef struct Worker_Queue Worker_Queue;
+typedef struct Task_Queue_Entry Task_Queue_Entry;
+typedef struct Task_Queue Task_Queue;
+typedef struct Receiver_Queue_Entry Receiver_Queue_Entry;
+typedef struct Receiver_Queue Receiver_Queue;
 
 typedef struct Request_Temp_Pool Request_Temp_Pool;
 typedef struct StateMachine StateMachine;
@@ -42,7 +42,7 @@ typedef struct my_rwlock_t my_rwlock_t;
 
 extern Router* Router;
 
-extern Task_queue* Task_Queue;
+extern Task_Queue* Task_Queue;
 
 extern sem_t sem_task_queue_notfull;
 

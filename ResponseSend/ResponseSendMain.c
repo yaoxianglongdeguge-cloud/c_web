@@ -1,6 +1,6 @@
 #include "../include.h"
 
-int FdNextSendPut(Fd_Entry* fd_ob,Send_tq_Entry* s){
+int FdNextSendPut(Fd_Entry* fd_ob,Receiver_Queue_Entry* s){
 
     int next=s.serial%fd_ob->send_pointer_pool->blocknum;
                     
@@ -17,14 +17,14 @@ int FdNextSendPut(Fd_Entry* fd_ob,Send_tq_Entry* s){
     return 1;
 }
 
-int GetAndJudge(worker* w,int fd,int edStoreBlockNum,int* send_info,int* sendFd){
+int GetAndJudge(Receiver_Thread* w,int fd,int edStoreBlockNum,int* send_info,int* sendFd){
 
     *send_info=0;
-    Send_tq_Entry s;
+    Receiver_Queue_Entry s;
     while(e0!=0&&send_fd==-2){
         
         int e0=1;
-        s = Send_thing_queue_top_and_pop(w->Thing_queue,&e0);
+        s = ReceiverQueueTopAndPop(w->Thing_queue,&e0);
         if(e0!=1) continue ;
 
         //获取连接对象
@@ -34,7 +34,7 @@ int GetAndJudge(worker* w,int fd,int edStoreBlockNum,int* send_info,int* sendFd)
                 
         //如果该连接不存在，或者获取连接失败
         if(e1!=1&&s.m_queue!=NULL){
-            Memory_Queue_push(s.m_queue,s.size_resp,s.char_ptr);
+            WorkerQueuePush(s.m_queue,s.size_resp,s.char_ptr);
             continue;
         }
 
@@ -58,10 +58,10 @@ int GetAndJudge(worker* w,int fd,int edStoreBlockNum,int* send_info,int* sendFd)
 
 int MemoryQueuePushOperate(Fd_Entry* fd_ob){
 
-    Memory_Queue* m=fd_ob->send_pointer_pool->store[next].m_queue;
+    Worker_Queue* m=fd_ob->send_pointer_pool->store[next].m_queue;
     int size_resp=fd_ob->send_pointer_pool->store[next].size_resp;
     char* ptr=fd_ob->send_pointer_pool->store[next].ptr;
-    Memory_Queue_push(m,size_resp,ptr);
+    WorkerQueuePush(m,size_resp,ptr);
     fd_ob->send_pointer_pool->store[next].size_resp=0;
     fd_ob->send_pointer_pool->store[next].m_queue=NULL;
     fd_ob->send_pointer_pool->store[next].ptr=NULL;
@@ -70,7 +70,7 @@ int MemoryQueuePushOperate(Fd_Entry* fd_ob){
     return 1;
 }
 
-int ResponseSendMain(worker* w,int fd,int ed_store_blocknum,int* send_info)
+int ResponseSendMain(Receiver_Thread* w,int fd,int ed_store_blocknum,int* send_info)
 {
     int send_fd=-2;
     

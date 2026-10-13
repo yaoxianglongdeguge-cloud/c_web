@@ -45,13 +45,13 @@ int SendPointerPoolClear(Send_Pointer_Pool* s){
     {
         if(s->store[i].use==1)
         {
-            Memory_Queue* m=s->store[i].m_queue;
+            Worker_Queue* m=s->store[i].m_queue;
             int size=s->store[i].size_resp;
             char* c=s->store[i].ptr;
             
             if(m!=NULL)
             {
-                Memory_Queue_push(m,size,c);
+                WorkerQueuePush(m,size,c);
             }
 
             if(s->store[i].send_fd!=-1)
