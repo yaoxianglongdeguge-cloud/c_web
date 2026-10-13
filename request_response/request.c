@@ -11,7 +11,7 @@ const char* const Request_get(Request* h,char* get1,char* get2)
             return NULL;
         }
 
-        char* Headers = Hash2_Find((Hash_map_2*)(h->Headers),get2,&e0);
+        char* Headers = AnalysiserHashFind((Analysiser_Hash*)(h->Headers),get2,&e0);
         if(e0!=1)
         {
             return NULL;
@@ -27,7 +27,7 @@ const char* const Request_get(Request* h,char* get1,char* get2)
         {
             return NULL;
         }
-        char* Query = Hash2_Find((Hash_map_2*)(h->Query),get2,&e0);
+        char* Query = AnalysiserHashFind((Analysiser_Hash*)(h->Query),get2,&e0);
         if(e0!=1)
         {
             return NULL;

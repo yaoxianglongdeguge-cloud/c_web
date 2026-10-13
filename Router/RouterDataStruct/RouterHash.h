@@ -2,27 +2,27 @@
 
 //路由注册专用哈希表
 
-typedef struct Entry{
+typedef struct Router_Hash_Entry{
     
     char* key;//存url路由
     Handler value;//存函数指针
-    struct Entry* next;//指向下一个元素
+    struct Router_Hash_Entry* next;//指向下一个元素
 
-}Entry;
+}Router_Hash_Entry;
 
-typedef struct Hash_map
+typedef struct Router_Hash
 {
    int bu_num;
    int elem_num;
-   Entry* Elem;
+   Router_Hash_Entry* Elem;
 
-}Hash_map;
+}Router_Hash;
 
-Hash_map* Hash_Init(int* Error,int init);//初始化
+Router_Hash* RouterHashInit(int* Error,int init);//初始化
 
-int Hash_Insert(Hash_map**hm,Hash_map* h,char* url,Handler func);//插入
+int RouterHashInsert(Router_Hash**hm,Router_Hash* h,char* url,Handler func);//插入
 
-Entry* Hash_Find(Hash_map* h,char* url,int* Error);//查找
+Router_Hash_Entry* RouterHashFind(Router_Hash* h,char* url,int* Error);//查找
 
 
 

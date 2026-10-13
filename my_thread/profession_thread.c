@@ -1,14 +1,77 @@
 #include "../include.h"
 
 
-int deal_task(Request* r,Response* w); //处理业务任务
-int pack_task(char** c,Response* w);
-int Http_get(profession* profes,char* ptr,Request_Analysiser** h,int size,int* error_reason,worker* w);
+int DealWithTask(Request* r,Response* w); //处理业务任务
+int PackBackHead(char** c,Response* w);
+int RequestGet(Worker_Thread* profes,char* ptr,Request_Analysiser** h,int size,int* error_reason,worker* w);
 
-int profession_init(profession** profes,int id)
+int RspHeaderAlloc(Response* Rsp){
+
+    void* ptr=NULL;
+    int notfull=0;
+    MemoryPoolAlloc(profes->txt_pool,63,&ptr,&notfull);
+    if(notfull==0)  Rsp->error_reason=503;
+    
+    Rsp->headers=ptr;
+    ptr=ptr+sizeof(Response_Header_Entry);
+    Rsp->headers->begin=ptr;
+    Rsp->=headers->ptr=Rsp.headers->begin;
+    Rsp->headers->end=Rsp.headers->begin+64512;
+
+    return 1;
+
+}
+
+int PackTotal(Response* Rsp,char** C){
+
+    //如果有要发的文件，计算文件大小
+    off_t file_size=0;
+    if(Rsp->send_fd!=-1){
+        struct stat st;
+        fstat(Rsp->send_fd, &st);
+        file_size = st.st_size; 
+    }
+
+    //计算文件和请求体总的大小，并计入响应头
+    off_t totalbody_size=(off_t)Rsp->body_size+file_size;
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%ld", (long)totalbody_size);
+    Response_header_set(Rsp,"Content-Length",buf);
+   
+
+
+    //返回请求头和请求体，文件不用打包，直接把fd传给接待线程
+    int allocsize=strlen(Rsp->headers->begin)+Rsp->body_size+17;
+    void* ptr2=NULL;
+    int notfull2=0;
+    MemoryPoolAlloc(profes->txt_pool,allocsize/1024+1,&ptr2,&notfull2);
+
+    if(notfull2==0)  Rsp->error_reason=503;
+    else  *C = ptr2;
+
+    PackBackHead(C,Rsp);
+
+    return 1;
+
+}
+
+int CleanMemoryQueue(Worker_Thread* profes){
+
+    int e1=1;
+    while(e1!=0){
+        Memory_Queue_Entry m=Memory_Queue_top_and_pop(profes->memory_queue,&e1);
+        if(e1==1){
+            MemoryPoolFree(profes->txt_pool,m.char_ptr,(m.size/1024+1)*1024);
+        }
+    }
+    return 1;
+    
+}
+
+int WorkerThreadInit(Worker_Thread** profes,int id)
 {
   
-    *profes=(profession*)malloc(sizeof(profession));
+    *profes=(Worker_Thread*)malloc(sizeof(Worker_Thread));
     (*profes)->id=id;
     Memory_Queue_init(&((*profes)->memory_queue),100);
     MemoryPoolInit(&((*profes)->txt_pool),7,7,200,120);
@@ -16,13 +79,14 @@ int profession_init(profession** profes,int id)
     return 1;
 }
 
-int deal_and_pack(profession* profes)
-{
-    int e0=0;
+
+int WorkerMain(Worker_Thread* profes){
+
     Task_Entry t;
     
     t=Task_queue_top_and_pop(Task_Queue,&e0);
     
+    //拿到请求
     int Error_reason=t.error_reason;
     int Fd=t.fd;
     int Serial=t.serial;
@@ -30,6 +94,7 @@ int deal_and_pack(profession* profes)
     char* Http=t.http;
     int Size=t.h_size;
 
+    //在栈上分配返回对象打包对象
     Response Rsp={
         .body=NULL,
         .error_reason=Error_reason,
@@ -38,184 +103,111 @@ int deal_and_pack(profession* profes)
         .send_fd=-1,
         .offset=0
     };
+    //打包对象头部行分配
+    RspHeaderAlloc(&Rsp);
 
-    void* ptr=NULL;
-    int notfull=0;
-    int n=MemoryPoolAlloc(profes->txt_pool,63,&ptr,&notfull);
-    if(notfull==0)
-    {
-        Rsp.error_reason=503;
-    }
-    Rsp.headers=ptr;
-    ptr=ptr+sizeof(Response_Header_Entry);
-    Rsp.headers->begin=ptr;
-    Rsp.headers->ptr=Rsp.headers->begin;
-    Rsp.headers->end=Rsp.headers->begin+64512;
+    //任务执行
+    if(Error_reason==200){
 
-
-    if(Error_reason==200)
-    {
         Request_Analysiser* h;
-        Http_get(profes,Http,&h,Size,&Error_reason,W);
+        RequestGet(profes,Http,&h,Size,&Error_reason,W);
         
-        if(Error_reason==200)
-        {
+        if(Error_reason==200){
             Request Req={
                 
-                
                 .Body=(const char* const)h->Body,
-                .Headers=(const Hash_map_2* const)h->Headers,
-                .Query=(const Hash_map_2* const)h->Query,
+                .Headers=(const Analysiser_Hash* const)h->Headers,
+                .Query=(const Analysiser_Hash* const)h->Query,
                 .Method=(const char* const)h->Method,
                 .Url=(const char* const)h->Url,
                 .Version=(const char* const)h->Version,
   
             };
             
-            deal_task(&Req,&Rsp);
+            DealWithTask(&Req,&Rsp);
             
             RequestAnalysisFree(h,profes->http_pool);
         }
     }
 
-    off_t file_size=0;
-    if(Rsp.send_fd!=-1)
-    {
-        struct stat st;
-        fstat(Rsp.send_fd, &st);
-        file_size = st.st_size; 
-    }
-
-    off_t totalbody_size=(off_t)Rsp.body_size+file_size;
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%ld", (long)totalbody_size);
-    Response_header_set(&Rsp,"Content-Length",buf);
-   
-
-
     //返回请求头和请求体，除了文件
+    //把信息都打包到返回对象里然后传给接待线程
     char* C;
-    int allocsize=strlen(Rsp.headers->begin)+Rsp.body_size+17;
-    void* ptr2=NULL;
-    int notfull2=0;
-    int n2=MemoryPoolAlloc(profes->txt_pool,allocsize/1024+1,&ptr2,&notfull2);
+    PackTotal(&Rsp,&C);
 
-
-    if(notfull2==0)
-    {
-        Rsp.error_reason=503;
-    }
-    else
-    {
-        C=ptr2;
-    }
-
-    pack_task(&C,&Rsp);
-    if(Rsp.error_reason!=200)
-    {
+    if(Rsp.error_reason!=200){
         Send_thing_queue_push(W->Thing_queue, NULL,Fd,Serial,Rsp.error_reason,0,0,0,NULL,-1, 0);
-    }
-    else
-    {
-
+    }else{
         Send_thing_queue_push(W->Thing_queue, profes->memory_queue,Fd,Serial,200,allocsize,0,file_size,C,Rsp.send_fd,Rsp.offset);
     }
     
-    
-    
-    int e1=1;
-    while(e1!=0)
-    {
-        Memory_Queue_Entry m;
+    //最后清理一下已经发完的包
+    CleanMemoryQueue(profes);
         
-        m=Memory_Queue_top_and_pop(profes->memory_queue,&e1);
-        if(e1==1)
-        {
-            MemoryPoolFree(profes->txt_pool,m.char_ptr,(m.size/1024+1)*1024);
-        }
-    }
-        //把打包好的返回文本在内存池里填上，或者如果是错误包也指向对应错误包        
     }
     
     
     
-int deal_task(Request* r,Response* w)
+int DealWithTask(Request* r,Response* w)
 {
     char* url=(char*)(r->Url);
-    Handler func=Handler_Find(url);
+    Handler func=RouterHandlerFind(url);
 
-    if(func!=NULL)
-    {
-        func(r,w);
-    }
-    else
-    {
-        Response_error_set(w,404);
-    }
-
-    
-    
+    if(func!=NULL)  func(r,w);
+    else  Response_error_set(w,404);
 
     return 1;
 
 }
     
-int pack_task(char** c,Response* w)
+int PackBackHead(char** c,Response* w)
 {
     if(w->error_reason!=200)
     {
-        if(w->body!=NULL)
-        {
+        if(w->body!=NULL){
             MemoryPoolFree((Memory_Pool*)(w->pool),w->body,(w->body_size/1024+1)*1024);
         }
 
-        if(w->headers!=NULL)
-        {
+        if(w->headers!=NULL){
             MemoryPoolFree((Memory_Pool*)(w->pool),w->headers,64512);
         }
 
-        if(w->send_fd!=-1)
-        {
+        if(w->send_fd!=-1){
             close(w->send_fd);
         }
 
         return 1;
 
-    }
-    else
-    {
+    }else{
+
         char* a="HTTP/1.1 200 OK\r\n";
         strcpy(*c,a);
-        if(w->headers->begin<w->headers->ptr)
-        {
+        if(w->headers->begin<w->headers->ptr){
             strcat(*c,w->headers->begin);
             MemoryPoolFree((Memory_Pool*)(w->pool),w->headers,64512);
         }
-        if(w->body!=NULL)
-        {
+        if(w->body!=NULL){
             strcat(*c,w->body);
             MemoryPoolFree((Memory_Pool*)(w->pool),w->body,(w->body_size/1024+1)*1024);
         }
         
-
     }
         
     return 1;
 }
     
-int Http_get(profession* profes,char* ptr,Request_Analysiser** h,int size,int* error_reason,worker* w)
+int RequestGet(Worker_Thread* profes,char* ptr,Request_Analysiser** h,int size,int* error_reason,worker* w)
 {
-    int allocsize=4*(size)+sizeof(Request_Analysiser)+2*sizeof(Hash_map_2)+sizeof(Hash2_Entry_2)*14;
+    int allocsize=4*(size)+sizeof(Request_Analysiser)+2*sizeof(Analysiser_Hash)+sizeof(Analysiser_Hash_Entry)*14;
   
     RequestAnalysisInit(h,profes->http_pool,allocsize);
-        
+    
     memcpy((*h)->ptr,ptr,size);
     char* ptr2=(*h)->ptr;
     MemoryPoolFree(w->http_pool,ptr,1024*(size/1024+1));
     (*h)->ptr=(*h)->ptr+size;
     RequestAnalysisReceive(*h,ptr2,error_reason);
-    if(*error_reason!=200)
-    {
+    if(*error_reason!=200){
         RequestAnalysisFree((*h),profes->http_pool);
     }
         

@@ -131,7 +131,9 @@ int ResponseSendMain(worker* w,int fd,int ed_store_blocknum,int* send_info)
         int send_ed_fd=fd_ob->send_pointer_pool->store[next].send_fd;
         if(size_file!=fd_ob->send_pointer_pool->store[next].offset){
 
-            ssize_t sent = sendfile(send_fd,send_ed_fd, &fd_ob->send_pointer_pool->store[next].offset,size_file-fd_ob->send_pointer_pool->store[next].offset);
+            ssize_t sent = sendfile(send_fd,send_ed_fd, 
+                &fd_ob->send_pointer_pool->store[next].offset,
+                size_file-fd_ob->send_pointer_pool->store[next].offset);
             // 对端断开，关闭连接
             if (sent < 0 && errno == EPIPE) {  FdClose(w,send_fd,200);  close(send_ed_fd);  return 1;  }
             if (sent==0) {  FdClose(w,send_fd,200);  close(send_ed_fd);  return 1;  }

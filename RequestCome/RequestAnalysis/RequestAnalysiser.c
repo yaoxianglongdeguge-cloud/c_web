@@ -103,8 +103,8 @@ int DealUrlAndQuery(Request_Analysiser* h,char* urlAndQuery,int* failReason){
         if(lenu>MAX_URL_LEN){  *error_reason=414;  return 0;  }
         
         //创建查询条件hash
-        h->Query=(Hash_map_2*)h->ptr;
-        int e2=Hash2_Init(h,1);
+        h->Query=(Analysiser_Hash*)h->ptr;
+        int e2=AnalysiserHashInit(h,1);
         if(e2!=1){  *error_reason=400;  return -1;  }
         
         //开始切查询条件
@@ -116,7 +116,7 @@ int DealUrlAndQuery(Request_Analysiser* h,char* urlAndQuery,int* failReason){
             if(m){
                 *m='\0';
                 int e1=0;
-                e1=Hash2_Insert(h->Query,h,line2,m+1);
+                e1=AnalysiserHashInsert(h->Query,h,line2,m+1);
                 if(e1!=1){  *error_reason=400;  return -1;  }
             }
                     
@@ -132,8 +132,8 @@ int DealUrlAndQuery(Request_Analysiser* h,char* urlAndQuery,int* failReason){
 
 int DealHeaders(Http_analysis* h,char** save){
 
-    h->Headers=(Hash_map_2*)h->ptr;
-    int e0=Hash2_Init(h,1);
+    h->Headers=(Analysiser_Hash*)h->ptr;
+    int e0=AnalysiserHashInit(h,1);
     if(e0!=1){  *error_reason=400;  return -1;  }
     
     line = strtok_r(NULL, "\r\n", save);
@@ -149,7 +149,7 @@ int DealHeaders(Http_analysis* h,char** save){
             size_t lenm = strlen(m);
             if(lenm>MAX_HEADER_LEN){  *error_reason=431;  return 0;  }
 
-            int e1=Hash2_Insert(h->Headers,h,line,m);
+            int e1=AnalysiserHashInsert(h->Headers,h,line,m);
             if(e1!=1){  *error_reason=400;  return -1;  }
 
         }

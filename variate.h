@@ -1,10 +1,10 @@
 #include "include_standard.h"
 
 
-typedef struct route_1 route_1;
+typedef struct Router Router;
 
 typedef struct worker worker; 
-typedef struct profession profession;
+typedef struct Worker_Thread Worker_Thread;
 
 typedef struct Fd_Entry Fd_Entry;
 typedef struct Fd_Table Fd_Table;
@@ -31,16 +31,16 @@ typedef struct Memory_Pool Memory_Pool;
 typedef struct Timer Timer;
 
 
-typedef struct Entry Entry;
-typedef struct Hash_map Hash_map;
-typedef struct Hash2_Entry_2 Hash2_Entry_2;
-typedef struct Hash_map_2 Hash_map_2;
+typedef struct Router_Hash_Entry Router_Hash_Entry;
+typedef struct Router_Hash Router_Hash;
+typedef struct Analysiser_Hash_Entry Analysiser_Hash_Entry;
+typedef struct Analysiser_Hash Analysiser_Hash;
 typedef struct Timer_Entry Timer_Entry;
 typedef struct Prior_Queue_Timer Prior_Queue_Timer;
 
 typedef struct my_rwlock_t my_rwlock_t;
 
-extern route_1* Router;
+extern Router* Router;
 
 extern Task_queue* Task_Queue;
 

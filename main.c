@@ -9,7 +9,7 @@ typedef  struct main{
 } main_t;
 
 typedef  struct main2{
-    profession* p;
+    Worker_Thread* p;
 } main_t2;
 
 void* func1(void* arg)
@@ -22,7 +22,7 @@ void* func2(void* arg)
     main_t2* m=(main_t2*)arg;
     while(1)
     {
-    deal_and_pack(m->p);
+    WorkerMain(m->p);
     }
 }
 
@@ -63,8 +63,8 @@ int Web_Driver(char* IPaddr,int PORT, HandlerFunc Handler)
 
     pthread_t tid2;
     
-    profession* p1;
-    profession_init(&p1,1);
+    Worker_Thread* p1;
+    WorkerThreadInit(&p1,1);
     main_t2 m5 = {.p=p1};
     
     pthread_create(&tid2, NULL, func2, &m5);
@@ -92,20 +92,20 @@ pthread_create(&tid1, NULL, func1, &m3);
 pthread_create(&tid1, NULL, func1, &m4);
 */
 
-profession* p2;
-profession_init(&p2,2);
+Worker_Thread* p2;
+WorkerThreadInit(&p2,2);
 
 main_t2 m6 = {.p=p2};
 pthread_create(&tid2, NULL, func2, &m6);
 
 /*
-profession* p3;
-profession_init(&p3,3);
+Worker_Thread* p3;
+WorkerThreadInit(&p3,3);
 
 main_t2 m7 = {.p=p3};
 
-profession* p4;
-profession_init(&p4,4);
+Worker_Thread* p4;
+WorkerThreadInit(&p4,4);
 
 main_t2 m8 = {.p=p4};
 

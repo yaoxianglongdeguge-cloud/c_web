@@ -13,8 +13,8 @@ typedef struct Request_Analysiser{
     char* Method;
     char* Url;
     char* Version; 
-    Hash_map_2* Query;
-    Hash_map_2* Headers;
+    Analysiser_Hash* Query;
+    Analysiser_Hash* Headers;
     char* Body;
     char* ptr;//下一个可用内存开头数据，用来连续存储内存和一次性释放内存
     char* end;//能分配的最远地方，主要是用来适配统一释放这个问题，这样可以直接操纵从哪里释放到哪里

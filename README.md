@@ -7,7 +7,7 @@ HTTP 状态机解析、有序发送、断连定时器与跨线程内存所有权
 ## 核心特性
 
 - **半同步/半异步线程模型**：`worker`（收发线程，负责 accept / epoll / 读请求 / 发响应）
-  + `profession`（业务线程，负责 HTTP 解析 / 路由分发 / 构造响应），通过全局任务队列解耦。
+  + `Worker_Thread`（业务线程，负责 HTTP 解析 / 路由分发 / 构造响应），通过全局任务队列解耦。
 - **请求保序**：每个请求从读入起分配递增序号 `serial`，发送端用环形槽位
   `serial % blocknum` 保证同连接上响应顺序与请求顺序一致（乱序处理、有序发出）。
 - **HTTP 状态机 + 分块暂存**：`Request_Temp_Pool` 处理拆包/粘包；`StateMachine` 判定请求完整性；
@@ -34,7 +34,7 @@ HTTP 状态机解析、有序发送、断连定时器与跨线程内存所有权
                 └──────────────────────┬───────────────────────┘
                                        │ Task_Queue（全局，容量100，双信号量+锁）
                 ┌──────────────────────▼───────────────────────┐
-                │  profession 线程 ×2（业务处理）                │
+                │  Worker_Thread 线程 ×2（业务处理）                │
                 │  · HTTP 解析 / 路由分发 / 构造响应            │
                 │  · 结果投回对应 worker 的发送队列             │
                 └──────────────────────┬───────────────────────┘
@@ -42,7 +42,7 @@ HTTP 状态机解析、有序发送、断连定时器与跨线程内存所有权
                 ┌──────────────────────▼───────────────────────┐
                 │  worker 发送端：按 serial 保序 write / sendfile│
                 └──────────────────────┬───────────────────────┘
-                                       │ Memory_Queue（响应内存归还给 profession 释放）
+                                       │ Memory_Queue（响应内存归还给 Worker_Thread 释放）
                                        ▼
 ```
 
@@ -50,8 +50,8 @@ HTTP 状态机解析、有序发送、断连定时器与跨线程内存所有权
 
 ```
 accept → epoll → RequestComeMain 读入暂存区 → StateMachine 判定完整请求 → 复制到 http_pool
-→ 投递 Task_Queue → profession: 解析头部/URL/Query → Handler_Find(url) → 业务函数写 Response
-→ pack_task 打包 → Send_thing_queue → worker 按 serial 保序发送 → 内存经 Memory_Queue 归还
+→ 投递 Task_Queue → Worker_Thread: 解析头部/URL/Query → RouterHandlerFind(url) → 业务函数写 Response
+→ PackBackHead 打包 → Send_thing_queue → worker 按 serial 保序发送 → 内存经 Memory_Queue 归还
 ```
 
 ## 目录结构
@@ -116,8 +116,8 @@ static void handler_echo(Request* r, Response* w)
 /* 路由注册回调：在监听 socket 建立前被 Web_Driver 调用 */
 static void register_routes(void)
 {
-    Handler_append("/", handler_home);
-    Handler_append("/echo", handler_echo);
+    RouterAppend("/", handler_home);
+    RouterAppend("/echo", handler_echo);
 }
 
 int main(void)
@@ -136,16 +136,16 @@ int main(void)
 int Web_Driver(char* IPaddr, int PORT, HandlerFunc Handler);
 ```
 
-- `Handler`：`void (*)(void)` 回调，在 socket 建立**之前**执行，用于 `Handler_append` 注册路由。
+- `Handler`：`void (*)(void)` 回调，在 socket 建立**之前**执行，用于 `RouterAppend` 注册路由。
 - 内部流程：忽略 SIGPIPE → 初始化全局路由表与任务队列 → 回调注册路由 →
-  创建监听 socket → 启动 2 个 profession 线程 → **当前线程进入 worker 事件循环（阻塞）**。
+  创建监听 socket → 启动 2 个 Worker_Thread 线程 → **当前线程进入 worker 事件循环（阻塞）**。
 
 ### 路由
 
 ```c
 typedef void (*Handler)(Request*, Response*);
-int Handler_append(char* url, Handler func);   // 注册 URL → 处理函数（静态精确匹配）
-Handler Handler_Find(char* url);               // 查找（未命中返回 NULL → 404）
+int RouterAppend(char* url, Handler func);   // 注册 URL → 处理函数（静态精确匹配）
+Handler RouterHandlerFind(char* url);               // 查找（未命中返回 NULL → 404）
 ```
 
 ### 请求（只读）
@@ -155,8 +155,8 @@ typedef struct Request {
     const char* const Method;      // "GET" / "POST" ...
     const char* const Url;         // 去掉查询串的路径，如 "/echo"
     const char* const Version;     // "HTTP/1.1"
-    const Hash_map_2* const Query; // 查询参数键值表
-    const Hash_map_2* const Headers;// 请求头键值表
+    const Analysiser_Hash* const Query; // 查询参数键值表
+    const Analysiser_Hash* const Headers;// 请求头键值表
     const char* const Body;        // 请求体
 } Request;
 
@@ -187,18 +187,18 @@ int Response_error_set(Response* r, int error);                 // 设置错误�
 | 空闲超时 | `main_t m1 = {.time = 1}` | 1 秒 | 超过无活动返回 408 |
 | 在途请求上限 | `ed_store_blocknum` | 100 | 每连接未发完请求数上限（发送槽数） |
 | worker 内存池 | `worker_init` → `http_pool(6,6,500,400)` / `store_area(10,6,500,400)` | — | 读侧：请求副本 / 暂存区 / 发送槽 |
-| profession 内存池 | `profession_init` → `txt_pool(7,7,200,120)` / `http_pool(6,6,10,10)` | — | 写侧：响应头/体/解析结构 |
+| Worker_Thread 内存池 | `WorkerThreadInit` → `txt_pool(7,7,200,120)` / `http_pool(6,6,10,10)` | — | 写侧：响应头/体/解析结构 |
 | 任务队列容量 | `global_resource_init(100)` | 100 | 全局 Task_Queue |
-| profession 线程数 | `Web_Driver` 内 `pthread_create(func2)` | 2 | 可增减 |
+| Worker_Thread 线程数 | `Web_Driver` 内 `pthread_create(func2)` | 2 | 可增减 |
 
 > 内存池为**非扩容**语义：某大小类并发占用超过预分配条数时，新分配返回 `notfull=0`，
 > 上层降级 503。压测规模大时请调大 `*_init` 的 `strip_num` 参数。
 
 ## 内存管理约定
 
-- **所有权明确**：worker 侧内存池（`http_pool`/`store_area`）与 profession 侧内存池
+- **所有权明确**：worker 侧内存池（`http_pool`/`store_area`）与 Worker_Thread 侧内存池
   （`txt_pool`/`http_pool`）各自独立，跨线程只转移"使用权"，最终由所属线程释放。
-- 响应文本发完后经 `Memory_Queue` 交回 profession 释放；请求副本解析完即归还 worker 的 `http_pool`。
+- 响应文本发完后经 `Memory_Queue` 交回 Worker_Thread 释放；请求副本解析完即归还 worker 的 `http_pool`。
 - `Response_body_set` / `Response_header_set` 内部自动从 `txt_pool` 分配，业务代码**无需手动释放**
   （打包完成后框架统一回收）。文件 fd 由框架在发送完毕后 `close`。
 - 路由表 URL 以**指针保存不复制**：注册时请传静态字符串或确保字符串生命周期覆盖整个服务期。

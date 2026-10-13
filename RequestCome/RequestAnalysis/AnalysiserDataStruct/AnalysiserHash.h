@@ -1,30 +1,30 @@
 #include "../variate.h"
 //内存池分配专用哈希表
 
-typedef struct Hash2_Entry_2{
+typedef struct Analysiser_Hash_Entry{
     
     char* key;//键
     void* value;//值
-    struct Hash2_Entry_2* next;//指向下一个元素
+    struct Analysiser_Hash_Entry* next;//指向下一个元素
 
-}Hash2_Entry_2;
+}Analysiser_Hash_Entry;
 
-typedef struct Hash_map_2
+typedef struct Analysiser_Hash
 {
    int bu_num;
    int elem_num;
-   Hash2_Entry_2* Elem;
+   Analysiser_Hash_Entry* Elem;
    
-}Hash_map_2;
+}Analysiser_Hash;
 
-int Hash2_Init(Request_Analysiser* Http, int init);//初始化.但这个最开始的哈希表没必要放到内存池，因为是这样，先是一个指针h，指向一个哈希表，这个表是用来存储本身信息和指向
+int AnalysiserHashInit(Request_Analysiser* Http, int init);//初始化.但这个最开始的哈希表没必要放到内存池，因为是这样，先是一个指针h，指向一个哈希表，这个表是用来存储本身信息和指向
 //键值对块的指针的，而存储键值对块的内存块放到内存池里。因为需要时常修改。而这个表本身大小和位置不会变，生命周期也很长，所以没必要放到内存池，每次和其他的一起注册。
 
-int Hash2_Insert(Hash_map_2* h,Request_Analysiser* Http, char* url,void* func);//插入.要指明用哪个类型内存池
+int AnalysiserHashInsert(Analysiser_Hash* h,Request_Analysiser* Http, char* url,void* func);//插入.要指明用哪个类型内存池
 
-char* Hash2_Find(Hash_map_2* h,char* url,int* Error);//查找
+char* AnalysiserHashFind(Analysiser_Hash* h,char* url,int* Error);//查找
 
-int Hash2_Free(Hash_map_2* h,int type,void* pool);
+int Hash2_Free(Analysiser_Hash* h,int type,void* pool);
 
 
 
