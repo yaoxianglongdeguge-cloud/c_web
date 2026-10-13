@@ -1,4 +1,4 @@
-#include "../variate.h"
+#include "../../Include/Variate.h"
 
 typedef struct Worker_Queue_Entry{
 
@@ -24,7 +24,7 @@ typedef struct Worker_Queue{
 }Worker_Queue;
 
 
-int MemoryQueueInitMemory_Queue** sq,int blocknum);
+int WorkerQueueInit(Worker_Queue** sq,int blocknum);
 
 int WorkerQueuePush(Worker_Queue*sq,int size,char*char_ptr);
 

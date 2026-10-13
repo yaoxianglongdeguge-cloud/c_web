@@ -1,4 +1,4 @@
-#include "../include.h"
+#include "../../Include/Include.h"
 
 
 unsigned long salt=0;//随机数防止攻击者发送特定信息都哈希选进一个桶里
@@ -155,7 +155,7 @@ int RouterHashExpend(Router_Hash** h)
             Handler func=n->value;
             RouterHashInsert(&m,m,url,func);
             n=n->next;
-        }
+        
         }
     }
 

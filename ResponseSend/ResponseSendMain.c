@@ -1,8 +1,8 @@
-#include "../include.h"
+#include "../Include/Include.h"
 
 int FdNextSendPut(Fd_Entry* fd_ob,Receiver_Queue_Entry* s){
 
-    int next=s.serial%fd_ob->send_pointer_pool->blocknum;
+    int next=s->serial%fd_ob->send_pointer_pool->blocknum;
                     
     fd_ob->send_pointer_pool->store[next].use=1;
     fd_ob->send_pointer_pool->store[next].error_reason=s->error_reason;
@@ -21,9 +21,9 @@ int GetAndJudge(Receiver_Thread* w,int fd,int edStoreBlockNum,int* send_info,int
 
     *send_info=0;
     Receiver_Queue_Entry s;
-    while(e0!=0&&send_fd==-2){
-        
-        int e0=1;
+    int e0=1;
+    while(e0!=0&&*sendFd==-2){
+
         s = ReceiverQueueTopAndPop(w->Thing_queue,&e0);
         if(e0!=1) continue ;
 
@@ -56,7 +56,7 @@ int GetAndJudge(Receiver_Thread* w,int fd,int edStoreBlockNum,int* send_info,int
 
 }
 
-int MemoryQueuePushOperate(Fd_Entry* fd_ob){
+int MemoryQueuePushOperate(Fd_Entry* fd_ob,int next){
 
     Worker_Queue* m=fd_ob->send_pointer_pool->store[next].m_queue;
     int size_resp=fd_ob->send_pointer_pool->store[next].size_resp;
@@ -121,7 +121,7 @@ int ResponseSendMain(Receiver_Thread* w,int fd,int ed_store_blocknum,int* send_i
             } else if(n>=len) {
                 
                 EpollChangeRead(w->epfd,send_fd);    
-                MemoryQueuePushOperate(fd_ob);
+                MemoryQueuePushOperate(fd_ob,next);
 
             }
         }

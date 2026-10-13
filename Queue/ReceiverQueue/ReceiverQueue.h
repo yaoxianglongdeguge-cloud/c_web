@@ -1,4 +1,4 @@
-#include "../variate.h"
+#include "../../Include/Variate.h"
 
 typedef struct Receiver_Queue_Entry{
 

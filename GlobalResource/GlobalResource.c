@@ -1,18 +1,16 @@
-#include "../include.h"
+#include "../Include/Include.h"
 
-Task_Queue* Task_Queue;
+Task_Queue* taskQueue;
 
-Router* Router;
+Router* router;
 
-
-
-int GlobalResourceInit(int Task_Queue_blocknum,HandlerFunc Handler)
+int GlobalResourceInit(int Task_Queue_blocknum,RouterFunc Handler)
 {
-    Router=(Router*)malloc(sizeof(Router));
+    router=(Router*)malloc(sizeof(Router));
     RouterInit();
     Handler();
 
-    TasKQueueInit(&Task_Queue,Task_Queue_blocknum);
+    TasKQueueInit(&taskQueue,Task_Queue_blocknum);
 
 }
 

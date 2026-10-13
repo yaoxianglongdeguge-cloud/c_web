@@ -1,4 +1,4 @@
-#include "../include.h"
+#include "../../Include/Include.h"
 
 #define MAX_URL_LEN 8192         // 8KB
 #define MAX_HEADER_LEN 16384     // 16KB
@@ -77,7 +77,7 @@ int RequestAnalysisReceive(Request_Analysiser* h,char* http_request,int *error_r
 
 int DealFirst(char* Line,char** method,char** urlAndQuery,char** version){
     char *save_p;
-    *method = strtok_r(line, " ", &save_p);
+    *method = strtok_r(Line, " ", &save_p);
     *urlAndQuery = strtok_r(NULL, " ", &save_p);
     *version= strtok_r(NULL, " ", &save_p);
     return 1;
@@ -88,9 +88,9 @@ int DealUrlAndQuery(Request_Analysiser* h,char* urlAndQuery,int* failReason){
 
     if(path_cut==NULL){
 
-        h->Url=path;
+        h->Url=urlAndQuery;
         size_t lenu = strlen(h->Url);
-        if(lenu>MAX_URL_LEN){  *error_reason=414;  return 0;  }
+        if(lenu>MAX_URL_LEN){  *failReason=414;  return 0;  }
 
     }else{//要切的话首先要有查询条件，如果没有就会返回NULL，如果不特殊处理就会导致对着一个NULL指针操作，得不到url
         
@@ -100,12 +100,12 @@ int DealUrlAndQuery(Request_Analysiser* h,char* urlAndQuery,int* failReason){
         
 
         size_t lenu = strlen(h->Url);
-        if(lenu>MAX_URL_LEN){  *error_reason=414;  return 0;  }
+        if(lenu>MAX_URL_LEN){  *failReason=414;  return 0;  }
         
         //创建查询条件hash
         h->Query=(Analysiser_Hash*)h->ptr;
         int e2=AnalysiserHashInit(h,1);
-        if(e2!=1){  *error_reason=400;  return -1;  }
+        if(e2!=1){  *failReason=400;  return -1;  }
         
         //开始切查询条件
         char *save2;
@@ -117,12 +117,12 @@ int DealUrlAndQuery(Request_Analysiser* h,char* urlAndQuery,int* failReason){
                 *m='\0';
                 int e1=0;
                 e1=AnalysiserHashInsert(h->Query,h,line2,m+1);
-                if(e1!=1){  *error_reason=400;  return -1;  }
+                if(e1!=1){  *failReason=400;  return -1;  }
             }
                     
             line2 = strtok_r(NULL, "&", &save2);
 
-            }while (line2 != NULL)
+            }while (line2 != NULL);
 
         }
 
@@ -130,13 +130,13 @@ int DealUrlAndQuery(Request_Analysiser* h,char* urlAndQuery,int* failReason){
         
 }
 
-int DealHeaders(Http_analysis* h,char** save){
+int DealHeaders(Request_Analysiser* h,char** save,int* failReason){
 
     h->Headers=(Analysiser_Hash*)h->ptr;
     int e0=AnalysiserHashInit(h,1);
-    if(e0!=1){  *error_reason=400;  return -1;  }
+    if(e0!=1){  *failReason=400;  return -1;  }
     
-    line = strtok_r(NULL, "\r\n", save);
+    char* line = strtok_r(NULL, "\r\n", save);
     while (line != NULL) {
     
         char* m=strchr(line,':');
@@ -147,10 +147,10 @@ int DealHeaders(Http_analysis* h,char** save){
             while(*m==' ') m++;
             
             size_t lenm = strlen(m);
-            if(lenm>MAX_HEADER_LEN){  *error_reason=431;  return 0;  }
+            if(lenm>MAX_HEADER_LEN){  *failReason=431;  return 0;  }
 
             int e1=AnalysiserHashInsert(h->Headers,h,line,m);
-            if(e1!=1){  *error_reason=400;  return -1;  }
+            if(e1!=1){  *failReason=400;  return -1;  }
 
         }
             // 处理 line，按 : 切键和值
@@ -172,10 +172,10 @@ int RequestAnalysisHead(Request_Analysiser* h,char* http_head,int* error_reason)
     DealFirst(line,&(h->Method),&urlAndQuery,&(h->Version));
 
     //处理url和查询条件
-    DealUrlAndQuery(h,&urlAndQuery,error_reason);
+    DealUrlAndQuery(h,urlAndQuery,error_reason);
         
     //处理header
-    DealHeaders(h,&save);
+    DealHeaders(h,&save,error_reason);
         
     return 1;
 

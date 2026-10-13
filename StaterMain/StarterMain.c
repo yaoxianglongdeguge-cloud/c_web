@@ -1,4 +1,4 @@
-#include "include.h"
+#include "../Include/Include.h"
 
 typedef  struct main{
     Receiver_Thread* w;
@@ -38,7 +38,7 @@ int IgnoreSignal(){
     return 1;
 }
 
-int DriveListen(char* IPaddr,int PORT){
+int DriveListen(int* Fd,char* IPaddr,int PORT){
 
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     int opt = 1;
@@ -57,7 +57,7 @@ int DriveListen(char* IPaddr,int PORT){
     return 1;
 }
 
-int StartThread(){
+int StartThread(int fd){
     pthread_t tid2;
     
     Worker_Thread* p1;
@@ -81,23 +81,21 @@ int StartThread(){
 
 }
 
-
-typedef void (*HandlerFunc)();
-
-int WebStater(char* IPaddr,int PORT, HandlerFunc Handler) 
+int WebStater(char* IPaddr,int PORT, RouterFunc Handler) 
 {
 
     //忽略信号
     IgnoreSignal();
 
     //初始化全局资源，加载路由函数
-    GlobalResourceInit(100);
+    GlobalResourceInit(100,Handler);
 
     //启动监听
-    DriveListen(IPaddr,PORT);
+    int Fd=-1;
+    DriveListen(&Fd,IPaddr,PORT);
 
     //开启线程
-    StartThread();
+    StartThread(Fd);
     
     return 1;
     

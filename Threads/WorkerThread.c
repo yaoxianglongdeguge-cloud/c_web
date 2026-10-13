@@ -1,11 +1,11 @@
-#include "../include.h"
+#include "../Include/Include.h"
 
 
 int DealWithTask(Request* r,Response* w); //处理业务任务
 int PackBackHead(char** c,Response* w);
 int RequestGet(Worker_Thread* profes,char* ptr,Request_Analysiser** h,int size,int* error_reason,Receiver_Thread* w);
 
-int RspHeaderAlloc(Response* Rsp){
+int RspHeaderAlloc(Worker_Thread* profes,Response* Rsp){
 
     void* ptr=NULL;
     int notfull=0;
@@ -15,25 +15,25 @@ int RspHeaderAlloc(Response* Rsp){
     Rsp->headers=ptr;
     ptr=ptr+sizeof(Response_Header_Entry);
     Rsp->headers->begin=ptr;
-    Rsp->=headers->ptr=Rsp.headers->begin;
-    Rsp->headers->end=Rsp.headers->begin+64512;
+    Rsp->headers->ptr=Rsp->headers->begin;
+    Rsp->headers->end=Rsp->headers->begin+64512;
 
     return 1;
 
 }
 
-int PackTotal(Response* Rsp,char** C){
+int PackTotal(Worker_Thread* profes,Response* Rsp,char** C,int* allocsize,off_t* file_size){
 
     //如果有要发的文件，计算文件大小
-    off_t file_size=0;
+    *file_size=0;
     if(Rsp->send_fd!=-1){
         struct stat st;
         fstat(Rsp->send_fd, &st);
-        file_size = st.st_size; 
+        *file_size = st.st_size; 
     }
 
     //计算文件和请求体总的大小，并计入响应头
-    off_t totalbody_size=(off_t)Rsp->body_size+file_size;
+    off_t totalbody_size=(off_t)Rsp->body_size+*file_size;
     char buf[32];
     snprintf(buf, sizeof(buf), "%ld", (long)totalbody_size);
     ResponseHeaderSet(Rsp,"Content-Length",buf);
@@ -41,10 +41,10 @@ int PackTotal(Response* Rsp,char** C){
 
 
     //返回请求头和请求体，文件不用打包，直接把fd传给接待线程
-    int allocsize=strlen(Rsp->headers->begin)+Rsp->body_size+17;
+    *allocsize=strlen(Rsp->headers->begin)+Rsp->body_size+17;
     void* ptr2=NULL;
     int notfull2=0;
-    MemoryPoolAlloc(profes->txt_pool,allocsize/1024+1,&ptr2,&notfull2);
+    MemoryPoolAlloc(profes->txt_pool,*allocsize/1024+1,&ptr2,&notfull2);
 
     if(notfull2==0)  Rsp->error_reason=503;
     else  *C = ptr2;
@@ -73,7 +73,7 @@ int WorkerThreadInit(Worker_Thread** profes,int id)
   
     *profes=(Worker_Thread*)malloc(sizeof(Worker_Thread));
     (*profes)->id=id;
-    WorkerQueueInit&((*profes)->memory_queue),100);
+    WorkerQueueInit(&((*profes)->memory_queue),100);
     MemoryPoolInit(&((*profes)->txt_pool),7,7,200,120);
     MemoryPoolInit(&((*profes)->http_pool),6,6,10,10);
     return 1;
@@ -83,8 +83,8 @@ int WorkerThreadInit(Worker_Thread** profes,int id)
 int WorkerMain(Worker_Thread* profes){
 
     Task_Queue_Entry t;
-    
-    t=TasKQueueTopAndPop(Task_Queue,&e0);
+    int e0=0;
+    t=TasKQueueTopAndPop(taskQueue,&e0);
     
     //拿到请求
     int Error_reason=t.error_reason;
@@ -104,7 +104,7 @@ int WorkerMain(Worker_Thread* profes){
         .offset=0
     };
     //打包对象头部行分配
-    RspHeaderAlloc(&Rsp);
+    RspHeaderAlloc(profes,&Rsp);
 
     //任务执行
     if(Error_reason==200){
@@ -133,7 +133,9 @@ int WorkerMain(Worker_Thread* profes){
     //返回请求头和请求体，除了文件
     //把信息都打包到返回对象里然后传给接待线程
     char* C;
-    PackTotal(&Rsp,&C);
+    int allocsize=0;
+    off_t file_size=0;
+    PackTotal(profes,&Rsp,&C,&allocsize,&file_size);
 
     if(Rsp.error_reason!=200){
         ReceiverQueuePush(W->Thing_queue, NULL,Fd,Serial,Rsp.error_reason,0,0,0,NULL,-1, 0);

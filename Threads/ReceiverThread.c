@@ -1,4 +1,4 @@
-#include "../include.h"
+#include "../Include/Include.h"
 
 int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id)
 {
@@ -14,7 +14,7 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id)
 
     (*w)->epfd=epoll_create1(0);
     (*w)->id=id;
-    EpollReadMount(w->epdf,Listen_fd);
+    EpollReadMount((*w)->epfd,Listen_fd);
 
     return 1;
 
@@ -22,7 +22,7 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id)
 
 int ReceiverToWorker(Receiver_Thread* w,int fd,char* h,int h_size,int error_reason,int serial)
 {
-    int e0=TasKQueuePush(Task_Queue,w,fd,serial,error_reason,h,h_size);
+    int e0=TasKQueuePush(taskQueue,w,fd,serial,error_reason,h,h_size);
 }
 
 int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_blocknum)

@@ -1,4 +1,4 @@
-#include "../../include.h"
+#include "../../Include/Include.h"
 
 
 static const int PRIME_BUCKET_SIZES_3[15] = {
@@ -52,8 +52,8 @@ int FdTableFind(Fd_Table* h,int fd,Fd_Entry** ptr)//-1为过程错误，用来�
 
     Fd_Entry* p=FdEntryFind(head,fd,&e);
 
-    if(e==1&&p->next!=NULL&&p->next->fd==fd) *ptr=p->next; return 1;
-    else return -1;
+    if(e==1&&p->next!=NULL&&p->next->fd==fd) {*ptr=p->next; return 1 ;}
+    else { return -1; }
 
     return 0;
 

@@ -1,7 +1,8 @@
-#include "include_standard.h"
+#include "IncludeStandard.h"
 
 
 typedef struct Router Router;
+typedef void (*RouterFunc)();
 
 typedef struct Receiver_Thread Receiver_Thread; 
 typedef struct Worker_Thread Worker_Thread;
@@ -40,9 +41,9 @@ typedef struct Prior_Queue_Timer Prior_Queue_Timer;
 
 typedef struct my_rwlock_t my_rwlock_t;
 
-extern Router* Router;
+extern Router* router;
 
-extern Task_Queue* Task_Queue;
+extern Task_Queue* taskQueue;
 
 extern sem_t sem_task_queue_notfull;
 

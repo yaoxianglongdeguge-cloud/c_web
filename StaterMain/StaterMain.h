@@ -1,5 +1,3 @@
-#include "variate.h"
+#include "../Include/Variate.h"
 
-typedef void (*HandlerFunc)();
-
-int WebStater(char* IPaddr,int PORT,HandlerFunc Handler) ;
+int WebStater(char* IPaddr,int PORT,RouterFunc Handler) ;

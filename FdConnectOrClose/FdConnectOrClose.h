@@ -1,4 +1,4 @@
-#include "../variate.h"
+#include "../Include/Variate.h"
 
 int FdConnect(Receiver_Thread* w,int Listen_fd);
 

@@ -13,8 +13,8 @@ TARGET = main
 # 静态库
 LIB_TARGET = libcweb.a
 
-# 自动查找所有 .c 文件
-SRCS = $(wildcard *.c */*.c)
+# 自动查找所有 .c 文件（目录最深三层，如 FdConnectManage/Timer/TimerDataStruct/）
+SRCS = $(wildcard *.c */*.c */*/*.c */*/*/*.c)
 OBJS = $(SRCS:.c=.o)
 
 # 编译规则

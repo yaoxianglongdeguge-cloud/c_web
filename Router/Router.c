@@ -1,9 +1,9 @@
-#include"../include.h"
+#include "../Include/Include.h"
 
 int RouterInit()
 {
     int e=0;
-    Router->Hrt=RouterHashInit(&e,2);
+    router->Hrt=RouterHashInit(&e,2);
 
     if(e!=1) return -1;
 
@@ -12,7 +12,7 @@ int RouterInit()
 
 int RouterAppend(char* url,Handler func)
 {
-   int a = RouterHashInsert(&(Router->Hrt),Router->Hrt,url,func);
+   int a = RouterHashInsert(&(router->Hrt),router->Hrt,url,func);
    if(a!=1) return -1;
 
    return 1;
@@ -21,7 +21,7 @@ int RouterAppend(char* url,Handler func)
 Handler RouterHandlerFind(char* url)
 {
     int error=0;
-    Router_Hash_Entry* e=RouterHashFind(Router->Hrt,url,&error);
+    Router_Hash_Entry* e=RouterHashFind(router->Hrt,url,&error);
     if(error!=1) return NULL;
 
     Handler h=e->value;

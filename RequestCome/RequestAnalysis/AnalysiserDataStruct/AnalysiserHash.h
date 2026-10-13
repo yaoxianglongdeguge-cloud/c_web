@@ -1,4 +1,4 @@
-#include "../variate.h"
+#include "../../../Include/Variate.h"
 //内存池分配专用哈希表
 
 typedef struct Analysiser_Hash_Entry{

@@ -1,4 +1,4 @@
-#include "../include.h"
+#include "../../Include/Include.h"
 
 
 #define MAX_BODY_SIZE (1024 * 1024)  // 1MB
@@ -20,12 +20,12 @@ char *strnstr_match(char *haystack, char *needle, size_t n) {
     return strnstr(haystack, needle, n);
 }//匹配并返回指针函数，如果以后有需要，可以换成KMP算法
 
-int MethodMatch(int* sit,char** method){
-    char* method=NULL;
+int MethodMatch(Request_Temp_Pool* hs,int* sit,char** method){
+    method=NULL;
 
-    for(;*i<9;(*i)++){
+    for(;*sit<9;(*sit)++){
 
-        *method=strnstr_match(hs->begin,Method_p[i],);8
+        *method=strnstr_match(hs->begin,Method_p[*sit],8);
         if(*method!=NULL)
         {
             break;
@@ -39,13 +39,13 @@ int MethodMatch(int* sit,char** method){
 
 int BodyLength(int* len,char* bodylength){
     bodylength=bodylength+15;
-    while(*body_length==' ') body_length++;
+    while(*bodylength==' ') bodylength++;
 
     char length_num[100];
     int i=0;
-    while(body_length[i] != '\r' && body_length[i] != '\0' && i < 99){
+    while(bodylength[i] != '\r' && bodylength[i] != '\0' && i < 99){
 
-        length_num[i] = body_length[i];
+        length_num[i] = bodylength[i];
         i++;
     }
     length_num[i] = '\0';
@@ -71,13 +71,13 @@ int RequestIntergrityJudge(Request_Temp_Pool* hs,char** ptr,int* fail,int* fail_
     
     //判断方法存在
     if(hs->state_machine->h_method==0){
-        if(check_size<=7){  *fail=-1;  return;  }
+        if(check_size<=7){  *fail=-1;  return 0;  }
 
         int i=0;
         char* method;
-        MethodMatch(&i,&method);
+        MethodMatch(hs,&i,&method);
 
-        if(method==NULL){  *fail=0;  *fail_reason=400;  return ;  }
+        if(method==NULL){  *fail=0;  *fail_reason=400;  return 0;  }
          
         hs->state_machine->h_method=i;     
     }
@@ -86,7 +86,7 @@ int RequestIntergrityJudge(Request_Temp_Pool* hs,char** ptr,int* fail,int* fail_
     if(hs->state_machine->h_rnrn==0){
 
         char* rnrn=strnstr_match(hs->begin,"\r\n\r\n",check_size);
-        if(rnrn==NULL){  *fail=-1;  return;  }
+        if(rnrn==NULL){  *fail=-1;  return 0;  }
 
         *fail=1;
         hs->state_machine->h_rnrn=1;
@@ -100,7 +100,7 @@ int RequestIntergrityJudge(Request_Temp_Pool* hs,char** ptr,int* fail,int* fail_
 
             hs->state_machine->h_body_length=0;
 
-            if(hs->state_machine->h_method>=7){  *fail_reason=411;  *fail=0;  return ;  }
+            if(hs->state_machine->h_method>=7){  *fail_reason=411;  *fail=0;  return 0;  }
 
         }else{
             *fail=0;
@@ -108,7 +108,7 @@ int RequestIntergrityJudge(Request_Temp_Pool* hs,char** ptr,int* fail,int* fail_
             int len=0;
             BodyLength(&len,body_length);
 
-            if(len>MAX_BODY_SIZE){  *fail_reason=413;  *fail=0;  return ;  }
+            if(len>MAX_BODY_SIZE){  *fail_reason=413;  *fail=0;  return 0;  }
 
             target=target+4+len;
             if(target<hs->ptr_e){ *fail=1; } else { *fail=-1; }
@@ -118,6 +118,6 @@ int RequestIntergrityJudge(Request_Temp_Pool* hs,char** ptr,int* fail,int* fail_
     }
 
     *ptr = target;
-    return ;
+    return 1;
 
 }

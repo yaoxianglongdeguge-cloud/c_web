@@ -1,4 +1,4 @@
-#include "../variate.h"
+#include "../../Include/Variate.h"
 
 //路由注册专用哈希表
 

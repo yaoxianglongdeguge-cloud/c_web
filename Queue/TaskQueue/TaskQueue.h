@@ -1,4 +1,4 @@
-#include "../variate.h"
+#include "../../Include/Variate.h"
 
 typedef struct Task_Queue_Entry{
 

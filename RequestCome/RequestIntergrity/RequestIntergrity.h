@@ -1,3 +1,3 @@
-#include "../variate.h"
+#include "../../Include/Variate.h"
 
-char* RequestIntergrityJudge(Request_Temp_Pool* hs,int* error,int* error_reason);
+int RequestIntergrityJudge(Request_Temp_Pool* hs,char** ptr,int* fail,int* fail_reason);
