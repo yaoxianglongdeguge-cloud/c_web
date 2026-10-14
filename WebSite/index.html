@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>c_web · 纯 C 并发 HTTP 服务器</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="brand"><span class="dot"></span> c_web</div>
+  <nav>
+    <a href="/" class="active">首页</a>
+    <a href="/about">关于</a>
+    <a href="/download/10mb">10MB 下载</a>
+    <a href="/no-such-route">404 演示</a>
+  </nav>
+</header>
+
+<main>
+  <section class="hero">
+    <h1>c_web is running</h1>
+    <p class="sub">纯 C 从零实现的 HTTP/1.1 服务器：半同步/半异步线程模型 + 内存池 + 有序发送 + sendfile 零拷贝。</p>
+    <div class="badges">
+      <span class="badge" id="status">状态检测中…</span>
+      <span class="badge dim">监听 127.0.0.1:5343</span>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <h3>Receiver / Worker 双线程</h3>
+      <p>收发线程负责 accept、epoll、读包与保序发送；业务线程负责解析、路由与构造响应，靠全局任务队列解耦。</p>
+    </div>
+    <div class="card">
+      <h3>请求保序</h3>
+      <p>同一连接上响应按 <code>serial</code> 递增顺序发出，应用层可以乱序处理、框架保证有序回包。</p>
+    </div>
+    <div class="card">
+      <h3>状态机拆包</h3>
+      <p>暂存区 + 状态机处理粘包/半包，请求超过暂存区时自动扩容，超大请求回 413。</p>
+    </div>
+    <div class="card">
+      <h3>分级内存池</h3>
+      <p>响应头/体自动从内存池分配，池满降级 503，跨线程内存经队列归还，绝不跨线程 free。</p>
+    </div>
+    <div class="card">
+      <h3>sendfile 零拷贝</h3>
+      <p>静态文件直接 <code>sendfile</code> 到 socket，10MB 文件下载不用进用户态缓冲区。</p>
+    </div>
+    <div class="card">
+      <h3>错误响应</h3>
+      <p>400 / 404 / 405 / 408 / 413 / 414 / 431 / 500 / 503 自动生成文本响应。</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>在线接口自测</h2>
+    <p class="hint">下面的按钮会真实请求本服务器的动态路由，结果原样显示在下方。</p>
+
+    <div class="row">
+      <button data-probe="/time">GET /time</button>
+      <button data-probe="/hello">GET /hello</button>
+      <button data-probe="/api/info">GET /api/info</button>
+      <button data-probe="/mem/256k" data-sum="1">GET /mem/256k（只看长度）</button>
+      <button data-probe="/no-such-route">GET /no-such-route</button>
+    </div>
+
+    <div class="row">
+      <input id="echo-name" value="cline" placeholder="name">
+      <input id="echo-msg" value="hello" placeholder="msg">
+      <button id="echo-btn">GET /echo?name=&amp;msg=</button>
+    </div>
+
+    <pre id="out">（点击上面的按钮开始）</pre>
+  </section>
+</main>
+
+<footer>
+  <span>c_web · 静态网站由 <code>WebSite/</code> 提供，动态路由由 <code>WebApp/WebApp.c</code> 注册</span>
+  <span id="clock"></span>
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>

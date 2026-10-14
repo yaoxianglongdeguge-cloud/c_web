@@ -108,20 +108,21 @@ int DealUrlAndQuery(Request_Analysiser* h,char* urlAndQuery,int* failReason){
         if(e2!=1){  *failReason=400;  return -1;  }
         
         //开始切查询条件
-        char *save2;
-        char* line2 = "";
+        char *save2 = "";
+        char* line2 = strtok_r(query_ing, "&", &save2);
+        if(line2 == NULL) return 1;
         do{ 
         // 处理 line2，按 = 切键和值
-            char* m=strchr(line2,'=');
-            if(m){
-                *m='\0';
-                int e1=0;
-                e1=AnalysiserHashInsert(h->Query,h,line2,m+1);
-                if(e1!=1){  *failReason=400;  return -1;  }
-            }
-                    
-            line2 = strtok_r(NULL, "&", &save2);
-
+        char* m=strchr(line2,'=');
+        if(m){
+            *m='\0';
+            int e1=0;
+            e1=AnalysiserHashInsert(h->Query,h,line2,m+1);
+            if(e1!=1){  *failReason=400;  return -1;  }
+        }
+        
+        line2 = strtok_r(NULL, "&", &save2);
+        
             }while (line2 != NULL);
 
         }

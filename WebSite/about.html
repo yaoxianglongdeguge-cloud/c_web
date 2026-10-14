@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>关于 c_web</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="brand"><span class="dot"></span> c_web</div>
+  <nav>
+    <a href="/">首页</a>
+    <a href="/about" class="active">关于</a>
+    <a href="/download/10mb">10MB 下载</a>
+  </nav>
+</header>
+
+<main>
+  <section class="hero">
+    <h1>关于这个服务器</h1>
+    <p class="sub">本页与首页都是磁盘上的静态文件，由框架用 <code>sendfile</code> 零拷贝发出；
+      页面里的接口数据则来自 <code>WebApp/WebApp.c</code> 注册的动态路由。</p>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <h3>一次请求的生命周期</h3>
+      <p>accept → epoll → 读入暂存区 → 状态机判定完整请求 → 投递任务队列 →
+        业务线程解析 URL/Query/Header → <code>RouterHandlerFind(url)</code> → 业务函数写 Response →
+        打包 Response → 按 serial 保序发送 → 内存归还。</p>
+    </div>
+    <div class="card">
+      <h3>应用层怎么写</h3>
+      <p><code>void handler(Request*, Response*)</code>，里面用
+        <code>RequestGetter()</code> 读参数、<code>ResponseBodySet()</code> 写文本、
+        <code>ResponseHeaderSet()</code> 写头、<code>ResponseFileSet()</code> 发文件。</p>
+    </div>
+    <div class="card">
+      <h3>本页用到的路由</h3>
+      <p><code>GET /</code>、<code>GET /about</code>、<code>GET /style.css</code>、
+        <code>GET /app.js</code>、<code>GET /hello</code>、<code>GET /time</code>、
+        <code>GET /echo</code>、<code>POST /api/echo</code>、<code>GET /api/info</code>、
+        <code>GET /mem/256k</code>、<code>GET /download/10mb</code>。</p>
+    </div>
+    <div class="card">
+      <h3>想验证 404 / 405？</h3>
+      <p>访问 <a href="/no-such-route">/no-such-route</a> 得到 404（未注册路由）；
+        访问 <a href="/api/echo">GET /api/echo</a> 得到 405（该路由只允许 POST）。</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span>c_web · 静态网站目录 <code>WebSite/</code></span>
+  <span><a href="/">返回首页</a></span>
+</footer>
+
+</body>
+</html>

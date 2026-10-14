@@ -10,6 +10,7 @@
                 "-o",
                 "${workspaceFolder}/main",
                 "${workspaceFolder}/main.c",
+                "${workspaceFolder}/WebApp/WebApp.c",
                 "${workspaceFolder}/StaterMain/StarterMain.c",
                 "${workspaceFolder}/GlobalResource/GlobalResource.c",
                 "${workspaceFolder}/Router/Router.c",

@@ -21,15 +21,10 @@ char *strnstr_match(char *haystack, char *needle, size_t n) {
 }//匹配并返回指针函数，如果以后有需要，可以换成KMP算法
 
 int MethodMatch(Request_Temp_Pool* hs,int* sit,char** method){
-    method=NULL;
-
     for(;*sit<9;(*sit)++){
 
         *method=strnstr_match(hs->begin,Method_p[*sit],8);
-        if(*method!=NULL)
-        {
-            break;
-        }
+        if(*method!=NULL)  break;
 
     }
 
@@ -104,7 +99,6 @@ int RequestIntergrityJudge(Request_Temp_Pool* hs,char** ptr,int* fail,int* fail_
 
         }else{
             *fail=0;
-            body_length=body_length+15;
             int len=0;
             BodyLength(&len,body_length);
 

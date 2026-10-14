@@ -128,6 +128,60 @@ int main(void)
 }
 ```
 
+## 示例网站与在线接口
+
+仓库自带一个可直接运行的示例站点：
+
+| 目录/文件 | 说明 |
+|---|---|
+| `WebSite/` | 静态网站（`index.html`、`about.html`、`style.css`、`app.js`、`favicon.ico`、`static/10mb.bin`），由框架 `sendfile` 零拷贝下发 |
+| `WebApp/WebApp.c` | 应用层：14 条路由的注册与 handler 实现（入口 `WebAppRegisterRoutes`） |
+| `main.c` | `WebStater("127.0.0.1",5343,WebAppRegisterRoutes)`，启动即注册路由 |
+
+```bash
+make                 # 或 VS Code 的 build 任务 / F5（preLaunchTask 已包含 WebApp/WebApp.c）
+./main               # 必须在仓库根目录启动：WebSite/ 是相对工作目录的路径
+# 浏览器打开 http://127.0.0.1:5343
+```
+
+| 路由 | 方法 | 说明 |
+|---|---|---|
+| `/`、`/index.html`、`/about`、`/about.html` | GET | 静态页面（`text/html`） |
+| `/style.css`、`/app.js`、`/favicon.ico` | GET | 静态资源 |
+| `/hello` | GET | `Hello, c_web!` |
+| `/time` | GET | 服务器本地时间 `YYYY-MM-DD HH:MM:SS` |
+| `/echo?name=&msg=` | GET | 查询串回显 JSON（应用层做 URL 解码 + JSON 转义） |
+| `/api/echo` | POST | 回显请求体 JSON；同 URL 的 GET 返回 **405** |
+| `/api/info` | GET | 服务信息 JSON（pid / uptime / port） |
+| `/mem/256k` | GET | 262144 字节内存响应（超过内存池最大类，走 malloc 兜底） |
+| `/download/10mb` | GET | 10MiB 文件 `sendfile` 下载（`Content-Length` 由框架 fstat 自动填） |
+| 未注册路径 | 任意 | 框架统一回 **404 Not Found** |
+
+应用层写法（`WebApp/WebApp.c`）：
+
+```c
+static void HHello(Request* r, Response* w)          // 签名：void (*)(Request*, Response*)
+{
+    if (strcmp(RequestGetter(r, "Method", NULL), "GET") != 0) {
+        ResponseErrorSet(w, 405);                    // 方法不符
+        return;
+    }
+    ResponseHeaderSet(w, "Content-Type", "text/plain; charset=utf-8"); // 应用负责 Content-Type
+    ResponseBodySet(w, "Hello, c_web!");             // Content-Length 由框架打包时生成
+}
+// 文件响应：ResponseFileSet(w, open(path, O_RDONLY), 0);  发完由框架 close
+```
+
+端到端验证（与单元测试一样，退出码即结论）：
+
+```bash
+make -C test run            # 单元 + 组件级：256 PASS / 0 FAIL / 0 HANG
+bash test/website_test.sh   # 网站端到端：PASS 27 / FAIL 0（含 10MB 下载与 4 路并发）
+```
+
+> 已知限制：框架暂不支持 HEAD 语义（`HEAD /` 会命中 405）；查询串不做 URL 解码（示例在应用层补了 `UrlDecode`）；
+> 静态文件路径是相对工作目录的。详见 `test/TEST_REPORT.md` 第 13 章。
+
 ## API 参考
 
 ### 启动

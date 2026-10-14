@@ -40,19 +40,19 @@ int IgnoreSignal(){
 
 int DriveListen(int* Fd,char* IPaddr,int PORT){
 
-    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    *Fd = socket(AF_INET, SOCK_STREAM, 0);
     int opt = 1;
-    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    setsockopt(*Fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr(IPaddr);  
     addr.sin_port = htons(PORT);
 
-    bind(fd, (struct sockaddr*)&addr, sizeof(addr));
-    listen(fd, 100);
-    int flags = fcntl(fd, F_GETFL, 0);
-    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    bind(*Fd, (struct sockaddr*)&addr, sizeof(addr));
+    listen(*Fd, 100);
+    int flags = fcntl(*Fd, F_GETFL, 0);
+    fcntl(*Fd, F_SETFL, flags | O_NONBLOCK);
 
     return 1;
 }
@@ -78,6 +78,8 @@ int StartThread(int fd){
     main_t m1 = {.fd = fd, .time = 60, .w = w1,.ed_store_blocknum=100};
 
     ReveiverThreadMain(m1.w,m1.fd,m1.time,m1.ed_store_blocknum);
+
+    return 1;
 
 }
 

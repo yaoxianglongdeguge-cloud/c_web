@@ -54,10 +54,13 @@ Worker_Queue_Entry WorkerQueueTopAndPop(Worker_Queue* sq,int* error)
     s.size=0;
     s.char_ptr=NULL;
    
-    s.size=sq->queue[sq->ptr_out].size;
-    s.char_ptr=sq->queue[sq->ptr_out].char_ptr;
+    bool getted = false;
 
-     if(sq->num!=0){
+    if(sq->num!=0){
+
+      s.size=sq->queue[sq->ptr_out].size;
+      s.char_ptr=sq->queue[sq->ptr_out].char_ptr;
+
       if(sq->ptr_out+1==sq->end){
         sq->ptr_out=sq->begin;
       }else{
@@ -65,11 +68,12 @@ Worker_Queue_Entry WorkerQueueTopAndPop(Worker_Queue* sq,int* error)
       }
 
       sq->num--;
+      getted = true;
       *error=1;
     }
 
     pthread_mutex_unlock(&(sq->mutex));
-    sem_post(&(sq->queue_notfull));
+    if getted == true sem_post(&(sq->queue_notfull));
     return s;
 }
 

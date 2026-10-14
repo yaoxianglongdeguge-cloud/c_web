@@ -27,7 +27,7 @@ int EpollChangeRead(int epfd,int fd){
 int EpollChangeReAndWr(int epfd,int fd){
 
     struct epoll_event ev;
-    ev.events  = EPOLLIN || EPOLLOUT;   
+    ev.events  = EPOLLIN | EPOLLOUT;   
     ev.data.fd = fd;             
     epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &ev); 
 
