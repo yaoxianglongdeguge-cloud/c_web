@@ -6,6 +6,7 @@ int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknu
     //拿到连接对象
     Fd_Entry* fd_ob=NULL;
     FdTableFind(Receiver_Thread->fd_table,fd,&fd_ob);
+    if(fd_ob==NULL) return 0;
 
     //如果在途包比send池大则先不继续发包，防止send池循环覆盖未发数据
     if(fd_ob->pack_in_path>=ed_store_blocknum) return 1;
