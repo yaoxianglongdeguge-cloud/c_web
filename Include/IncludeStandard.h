@@ -16,3 +16,4 @@
 #include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <signal.h>
+#include <stdatomic.h>

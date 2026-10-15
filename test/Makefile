@@ -35,7 +35,7 @@ EPOLL  := $(ROOT)/FdConnectManage/EpollOperate/EpollOperate.c
 
 TESTS := test_memory_pool test_rwlock test_hash test_queues test_parser \
          test_response test_temp_pool test_timer test_router \
-         test_integrity test_epoll
+         test_integrity test_epoll test_taskqueue_race
 
 #------------------------------------------ 用例依赖 ------------------------------------------
 $(BUILD)/test_memory_pool: $(SRC)/test_memory_pool.c $(MEM)
@@ -49,6 +49,8 @@ $(BUILD)/test_timer:       $(SRC)/test_timer.c $(TIMER)
 $(BUILD)/test_router:      $(SRC)/test_router.c $(ROUTER)
 $(BUILD)/test_integrity:   $(SRC)/test_integrity.c $(TEMP) $(PARSER) $(MEM)
 $(BUILD)/test_epoll:       $(SRC)/test_epoll.c $(EPOLL)
+# 任务队列 CAS 改造后的并发/死锁/不变式专项（多生产者多消费者压力）
+$(BUILD)/test_taskqueue_race: $(SRC)/test_taskqueue_race.c $(ROOT)/Queue/TaskQueue/TaskQueue.c
 
 $(BUILD)/%: | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)

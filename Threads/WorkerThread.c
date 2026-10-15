@@ -85,7 +85,7 @@ int WorkerMain(Worker_Thread* profes){
     Task_Queue_Entry t;
     int e0=0;
     t=TasKQueueTopAndPop(taskQueue,&e0);
-    
+    if(e0!=1){ CleanMemoryQueue(profes); nanosleep(100µs); return 1; }
     //拿到请求
     int Error_reason=t.error_reason;
     int Fd=t.fd;

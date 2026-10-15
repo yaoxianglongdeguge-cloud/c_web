@@ -1,5 +1,28 @@
 #include "../Include/Include.h"
 
+int TempPackInit(Temp_Pack** tempPack){
+
+    (*tempPack)=malloc(sizeof(Temp_Pack));
+    (*tempPack)->error_reason=-1;
+    (*tempPack)->h=NULL;
+    (*tempPack)->h_size=0;
+    (*tempPack)->had=false;
+    (*tempPack)->serial=-1;
+
+    return 1;
+}
+
+int TempPackPut(Temp_Pack* tempPack,bool had,int fd,char* h,int h_size,int error_reason,int serial){
+    tempPack->error_reason=error_reason;
+    tempPack->fd=fd;
+    tempPack->h=h;
+    tempPack->h_size=h_size;
+    tempPack->had=had;
+    tempPack->serial=serial;
+
+    return 1;
+}
+
 int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id)
 {
 
@@ -16,6 +39,8 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id)
     (*w)->id=id;
     EpollReadMount((*w)->epfd,Listen_fd);
 
+    TempPackInit(&((*w)->tempPack));
+
     return 1;
 
 }
@@ -23,6 +48,11 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id)
 int ReceiverToWorker(Receiver_Thread* w,int fd,char* h,int h_size,int error_reason,int serial)
 {
     int e0=TasKQueuePush(taskQueue,w,fd,serial,error_reason,h,h_size);
+    if(e0!=1){
+        TempPackPut(w->tempPack,true,fd,h,h_size,error_reason,serial);
+        return 0;
+    }
+    return 1;
 }
 
 int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_blocknum)
@@ -42,7 +72,14 @@ int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_bl
             
             }
 
-            if(n>0)  break;
+            if(n>0&&w->tempPack->had==false)  break;
+            else{
+                if(w->tempPack->had==true){
+                    int put = ReceiverToWorker(w,w->tempPack->fd,w->tempPack->h,w->tempPack->h_size,
+                        w->tempPack->error_reason,w->tempPack->serial);
+                    if(put == 1) TempPackPut(w->tempPack,false,-1,NULL,0,-1,-1);
+                }
+            }
             TimerOvertime(w->my_Timer,time,w);
         }
         for(int i=0;i<n;i++){

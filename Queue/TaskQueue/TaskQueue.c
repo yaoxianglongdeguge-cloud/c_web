@@ -25,9 +25,9 @@ int TasKQueueInit(Task_Queue** sq,int blocknum)
         (*sq)->queue[i].h_size=0;
     }
 
-    sem_init(&((*sq)->sem_task_queue_notfull),0,blocknum);
+    //sem_init(&((*sq)->sem_task_queue_notfull),0,blocknum);
     pthread_mutex_init(&((*sq)->mutex_task),NULL);
-    sem_init(&((*sq)->sem_task_queue_notempty),0,0);
+    //sem_init(&((*sq)->sem_task_queue_notempty),0,0);
 
 
     return 1;
@@ -37,8 +37,13 @@ int TasKQueueInit(Task_Queue** sq,int blocknum)
 
 int TasKQueuePush(Task_Queue* sq,Receiver_Thread* w,int fd,int serial,int error_reason,char* h,int h_size)
 {
-    sem_wait(&(sq->sem_task_queue_notfull));
+
     pthread_mutex_lock(&(sq->mutex_task));
+
+    if(sq->num == sq->blocknum){
+        pthread_mutex_unlock(&(sq->mutex_task));
+        return 0;                    
+    }
 
     sq->queue[sq->ptr_in].w=w;
     sq->queue[sq->ptr_in].error_reason=error_reason;
@@ -55,16 +60,15 @@ int TasKQueuePush(Task_Queue* sq,Receiver_Thread* w,int fd,int serial,int error_
 
     sq->num++;
     pthread_mutex_unlock(&(sq->mutex_task));
-    sem_post(&(sq->sem_task_queue_notempty));
+    //sem_post(&(sq->sem_task_queue_notempty));
 
     return 1;
 }
 
 Task_Queue_Entry TasKQueueTopAndPop(Task_Queue* sq,int* error)
 {
-    sem_wait(&(sq->sem_task_queue_notempty));
-    pthread_mutex_lock(&(sq->mutex_task));
-    *error=0;
+    //sem_wait(&(sq->sem_task_queue_notempty));
+    *error=0; 
     Task_Queue_Entry s;
     s.fd=-1;
     s.serial=-1;
@@ -73,6 +77,12 @@ Task_Queue_Entry TasKQueueTopAndPop(Task_Queue* sq,int* error)
     s.error_reason=-1;
     s.w=NULL;
 
+    pthread_mutex_lock(&(sq->mutex_task));
+
+    if(sq->num == 0){
+        pthread_mutex_unlock(&(sq->mutex_task));
+        return s;                     
+    }
 
     s.fd=sq->queue[sq->ptr_out].fd;
     s.serial=sq->queue[sq->ptr_out].serial;
@@ -90,7 +100,7 @@ Task_Queue_Entry TasKQueueTopAndPop(Task_Queue* sq,int* error)
     *error=1;
 
     pthread_mutex_unlock(&(sq->mutex_task));
-    sem_post(&(sq->sem_task_queue_notfull));
+    //sem_post(&(sq->sem_task_queue_notfull));
     return s;
 }
 

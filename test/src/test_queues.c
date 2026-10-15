@@ -43,7 +43,6 @@ static Task_Queue* g_tq;
 static int g_tq_fd = -1;
 static int g_tq_size = -1;
 static double g_tq_ms = 0;
-static int g_tq_push_done = 0;
 
 static void* tq_pending_pop(void* a)
 {
@@ -55,17 +54,10 @@ static void* tq_pending_pop(void* a)
     g_tq_ms = now_ms();
     return NULL;
 }
-static void* tq_pending_push(void* a)
-{
-    (void)a;
-    TasKQueuePush(g_tq, NULL, 77, 5, 200, (char*)0x5, 64);
-    g_tq_push_done = 1;
-    return NULL;
-}
 
 int main(void)
 {
-    printf("== test_queues : 三个队列 FIFO / 环绕 / 阻塞唤醒 ==\n");
+    printf("== test_queues : 三个队列 FIFO / 环绕 / 非阻塞背压 ==\n");
 
     //================ 1.WorkerQueue ================
     CHECK(WorkerQueueInit(&g_wq, 3) == 1, "WorkerQueueInit(3) 成功");
@@ -134,33 +126,39 @@ int main(void)
     CHECK(e == 1 && t.fd == 101 && t.serial == 1 && t.h_size == 256, "任务2 保序 serial=1");
     CHECK(g_tq->num == 0, "任务队列清空");
 
-    //阻塞取任务：业务线程空等，push 后唤醒
+    //非阻塞取任务：空队列必须立即返回 error=0。
+    //（若业务线程阻塞在空队列上，就无法回收自己内存队列里的块 →
+    //  收发线程等空位、业务线程等任务，双方互等 → 这就是原来那道死锁。）
     g_tq_fd = -1;
     g_tq_size = -1;
     double t2 = now_ms();
     pthread_create(&th, NULL, tq_pending_pop, NULL);
-    usleep(80000);
-    CHECK(g_tq_fd == -1, "任务队列为空时业务线程阻塞等待");
-    TasKQueuePush(g_tq, NULL, 200, 9, 200, NULL, 0);
     pthread_join(th, NULL);
-    CHECK(g_tq_fd == 200 && g_tq_size == 0, "push 后被唤醒，取到 fd=200");
-    CHECK(g_tq_ms - t2 >= 60.0, "阻塞时长 ≥60ms（sem_task_queue_notempty 生效）");
+    CHECK(g_tq_fd == -1 && g_tq_size == 0, "空队列 pop 不阻塞：返回默认值（fd=-1, h_size=0）");
+    CHECK(g_tq_ms - t2 < 50.0, "空队列 pop 立即返回（耗时 <50ms）");
 
-    //任务队列满：push 阻塞形成背压，直到被消费
+    //非阻塞背压：满队列 push 立即返回 0，交回调用者稍后重试（不得阻塞调用线程）
     Task_Queue* tq2 = NULL;
     TasKQueueInit(&tq2, 2);
-    TasKQueuePush(tq2, NULL, 1, 0, 200, NULL, 0);
-    TasKQueuePush(tq2, NULL, 2, 1, 200, NULL, 0);
-    g_tq = tq2;
-    g_tq_push_done = 0;
-    pthread_create(&th, NULL, tq_pending_push, NULL);
-    usleep(80000);
-    CHECK(g_tq_push_done == 0, "任务队列满时 push 阻塞（背压）");
-    TasKQueueTopAndPop(tq2, &e);
-    pthread_join(th, NULL);
-    CHECK(g_tq_push_done == 1, "消费一个后 push 恢复执行");
+    CHECK(TasKQueuePush(tq2, NULL, 1, 0, 200, NULL, 0) == 1, "容量 2：push 任务1");
+    CHECK(TasKQueuePush(tq2, NULL, 2, 1, 200, NULL, 0) == 1, "容量 2：push 任务2（刚满）");
+    CHECK(tq2->num == 2, "满队列时 num==2（计数不得翻倍）");
+
+    double t3 = now_ms();
+    int full_ret = TasKQueuePush(tq2, NULL, 3, 2, 200, NULL, 0);
+    double full_ms = now_ms() - t3;
+    CHECK(full_ret == 0, "队列满时 push 返回 0（非阻塞背压）");
+    CHECK(full_ms < 50.0, "满队列 push 立即返回（不阻塞调用线程）");
+    CHECK(tq2->num == 2, "被拒绝的 push 不得改动计数");
+
     t = TasKQueueTopAndPop(tq2, &e);
-    CHECK(t.fd == 2 && t.serial == 1, "剩余任务仍保序（先入先出）");
+    CHECK(e == 1 && t.fd == 1, "先入先出：取到 fd=1");
+    CHECK(TasKQueuePush(tq2, NULL, 3, 2, 200, NULL, 0) == 1, "消费一个后 push 成功（背压解除）");
+    t = TasKQueueTopAndPop(tq2, &e);
+    CHECK(e == 1 && t.fd == 2 && t.serial == 1, "剩余任务仍保序（fd=2, serial=1）");
+    t = TasKQueueTopAndPop(tq2, &e);
+    CHECK(e == 1 && t.fd == 3 && t.serial == 2, "空出的槽位被 fd=3 复用");
+    CHECK(tq2->num == 0, "全部取出后 num==0");
 
     //================ 3.ReceiverQueue（业务线程 → 收发线程）================
     Receiver_Queue* rq = NULL;

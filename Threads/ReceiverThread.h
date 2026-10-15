@@ -1,5 +1,14 @@
 #include "../Include/Variate.h"
 
+typedef struct Temp_Pack{
+    bool had;
+    int fd;
+    char* h;
+    int h_size;
+    int error_reason;
+    int serial;
+}Temp_Pack;
+
 typedef struct Receiver_Thread{
    
     int id;
@@ -12,9 +21,12 @@ typedef struct Receiver_Thread{
     
     Receiver_Queue* Thing_queue;//接收已经准备好的要发的包的事件
 
+    Temp_Pack* tempPack;
+
 
 
 }Receiver_Thread;
+
 
 
 int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id);

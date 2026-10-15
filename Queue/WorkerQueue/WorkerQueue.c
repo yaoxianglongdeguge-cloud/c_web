@@ -73,7 +73,7 @@ Worker_Queue_Entry WorkerQueueTopAndPop(Worker_Queue* sq,int* error)
     }
 
     pthread_mutex_unlock(&(sq->mutex));
-    if getted == true sem_post(&(sq->queue_notfull));
+    if(getted == true) sem_post(&(sq->queue_notfull));
     return s;
 }
 

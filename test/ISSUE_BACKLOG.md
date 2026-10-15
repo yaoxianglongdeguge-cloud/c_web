@@ -19,7 +19,7 @@
 > **因此从本文件起，所有结论与设计只落在仓库内（`test/`），不再依赖 `/tmp`。**
 
 > ✅ **本轮复测基线（clean build）**：`make clean && make -j4` → **rc=0**；
-> `make -C test run` → **`==== 全部单元测试通过 ====`，rc=0（256 PASS / 0 FAIL）**；
+> `make -C test run` → **`==== 全部单元测试通过 ====`，rc=0（286 PASS / 0 FAIL）**；（本轮由 256 增至 286，见变更日志）
 > `-Wall` 下残余告警 **17 条**（清单见 §6.4）——**单测全绿并不代表 S0 不存在**，
 > 因为这些缺陷是时序/容量类，单测结构上覆盖不到（见 `STRESS_TEST_REPORT.md` 2.1）。
 
@@ -55,6 +55,7 @@
 | **D-06** | S0 | `char* C;` **未初始化** + 503 分支不赋值（UB） | `WorkerThread.c:135`、`:49-50` | 仍存在（已核实） |
 | **D-07** | S0 | 4 处关键返回值被丢弃（含"请求静默丢失"） | `ReceiverThread.c:25` 等 | 仍存在（已核实） |
 | **D-08** | S0 | **新**：另 3 处 `FdTableFind` 返回值被丢弃 → 同族 `NULL` 解引用 | `RequestComeMain.c:8-11`、`ResponseSendMain.c:89-90`、`:36-42` | 仍存在（已核实） |
+| **D-31** | S0 | **新（本轮，已修）**：任务队列 CAS 改造把**计数**与**环形指针**放进两个同步域 ⇒ 虚假弹出 → `W==NULL` ⇒ **段错误** | `Queue/TaskQueue/TaskQueue.c` | ✅ **已修复（本轮）**，附前后实测 |
 
 ### 0.5 一页速览（S1 ~ S4）
 
@@ -82,6 +83,7 @@
 | **D-27** | S4 | CI 缺「ASan + 30 s 并发压测 + 探针断言」护栏 | `test/run_tests.sh` | 未实施 |
 | **D-28** | S4 | 测试自身泄漏（`test_response` 263 KB、`test_hash` 8 KB） | `test/src/` | 仍存在 |
 | **D-29** | S4 | 单元测试无内存池/队列不变式断言（压测报告 10.2 的 4 条） | `test/src/` | 未实施 |
+| **D-32** | S3 | **新（本轮）**：任务队列取消阻塞后业务线程**无等待机制** ⇒ 空闲时 CPU **197~200%**（2 核跑满） | `Threads/WorkerThread.c` + `TaskQueue.c` | 仍存在（已实测） |
 
 ### 0.6 修复节奏与依赖顺序（照这个顺序修不会白干）
 
@@ -104,7 +106,57 @@
 
 ---
 
-## 1. S0 —— 会崩 / 会毁数据（8 条）
+## 1. S0 —— 会崩 / 会毁数据（9 条）
+
+### D-31 · 任务队列 CAS 改造：计数与环形指针分属两个同步域 ⇒ 虚假弹出 ⇒ 段错误
+
+- **状态**：✅ **已修复（本轮）**（`Queue/TaskQueue/TaskQueue.c`），并附修复前后实测对比。
+- **先回答"还会死锁吗"**：**不会以"阻塞死锁"的形式发生了**（活性判据全绿：生产者推进完、
+  队列能排空、无永久拒绝）。**但换成了更严重的"段错误 + 数据错乱"** —— 见下表。
+- **背景**：原版用 `sem_wait(notfull)` / `sem_wait(notempty)` 阻塞式背压。其死锁路径是：
+  **收发线程**在 `ReceiverToWorker`（`Threads/ReceiverThread.c:50-56`）里阻塞在满队列上时，
+  整个 epoll 循环停摆 —— `TimerOvertime`（超时关连接）与 `ResponseSendMain`（发响应）都不再执行
+  ⇒ 业务线程等任务、收发线程等空位，**双方互等 ⇒ 全站卡死**。
+  **"改成非阻塞"这个方向是对的**，但落地时踩了 3 个坑。
+- **三个结构性缺陷**（`git diff` 可见改动全貌）：
+  1. **计数重复**：CAS 已经把 `num` ±1，进互斥区后又做了一次 `sq->num++` / `sq->num--`
+     ⇒ `num = 2 × 真实在队数` ⇒ **容量被砍半**（容量 4 只能装下 2 个）。
+  2. **非原子与原子混用**：`int before = sq->num;`（普通读，`:41` / `:83`）与
+     `atomic_compare_exchange_strong(&sq->num, …)`（`:44` / `:87`）构成数据竞争；锁内的
+     `sq->num++/--` 也是非原子 RMW ⇒ **丢失更新**，`num` 随机漂移（实测漂成**负数**）。
+  3. **跨同步域**：`num` 走 CAS（无锁）、`ptr_in/ptr_out` 走 mutex ⇒ CAS 放行了 N 次引用，
+     环形指针只移动了 N−1 次 ⇒ **pop 返回成功，但槽位里仍是上一轮的残留条目**。
+- **实测证据（全部可在仓库内复跑，不依赖 `/tmp`）**：
+
+  | 判据 | 修复前 | 修复后 |
+  |---|---|---|
+  | 多线程探针 `test_taskqueue_race`（2×20000 投递 / 2 消费者 / 容量 64） | FAIL 8 / PASS 11（3 次运行一致） | **PASS 23 / FAIL 0** |
+  | `pop` 成功数（应恰等于 `push` 数 40000） | **70543 / 55206 / 82680** | **40000** |
+  | 虚假弹出（队列逻辑为空却 pop 成功） | **30543 / 15206 / 42680** | **0** |
+  | 同一条目被重复取出 | **67273 / 49269 / 73473** | **0** |
+  | 收尾 `num`（应为 0） | **−60422 / −30242 / −85007** | **0** |
+  | TSAN | `data race`：`:44` 原子写 vs `:81` 普通读 | **0 报告** |
+  | 真实服务器 `website_test.sh` | **PASS 6 / FAIL 21 ＋ 段错误**（第 2 个请求即崩） | **PASS 27 / FAIL 0** |
+  | gdb 崩溃栈 | `WorkerMain` `Threads/WorkerThread.c:141`（两个 Worker 同点崩） | — |
+
+- **崩因链**：`num` 漂移 → 容量闸门失效（`push` 再也不返回 0，实测"拒绝 0"）→ 环形缓冲被
+  反复覆盖 ＋ 空队列仍返回"残留条目" → `TasKQueueTopAndPop` 交回 `w == NULL`
+  （`TasKQueueInit` 的初值）→ `WorkerMain` 解引用 `W->Thing_queue`
+  ⇒ **SIGSEGV**（`WorkerThread.c:141`，`:113` 同族）。
+- **修法（已落地）**：保留"非阻塞"意图，把**满/空判定与计数增减全部收进同一把互斥区**：
+  · `push`：锁内 `if(num==blocknum){ unlock; return 0; }`（非阻塞背压）；
+  · `pop` ：锁内 `if(num==0){ unlock; return s; }`（非阻塞空返回）。
+  删掉 4 处 CAS 与重复的 `num++/--`，`num` 恢复为"锁内单点维护"的唯一真相。
+- **验收**：`make -C test run` 全绿；`bash test/website_test.sh` **27/27**；
+  探针在 `-O0` 与 **TSAN** 下均 **PASS 23 / FAIL 0** 且 TSAN 零报告。
+- **测试用例同步**：`test/src/test_taskqueue_race.c`（新增，注册进 `test/Makefile` 与
+  `TESTS`）＋ `test/src/test_queues.c` 中 4 条**旧阻塞语义**断言已改写为**非阻塞背压语义**
+  （这是"阻塞→非阻塞"设计变更的必然结果，不是放宽标准：新断言额外覆盖了
+  "满队列 push 立即返回 0 / 被拒的 push 不改动计数 / 空出槽位被复用"）。
+- **关联**：**D-01 是同一族**（"计数与闸门失配"），D-31 是它在 TaskQueue 上的翻版；
+  修 D-01 时请对照本条判据思路（守恒式断言＋TSAN）。
+- **收尾**：`Include/Variate.h:48/52` 的两条 `extern sem_t sem_task_queue_not*`（无定义、无引用）
+  已一并注释；`TaskQueue.h` 内的 `sem_task_queue_*` 字段此前已注释。
 
 ### D-01 · BUG-11：队列空弹出仍归还容量 ⇒ 容量闸门失效
 
@@ -705,6 +757,24 @@ int RequestAnalysisInit(Request_Analysiser** h,Memory_Pool* pool,int h_size)
   以及"分阶段计时"：把 `epoll_wait` 返回时间戳、`RequestComeMain` 结束时间戳、`write` 结束时间戳
   各自累加到一个全局统计里，压测后打印占比。**先量出来，再决定改哪里。**
 
+### D-32 · 任务队列取消阻塞后，业务线程失去等待机制 ⇒ 空闲 CPU 100%/核
+
+- **状态**：仍存在（已实测）。**这是 D-31 的遗留项**：D-31 修的是"计数与指针不同步"，
+  D-32 是"去掉信号量后没人负责让出 CPU"。
+- **位置**：`Threads/WorkerThread.c`（取任务侧的循环）＋ `Queue/TaskQueue/TaskQueue.c`（已无等待语义）
+- **实测**：服务器启动后**不发任何请求**，`top -b -n 2 -d 1 -p <pid>` 采样 `%CPU = 197 / 200`
+  （`NLWP=3`，2 核 VM 被 2 个 Worker 打满）；`ps -o cputime` 逐秒线性增长。
+- **原因**：`TasKQueueTopAndPop` 空队列立即 `return`，`WorkerMain` 只能死循环重试 ⇒ 忙轮询。
+- **⚠️ 不能改回 `sem_wait` 阻塞整个 Worker**：那正是 D-31 描述的互等链（收发线程阻塞在满队列
+  ⇒ epoll 循环停摆 ⇒ 全站卡死）。可行的等待策略（任选其一，都保持"收发线程永不阻塞"）：
+  1. **退避自旋**：空队列时 `nanosleep(50~200 µs)`（1 行改动；CPU 近 0，延迟可控）；
+  2. **条件变量**：`push` 成功后 `pthread_cond_signal`，Worker 用 `pthread_cond_timedwait` 等
+     （零忙等；push 侧仍非阻塞，不构成互等）；
+  3. **信号量只做唤醒**：`sem_post` 仅用于唤醒、`sem_timedwait` 带超时，
+     **不把信号量当容量闸门**（闸门仍由锁内 `num` 判定）—— 等价于 2 但改动更小。
+- **验收**：空闲 60 s 进程 CPU < 5%；`bash test/website_test.sh` 仍 27/27；P99 不回退。
+- **关联**：D-31（同一处改动的另一半）。
+
 ---
 
 ## 5. S4 —— 工程与清理（5 条）
@@ -728,7 +798,9 @@ int RequestAnalysisInit(Request_Analysiser** h,Memory_Pool* pool,int h_size)
 
 ### D-27 · CI 护栏：`make -C test run` 之外还缺三层
 
-- **状态**：未实施（现状 `test/run_tests.sh` 只跑单元测试，256 PASS，**没有** ASan、并发压测与不变式断言）
+- **状态**：未实施（现状 `test/run_tests.sh` 只跑单元测试，286 PASS，**没有** ASan、并发压测与不变式断言）。
+  本轮已先补上"并发/不变式探针"这一层（`test/src/test_taskqueue_race.c`，见 D-31/D-29），
+  仍缺 **ASan 并发回归**与"池/队列不变式钩子"两层。
 - **建议补三层（从便宜到贵）**：
   1. **ASan 并发回归**（能抓到 D-01/D-02 那条链上的 `strcat-param-overlap` 与 use-after-free）：
      ```bash
@@ -778,7 +850,7 @@ cd /home/yaoxianglongde/c_code/c_web
 make clean && make -j4 2>&1 | tee /tmp/build.log
 echo "build_rc=${PIPESTATUS[0]}"; grep -c 'warning:' /tmp/build.log
 
-# ② 单元测试：要求最后一行是 "==== 全部单元测试通过 ===="（256 PASS / 0 FAIL / 0 HANG）
+# ② 单元测试：要求最后一行是 "==== 全部单元测试通过 ===="（286 PASS / 0 FAIL / 0 HANG）
 make -C test run
 
 # ③ 单个用例的泄漏扫描（用例二进制在 test/build/ 下）
@@ -821,9 +893,19 @@ make -C test website
 | D-23 | `FdConnectOrClose.c:95` 硬编码 `Connection: close` | 本轮核实 |
 | D-25 / D-26 | 编译器告警（clean build 17 条） | §6.4 |
 | D-30 | `StarterMain.c:60-84` 逐行：`main_t2 m5/m6` 为栈变量却被 `pthread_create` 取址；`ReveiverThreadMain` 阻塞不返回 | 本轮核实 |
+| D-31 | 探针 `test/src/test_taskqueue_race.c`（3 次运行统计一致）+ TSAN `data race TaskQueue.c:44 vs :81` + gdb 崩溃栈 `WorkerThread.c:141` + `website_test.sh` 修复前 6/21 且段错误 → 修复后 27/27 | **仓库内可复跑**（`make -C test run`、`bash test/website_test.sh`） |
+| D-32 | `top -b -n 2 -d 1 -p <pid>` 空闲采样 `%CPU=197/200`、`NLWP=3` | 本轮实测 |
 | D-19 / D-18 | `grep -rn Expend` 全库 **5 处**（Timer / RequestTempPool / MemoryStack / MemoryEntry / RouterHash），**无 `FdTableExpend`**；`MemoryEntryAlloc` 无调用者 | 本轮核实 |
 
 ### 6.3 修复进度打勾表（照这个顺序做，边做边勾）
+
+#### 第 0 批 · ✅ 本轮已完成（任务队列 CAS 改造的善后）
+- [x] **D-31** 把满/空判定与计数增减收进同一把互斥区（`TaskQueue.c` 的 `push`/`pop`），
+      删掉 4 处 CAS 与重复 `num++/--`
+      验收：探针 `-O0` 与 TSAN 双通过（**23 PASS / 0 FAIL**，TSAN 0 报告）；
+      `website_test.sh` **27/27**；`make -C test run` 全绿
+- [x] **D-31 配套** 新增 `test/src/test_taskqueue_race.c`（注册进 `TESTS`）；
+      `test_queues.c` 4 条旧"阻塞语义"断言改写为"非阻塞背压语义"
 
 #### 第 1 批 · 止住"内存池被毁"这条主链（共 ~5 行）
 - [ ] **D-01** 队列空弹出不再归还容量（`WorkerQueue.c:72` 搬进 `if` 块，1 行）
@@ -933,6 +1015,7 @@ for f in $(find . -name '*.c' -not -path './test/*'); do gcc -fsyntax-only -Wall
 
 | 日期 | 变更 |
 |---|---|
+| 2026-10-14 | **D-31 已修复**：任务队列 CAS 改造的 3 处结构性缺陷（计数重复 / 非原子与原子混用 / 计数与环形指针跨同步域）已定位、修复并双向验证 —— 探针 `test_taskqueue_race`（新增，23 PASS）＋ TSAN 零报告 ＋ `website_test.sh` 由 **6 PASS/21 FAIL/段错误** 恢复为 **27 PASS/0 FAIL**。另新增 **D-32**（取消阻塞后 Worker 忙轮询 ⇒ 空闲 CPU 197~200%，附 3 种等待策略）。`test_queues.c` 4 条旧阻塞语义断言同步改写。**新基线：`make -C test run` 286 PASS / 0 FAIL**（原 256）。 |
 | 2026-10-14 | **建档**。合并 `STRESS_TEST_REPORT.md`、`TEST_REPORT.md`、泄漏专核与边界专核；**新增 4 条必崩路径（D-04 / D-08a-c / D-17c）与 1 条堆越界写（D-16 T3）**，本轮又新增 **D-30**（线程入参指向 `StartThread` 栈帧 → 优雅关闭的隐藏地雷）；**决定扩容机制作废（D-18）**并给出 5 个扩容点的逐点处置；补 §6 复跑命令 / 证据索引 / 打勾表 / 告警清单；发现 `/tmp` 已清空，故设计文档重新落到 `test/RATELIMIT_DESIGN.md`。复测基线：clean build rc=0（17 告警）、`make -C test run` 256 PASS / 0 FAIL。 |
 
 ---

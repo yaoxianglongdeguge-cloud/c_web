@@ -71,7 +71,8 @@ int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknu
 
             //发送
             fd_ob->ser_fina_send++;
-            ReceiverToWorker(Receiver_Thread,fd,hptr,h_size,error_reason,serial);
+            int put = ReceiverToWorker(Receiver_Thread,fd,hptr,h_size,error_reason,serial);
+            if(put != 1) break;
             fd_ob->pack_in_path++;
             serial++;
 

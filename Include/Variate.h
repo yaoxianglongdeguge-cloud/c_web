@@ -45,11 +45,9 @@ extern Router* router;
 
 extern Task_Queue* taskQueue;
 
-extern sem_t sem_task_queue_notfull;
-
+//extern sem_t sem_task_queue_notfull;     // D-31：阻塞式背压已取消，本声明无定义/无引用
 extern pthread_mutex_t mutex_task;
-
-extern sem_t sem_task_queue_notempty;
+//extern sem_t sem_task_queue_notempty;    // D-31：同上
 
 
 typedef struct Response_Header_Entry Response_Header_Entry;

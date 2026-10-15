@@ -22,9 +22,9 @@ typedef struct Task_Queue{
     int num;//有效节点个数
     int blocknum;//节点总个数
 
-    sem_t sem_task_queue_notfull;//任务队列信号量，用来指示队列还有多少个收发线程可进入
+    //sem_t sem_task_queue_notfull;//任务队列信号量，用来指示队列还有多少个收发线程可进入
     pthread_mutex_t mutex_task;//线程进入之后依然要用锁保护
-    sem_t sem_task_queue_notempty;//任务队列信号量，用来指示队列还有多少个业务线程可进入
+    //sem_t sem_task_queue_notempty;//任务队列信号量，用来指示队列还有多少个业务线程可进入
 
 }Task_Queue;
 
