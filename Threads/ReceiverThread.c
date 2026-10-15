@@ -63,7 +63,7 @@ int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_bl
     {
         int n=-1;
         while(1){
-            n=epoll_wait(w->epfd,events,1024,50);
+            n=epoll_wait(w->epfd,events,1024,1);
             for(int i=0;i<100;i++)
             {
                 int send_info=0;

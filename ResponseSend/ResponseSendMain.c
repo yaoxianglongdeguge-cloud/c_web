@@ -33,9 +33,11 @@ int GetAndJudge(Receiver_Thread* w,int fd,int edStoreBlockNum,int* send_info,int
         int e1=FdTableFind(w->fd_table,s.fd,&fd_ob);
                 
         //如果该连接不存在，或者获取连接失败
-        if(e1!=1&&s.m_queue!=NULL){
-            WorkerQueuePush(s.m_queue,s.size_resp,s.char_ptr);
-            continue;
+        if(e1!=1||fd_ob==NULL){
+            if(s.m_queue!=NULL){ //因为有可能是静态文件，本来就不用再给工作线程通知，所以可能也是NULL
+                WorkerQueuePush(s.m_queue,s.size_resp,s.char_ptr);
+            }
+                continue;
         }
 
         //如果连接存在但是没有send暂存池
@@ -87,6 +89,7 @@ int ResponseSendMain(Receiver_Thread* w,int fd,int ed_store_blocknum,int* send_i
     //开始发包
     Fd_Entry* fd_ob=NULL;
     FdTableFind(w->fd_table,send_fd,&fd_ob);
+    if(fd_ob == NULL) return 1;
     int next=fd_ob->ser_nex_send%fd_ob->send_pointer_pool->blocknum;
 
     while(fd_ob->send_pointer_pool->store[next].use==1)

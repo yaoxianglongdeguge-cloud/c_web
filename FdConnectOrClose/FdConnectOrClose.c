@@ -49,6 +49,7 @@ int FdClose(Receiver_Thread* w,int client_fd,int error_reason)
 
     Fd_Entry* fd_ob=NULL;
     FdTableFind(w->fd_table,client_fd,&fd_ob);
+    if(fd_ob = NULL) return 1;
     
     //回收send池
     SendPointerPoolDestory(fd_ob->send_pointer_pool,w->store_area);

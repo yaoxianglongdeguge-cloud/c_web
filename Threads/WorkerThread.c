@@ -80,14 +80,14 @@ int WorkerThreadInit(Worker_Thread** profes,int id)
 }
 
 int sleepInit(struct timespec* ts){
-    ts->tv_nsec = 100000;
+    ts->tv_nsec = 0;
     ts->tv_sec = 0;
 
     return 1;
 }
 
 int sleepAdd(struct timespec* ts){
-    if(ts->tv_sec == 1){
+    if(ts->tv_nsec == 1000000){
         return 1;
     }else{
         ts->tv_nsec = ts->tv_nsec+100000;
@@ -96,24 +96,33 @@ int sleepAdd(struct timespec* ts){
     return 1;
 }
 
-
-int WorkerMain(Worker_Thread* profes){
-
-    Task_Queue_Entry t;
+int GetFromTaskQueue(Task_Queue_Entry* t,Worker_Thread* profes){
 
     struct timespec ts;
     sleepInit(&ts);
-
     while(1){
 
         int e0=0;
-        t=TasKQueueTopAndPop(taskQueue,&e0);
+        *t=TasKQueueTopAndPop(taskQueue,&e0);
         if(e0!=1){ 
            CleanMemoryQueue(profes);
            nanosleep(&ts,NULL);
            sleepAdd(&ts);
+        }else{
+            break;
         }
     }
+
+    return 1;
+
+}
+
+
+int WorkerMain(Worker_Thread* profes){
+
+    Task_Queue_Entry t;
+    GetFromTaskQueue(&t,profes);
+    
     //拿到请求
     int Error_reason=t.error_reason;
     int Fd=t.fd;
