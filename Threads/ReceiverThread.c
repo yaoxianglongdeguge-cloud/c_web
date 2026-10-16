@@ -1,4 +1,5 @@
 #include "../Include/Include.h"
+#include <sys/eventfd.h>   /* 【延迟修复】eventfd 唤醒通道 */
 
 int TempPackInit(Temp_Pack** tempPack){
 
@@ -39,10 +40,23 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id)
     (*w)->id=id;
     EpollReadMount((*w)->epfd,Listen_fd);
 
+    (*w)->wakeup_fd=eventfd(0,EFD_NONBLOCK);
+    EpollReadMount((*w)->epfd,(*w)->wakeup_fd);
+
     TempPackInit(&((*w)->tempPack));
 
     return 1;
 
+}
+
+int ReceiverNotify(Receiver_Thread* w)
+{
+    if(w!=NULL&&w->wakeup_fd>=0){
+        uint64_t one=1;
+        ssize_t n=write(w->wakeup_fd,&one,sizeof(one));
+        (void)n;
+    }
+    return 1;
 }
 
 int ReceiverToWorker(Receiver_Thread* w,int fd,char* h,int h_size,int error_reason,int serial)
@@ -63,7 +77,7 @@ int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_bl
     {
         int n=-1;
         while(1){
-            n=epoll_wait(w->epfd,events,1024,1);
+            n=epoll_wait(w->epfd,events,1024,10);  
             for(int i=0;i<100;i++)
             {
                 int send_info=0;
@@ -86,6 +100,13 @@ int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_bl
 
             int handle_fd=events[i].data.fd;
             if(handle_fd<3)  continue;
+
+
+            if(handle_fd==w->wakeup_fd){
+                uint64_t drain;
+                while(read(w->wakeup_fd,&drain,sizeof(drain))>0){}
+                continue;
+            }
 
             if(handle_fd==Listen_fd) 
             { int e0=FdConnect(w,handle_fd); }

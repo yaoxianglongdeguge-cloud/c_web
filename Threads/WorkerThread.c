@@ -103,16 +103,17 @@ int sleepAdd(struct timespec* ts){
 
 int GetFromTaskQueue(Task_Queue_Entry* t,Worker_Thread* profes){
 
-    struct timespec ts;
-    sleepInit(&ts);
     while(1){
 
         int e0=0;
         *t=TasKQueueTopAndPop(taskQueue,&e0);
         if(e0!=1){ 
            CleanMemoryQueue(profes);
-           nanosleep(&ts,NULL);
-           sleepAdd(&ts);
+           struct timespec wait_ts;
+           clock_gettime(CLOCK_REALTIME,&wait_ts);
+           wait_ts.tv_nsec+=100000000;
+           if(wait_ts.tv_nsec>=1000000000){ wait_ts.tv_nsec-=1000000000; wait_ts.tv_sec++; }
+           sem_timedwait(&(taskQueue->sem_task_notempty),&wait_ts);
         }else{
             break;
         }
@@ -169,6 +170,8 @@ int WorkerMain(Worker_Thread* profes){
             DealWithTask(&Req,&Rsp);
             
             RequestAnalysisFree(h,profes->http_pool);
+        }else{
+            Rsp.error_reason=Error_reason;
         }
     }
     if(Rsp.headers==NULL){ Rsp.error_reason=503; }
@@ -181,6 +184,7 @@ int WorkerMain(Worker_Thread* profes){
         { char* C=NULL; PackBackHead(&C,&Rsp); }
 
         ReceiverQueuePush(W->Thing_queue, NULL,Fd,Serial,Rsp.error_reason,0,0,0,NULL,-1, 0);
+        ReceiverNotify(W);   
     }else{
 
         char* C;
@@ -188,6 +192,7 @@ int WorkerMain(Worker_Thread* profes){
         off_t file_size=0;
         PackTotal(profes,&Rsp,&C,&allocsize,&file_size);
         ReceiverQueuePush(W->Thing_queue, profes->memory_queue,Fd,Serial,200,allocsize,0,file_size,C,Rsp.send_fd,Rsp.offset);
+        ReceiverNotify(W);   
 
     }
     

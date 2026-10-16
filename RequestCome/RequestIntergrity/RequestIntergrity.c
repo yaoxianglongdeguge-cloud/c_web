@@ -101,7 +101,7 @@ int RequestIntergrityJudge(Request_Temp_Pool* hs,char** ptr,int* fail,int* fail_
 {
     *fail=0;
     *fail_reason=200;
-    char* target;
+    char* target=NULL;  
     
     int check_size=hs->ptr_e-hs->ptr_b;
     
@@ -127,6 +127,12 @@ int RequestIntergrityJudge(Request_Temp_Pool* hs,char** ptr,int* fail,int* fail_
         *fail=1;
         hs->state_machine->h_rnrn=1;
         target=rnrn-1;//\r前一个字符
+    }
+    else{
+
+        char* rnrn=strnstr_match(hs->begin,"\r\n\r\n",check_size);
+        if(rnrn==NULL){  *fail=-1;  return 0;  }
+        target=rnrn-1;
     }
 
     //判断请求体存在并求长度

@@ -27,6 +27,7 @@ int TasKQueueInit(Task_Queue** sq,int blocknum)
 
     //sem_init(&((*sq)->sem_task_queue_notfull),0,blocknum);
     pthread_mutex_init(&((*sq)->mutex_task),NULL);
+    sem_init(&((*sq)->sem_task_notempty),0,0);   
     //sem_init(&((*sq)->sem_task_queue_notempty),0,0);
 
 
@@ -60,6 +61,7 @@ int TasKQueuePush(Task_Queue* sq,Receiver_Thread* w,int fd,int serial,int error_
 
     sq->num++;
     pthread_mutex_unlock(&(sq->mutex_task));
+    sem_post(&(sq->sem_task_notempty)); 
     //sem_post(&(sq->sem_task_queue_notempty));
 
     return 1;
