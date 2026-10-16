@@ -48,13 +48,18 @@ int FdTableFind(Fd_Table* h,int fd,Fd_Entry** ptr)
 ```c
     Fd_Entry* fd_ob=NULL;
     FdTableFind(w->fd_table,client_fd,&fd_ob);
-    if(fd_ob==NULL) return 0;   //该 fd 已不在连接表：本次是重复关闭，直接返回
+    if(fd_ob==NULL) return 1;   //该 fd 已不在连接表：重复关闭，直接返回（⚠️ 必须是 == 不是 =）
 ```
 
 **为什么这样改是安全的**
 - `FdConnect()`（同文件 :11~38）是 `accept → EpollReadMount → TimerAlloc → FdTableInsert`，**中途没有任何 `FdClose` 调用**。所以「查不到」只可能是**已经被关过一次了**（或表被清空），不存在「新连接还没来得及插入就被要求关闭」的正常场景。
 - 这种重复调用下，继续往下走会执行 `FdTableDelete / TimerFree / EpollDelete / close(client_fd)`——这些操作作用在**已经关闭、甚至已被新 `accept()` 复用的同一个 fd 号**上，后果比崩溃更隐蔽：可能删掉/关掉别人的连接。
-- 所以**提前 return、什么都不做**才是正解；返回 `0` 表示「本次没有真正关闭任何连接」。调用方目前都不检查返回值（`grep -rn 'FdClose('` 可见），不影响既有逻辑。
+- 所以**提前 return、什么都不做**才是正解。返回值给 `1` 最省事：`FdConnectManage/Timer/Timer.c:91` 会用到它——
+  ```c
+  int e1=FdClose(w,t->q->queue[1].fd,408);
+  if(e1!=1) return -1;            // 返回 0 会让这一轮超时回收提前退出（不崩，只是剩下的超时连接延到下一轮）
+  ```
+  给 `0` 也能跑（其余调用点都不检查返回值），但 `1` 语义更顺、不打断超时扫描循环。
 - ⚠️ 请**不要**写成「跳过池回收但仍然 `close(client_fd)`」——重复 close 的坑只是换个地方爆（fd 号复用）。
 
 ## 2. `ResponseSend/ResponseSendMain.c` → `GetAndJudge()` 第 32~42 行
@@ -150,6 +155,7 @@ int FdTableFind(Fd_Table* h,int fd,Fd_Entry** ptr)
 ```
 
 - 大小：**2 文件 / 33 行**，md5 `659b55e094523c75634445666c6d6eca`
+- 补丁里第 1 处写的是 `return 0`（可用）；手改时写 `return 1` 也可以、更顺（理由见 §1）。**两者都不崩，关键是 `==` 绝不能写成 `=`**。
 - 性能代价：**0**（只加 NULL 分支，不进热路径；A/B 实测 c50 34,643 → 34,964、延迟 1.6 → 1.7ms，均在误差内）
 - 编译：应用后 `make -j4` **exit=0**（已在你的树副本上验证过两次）
 
@@ -187,10 +193,93 @@ bash ~/cweb_audit_backup/storm2.sh /tmp/try 副本 6 40                         
 
 | 检查 | 命令 | 期望 |
 |---|---|---|
-| 三处都改了 | `grep -n 'fd_ob==NULL' FdConnectOrClose/FdConnectOrClose.c ResponseSend/ResponseSendMain.c` | 命中 **3** 行 |
+| 三处都改了（**注意 `==` 两边可能有空格**） | `grep -nE 'fd_ob *== *NULL' FdConnectOrClose/FdConnectOrClose.c ResponseSend/ResponseSendMain.c` | 命中 **3** 行 |
+| **绝不能写成赋值 `=`** | `grep -nE 'if\(fd_ob *= *NULL' FdConnectOrClose/FdConnectOrClose.c ResponseSend/ResponseSendMain.c` | **0 行**（有输出就是 bug，见 §7） |
 | 没有别的漏网调用点 | `grep -rn 'FdTableFind(' --include=*.c .` | 只有 4 处（3 处已加校验 + `RequestComeMain.c:8` 你已修） |
 | `&&` 确实改成 `\|\|` | `sed -n '36p' ResponseSend/ResponseSendMain.c` | `if(e1!=1\|\|fd_ob==NULL){` |
-| 无新告警 | `make -j4 2>&1 \| grep -i warning` | 与改前一致（这三处不引入新告警） |
+| 无新告警 | `make -j4 2>&1 \| grep -i warning` | 不应出现 `-Wparentheses` |
+| **真实连接冒烟（必做）** | 起服务后 `curl -s http://127.0.0.1:5343/hello >/dev/null`，再 `curl` 两次 | 服务不退出（单测查不出这个 bug，见 §7） |
+
+### §7 实战踩坑记录（2026-10-15，务必看）
+
+你第一版把第 ① 处写成了：
+
+```c
+if(fd_ob = NULL) return 1;        // ← 赋值！不是比较
+```
+
+后果**比原来的 bug 更严重**：
+
+```c
+if(fd_ob = NULL)      // ① 把 fd_ob 赋成 NULL；② 表达式值为假 ⇒ return 永不执行
+                      // ③ 于是必然落到下一行 → 每次 FdClose 100% 崩
+SendPointerPoolDestory(fd_ob->send_pointer_pool, ...);   // fd_ob 必为 NULL
+```
+
+实测证据（`/tmp/verify_v3` = 你当时的树，全量重编）：
+
+```
+[C_你改后] 空闲12s后3请求: 0.003042s 1.156568s 0.000107s     ← 第 2 个请求就崩了
+[C_你改后] c200= / c50=（空）
+段错误（核心已转储）
+```
+
+**连风暴都不用**——第一次连接关闭（curl 收完包断开 → `RequestComeMain.c:22` `FdClose(...,200)`）就崩。编译期其实已经点名了（`-Wall`）：
+
+```
+FdConnectOrClose/FdConnectOrClose.c:52:8: warning: suggest parentheses around assignment used as truth value [-Wparentheses]
+```
+
+**改对之后**（`if(fd_ob==NULL) return 1;`，`/tmp/verify_v4`，同样全量重编）：
+
+| 指标 | 结果 |
+|---|---|
+| 空闲 CPU / RSS | 3% / 3300 KB |
+| 空闲 12s 后 3 请求 | **1.52 / 1.80 / 1.51 ms** |
+| c200 | **49,239** |
+| RST 风暴 6 × 80 | 6 轮全过（每轮 0.04~0.07s）、**存活=yes** |
+| 风暴后 | c50 28,386，RSS 3300 → 3804 KB |
+| `test/run_tests.sh` | **exit=0**（`taskqueue_race` 23 PASS） |
+
+⚠️ **重要教训**：`test/run_tests.sh` 在你**带笔误**的版本上同样 **exit=0 全通过**——单测不覆盖 `FdClose`。所以判断这类 bug **必须用真实连接**（curl 一次就现形），别只看单测。
+
+> 注：②（`GetAndJudge` 的 `&&`→`||`）和 ③（`ResponseSendMain.c:92 if(fd_ob == NULL) return 1;`）你改得**完全正确**。
+
+### §8 结项：三处全部就位，验证通过（2026-10-15 收尾实测）
+
+你的最终代码（`FdConnectOrClose.c:52  if(fd_ob == NULL) return 1;`、`ResponseSendMain.c:36  if(e1!=1||fd_ob==NULL)`、`ResponseSendMain.c:92  if(fd_ob == NULL) return 1;`）在**你仓库的副本**上全量重编 + 压测 + 回归：
+
+| 指标 | 结果 |
+|---|---|
+| 编译 | `make -j4` **exit=0**，**`-Wparentheses` 告警消失** |
+| 空闲 CPU / RSS | 4% / 3304 KB |
+| 空闲 12s 后 3 请求 | **2.77 / 1.57 / 1.63 ms** |
+| wrk c50 / c200 | **34,640 / 56,261** |
+| **RST 风暴 6 × 80** | 6 轮全过（0.03s/轮）、**存活=yes** |
+| 风暴后 | c50 **34,816**，RSS 3304 → 3800 KB（不增长） |
+| `test/run_tests.sh` | **exit=0**（taskqueue_race 23 PASS / 0 FAIL） |
+
+**完整对照时间线（同一套风暴脚本）**
+
+| 版本 | 结果 |
+|---|---|
+| `epoll=50` + 无 NULL 校验 | RST 首轮 → **段错误** |
+| `epoll=1` + 无 NULL 校验 | 仍 → **段错误**（第 1 轮后） |
+| `epoll=1` + guard 写成 `=` | **curl 一次就崩**（更糟，见 §7） |
+| `epoll=1` + guard 写对（`==`） | **风暴全过、存活、c50 ≈3.5 万、延迟 1.6ms** ✅ |
+
+**⚠️ 别忘了重编你仓库里的二进制**：`main` 的时间戳仍是 09:01，而源码已改到 17:08——直接跑 `./main` 测的还是旧代码：
+
+```bash
+cd /home/yaoxianglongde/c_code/c_web && make -j4
+```
+
+**剩余两个无害的既有告警（可选清理，非本次引入）**
+
+- `FdConnectOrClose/FdConnectOrClose.c:46: unused variable 'n'` —— `FdClose()` 里 `write(client_fd, re, len)` 的返回值没被使用（也许顺带该处理一下写失败）。
+- `Threads/ReceiverThread.c:70: unused variable 'e2'` —— 你改 epoll 那处带出来的。
+
+
 
 > 备注：`RequestCome/RequestComeMain/RequestComeMain.c:8` 那处**你已自行加过 `if(fd_ob==NULL) return 0;`**，故不在本清单内。
 > 相关背景（为什么 50ms 长尾、为什么睡眠参数是对的）：见 `~/cweb_audit_backup/CWEB_BOUNDARY_AUDIT.md`（266 行，§6.7 / §6.8 / §6.10）。

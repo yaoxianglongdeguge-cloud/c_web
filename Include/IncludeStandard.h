@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <fcntl.h>
+#include <netinet/tcp.h>
 #include <string.h>
 #include <errno.h>
 #include<stdint.h>

@@ -16,11 +16,10 @@ int FdConnect(Receiver_Thread* w,int Listen_fd)
         client_fd=accept(Listen_fd,NULL,NULL);
         if (client_fd < 0) {
             if (errno == EAGAIN) break;
-            else 
-            {
-                return -1;
-            }
+            else  return -1;
         }
+        int one=1;                                                   
+        setsockopt(client_fd,IPPROTO_TCP,TCP_NODELAY,&one,sizeof(one));
         
         //挂载epoll
         EpollReadMount(w->epfd,client_fd);
@@ -49,7 +48,7 @@ int FdClose(Receiver_Thread* w,int client_fd,int error_reason)
 
     Fd_Entry* fd_ob=NULL;
     FdTableFind(w->fd_table,client_fd,&fd_ob);
-    if(fd_ob = NULL) return 1;
+    if(fd_ob == NULL) return 1;
     
     //回收send池
     SendPointerPoolDestory(fd_ob->send_pointer_pool,w->store_area);
