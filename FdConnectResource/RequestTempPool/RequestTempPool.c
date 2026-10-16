@@ -29,6 +29,12 @@ int RequestTempPoolDestory(Request_Temp_Pool* h,Memory_Pool* pool)
     {
         RequestTempPoolFree(h,pool);
     }
+    
+    if(h->state_machine!=NULL)
+    {
+        free(h->state_machine);
+        h->state_machine=NULL;
+    }
 
     free(h);
     return 1;

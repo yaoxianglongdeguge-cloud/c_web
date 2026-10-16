@@ -7,6 +7,8 @@
             "command": "gcc",
             "args": [
                 "-g",
+                "-I",
+                ".",
                 "-o",
                 "${workspaceFolder}/main",
                 "${workspaceFolder}/main.c",

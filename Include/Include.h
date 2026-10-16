@@ -1,3 +1,6 @@
+//对外接口
+#include "../AgentSpace/foo.h"
+
 //GlobalResource
 #include "../GlobalResource/GlobalResource.h"
 

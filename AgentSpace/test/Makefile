@@ -9,7 +9,7 @@
 
 ROOT    := ..
 CC      := gcc
-CFLAGS  := -g -O0 -Wall
+CFLAGS  := -g -O0 -Wall -I$(ROOT)   # -I$(ROOT)：Include/Include.h 里 #include "foo.h" 要能命中仓库根的 foo.h
 LDFLAGS := -lpthread
 SRC     := src
 BUILD   := build

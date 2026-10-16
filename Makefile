@@ -1,8 +1,8 @@
 # 编译器
 CC = gcc
 
-# 编译选项
-CFLAGS = -g -O0 -Wall
+# 编译选项（-I. 是为了让 Include/Include.h 里的 #include "foo.h" 能命中库根目录的 foo.h）
+CFLAGS = -g -O0 -Wall -I.
 
 # 链接选项
 LDFLAGS = -lpthread

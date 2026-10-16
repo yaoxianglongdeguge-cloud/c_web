@@ -1,4 +1,3 @@
-#include "../Include/Variate.h"
 
 // 网站应用层：把 URL 与处理函数注册到框架路由表。
 //

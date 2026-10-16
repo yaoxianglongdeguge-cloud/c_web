@@ -10,7 +10,12 @@ int RspHeaderAlloc(Worker_Thread* profes,Response* Rsp){
     void* ptr=NULL;
     int notfull=0;
     MemoryPoolAlloc(profes->txt_pool,63,&ptr,&notfull);
-    if(notfull==0)  Rsp->error_reason=503;
+    if(notfull==0){
+        /* 【保险】池满时不要继续用 NULL 指针写 headers->begin（原来会直接段错误崩溃） */
+        Rsp->error_reason=503;
+        Rsp->headers=NULL;
+        return 0;
+    }
     
     Rsp->headers=ptr;
     ptr=ptr+sizeof(Response_Header_Entry);
@@ -166,18 +171,24 @@ int WorkerMain(Worker_Thread* profes){
             RequestAnalysisFree(h,profes->http_pool);
         }
     }
+    if(Rsp.headers==NULL){ Rsp.error_reason=503; }
 
     //返回请求头和请求体，除了文件
     //把信息都打包到返回对象里然后传给接待线程
-    char* C;
-    int allocsize=0;
-    off_t file_size=0;
-    PackTotal(profes,&Rsp,&C,&allocsize,&file_size);
-
+    
     if(Rsp.error_reason!=200){
+
+        { char* C=NULL; PackBackHead(&C,&Rsp); }
+
         ReceiverQueuePush(W->Thing_queue, NULL,Fd,Serial,Rsp.error_reason,0,0,0,NULL,-1, 0);
     }else{
+
+        char* C;
+        int allocsize=0;
+        off_t file_size=0;
+        PackTotal(profes,&Rsp,&C,&allocsize,&file_size);
         ReceiverQueuePush(W->Thing_queue, profes->memory_queue,Fd,Serial,200,allocsize,0,file_size,C,Rsp.send_fd,Rsp.offset);
+
     }
     
     //最后清理一下已经发完的包

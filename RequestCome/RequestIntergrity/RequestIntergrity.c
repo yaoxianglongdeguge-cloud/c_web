@@ -4,21 +4,62 @@
 #define MAX_BODY_SIZE (1024 * 1024)  // 1MB
 char* Method_p[9]={"GET ","DELETE ","HEAD ","OPTIONS ","TRACE ","CONNECT ","POST ","PUT ","PATCH "};
 
-char *strnstr(const char *haystack, const char *needle, size_t n) {
-    size_t needle_len = strlen(needle);
-    if (needle_len == 0) return (char *)haystack;
-    
-    for (size_t i = 0; i + needle_len <= n; i++) {
-        if (memcmp(haystack + i, needle, needle_len) == 0) {
-            return (char *)(haystack + i);
+int GetNextArray(const char* needle,int* nextArray,int len){
+    int k=-1;
+    int j=0;
+
+    nextArray[0] = -1;
+    while(j<len - 1){
+        if(k==-1||needle[j] == needle[k]){
+            j++;
+            k++;
+            nextArray[j] = k;
+        }else{
+            k = nextArray[k];
         }
     }
-    return NULL;
+
+    return 1;
 }
 
-char *strnstr_match(char *haystack, char *needle, size_t n) {
+char* KMPMatch(const char* haystack, const char* needle, int n,int needle_len){
+
+    int nextArray[needle_len];
+    GetNextArray(needle,nextArray,needle_len);
+
+    int i=0;
+    int j=0;
+
+    while( i < n && j < needle_len){
+        if(j == -1 || haystack[i] == needle[j]){
+            i++;
+            j++;
+        }else{
+            j = nextArray[j];
+        }
+    }
+    if(j >= needle_len){
+        char* ptr = haystack + i - needle_len;
+        return ptr;
+    } 
+    return NULL;
+
+}
+
+char* strnstr(const char *haystack, const char *needle, int n) {
+    if(needle == NULL) return NULL;
+    if(haystack == NULL) return NULL;
+    int needle_len = (int)strlen(needle);
+    if(needle_len == 0) return (char *)haystack;
+    if(n < needle_len) return NULL;
+
+    return KMPMatch(haystack,needle,n,needle_len);
+}
+
+char* strnstr_match(char *haystack, char *needle, size_t n) {
     return strnstr(haystack, needle, n);
 }//匹配并返回指针函数，如果以后有需要，可以换成KMP算法
+
 
 int MethodMatch(Request_Temp_Pool* hs,int* sit,char** method){
     for(;*sit<9;(*sit)++){
