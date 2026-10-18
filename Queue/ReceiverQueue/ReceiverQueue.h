@@ -12,6 +12,7 @@ typedef struct Receiver_Queue_Entry{
     int send_fd;
     off_t size_file;
     off_t offset;
+    void* httpNeedFree;
 
 
 }Receiver_Queue_Entry;
@@ -37,6 +38,7 @@ typedef struct Receiver_Queue{
 
 int ReceiverQueueInit(Receiver_Queue** sq,int blocknum);
 
-int ReceiverQueuePush(Receiver_Queue* sq,Worker_Queue* m_queue,int fd,int serial,int error_reason,int resp_size,int off,off_t file_size,char*char_ptr,int send_fd,off_t offset);
+int ReceiverQueuePush(Receiver_Queue* sq,Worker_Queue* m_queue,int fd,int serial,int error_reason,int resp_size,int off,
+    off_t file_size,char*char_ptr,int send_fd,off_t offset,void* httpNeedFree);
 
 Receiver_Queue_Entry ReceiverQueueTopAndPop(Receiver_Queue* sq,int* error);

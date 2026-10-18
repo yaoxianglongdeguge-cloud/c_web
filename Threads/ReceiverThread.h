@@ -14,6 +14,7 @@ typedef struct Receiver_Thread{
     int id;
     int epfd;
     int wakeup_fd;   //【延迟修复】eventfd：业务线程把响应排入队列后立刻唤醒收发线程去发
+    int notified;    //【唤醒合并】1=已经写过 eventfd（避免每个响应都 write 一次）
 
     Fd_Table* fd_table;
     Memory_Pool* store_area;

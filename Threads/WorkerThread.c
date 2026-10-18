@@ -9,7 +9,7 @@ int RspHeaderAlloc(Worker_Thread* profes,Response* Rsp){
 
     void* ptr=NULL;
     int notfull=0;
-    MemoryPoolAlloc(profes->txt_pool,63,&ptr,&notfull);
+    MemoryPoolAlloc(profes->txt_pool,63*1024,&ptr,&notfull);
     if(notfull==0){
         /* 【保险】池满时不要继续用 NULL 指针写 headers->begin（原来会直接段错误崩溃） */
         Rsp->error_reason=503;
@@ -49,7 +49,7 @@ int PackTotal(Worker_Thread* profes,Response* Rsp,char** C,int* allocsize,off_t*
     *allocsize=strlen(Rsp->headers->begin)+Rsp->body_size+17;
     void* ptr2=NULL;
     int notfull2=0;
-    MemoryPoolAlloc(profes->txt_pool,*allocsize/1024+1,&ptr2,&notfull2);
+    MemoryPoolAlloc(profes->txt_pool,1024*(*allocsize/1024+1),&ptr2,&notfull2);
 
     if(notfull2==0)  Rsp->error_reason=503;
     else  *C = ptr2;
@@ -66,7 +66,7 @@ int CleanMemoryQueue(Worker_Thread* profes){
     while(e1!=0){
         Worker_Queue_Entry m=WorkerQueueTopAndPop(profes->memory_queue,&e1);
         if(e1==1){
-            MemoryPoolFree(profes->txt_pool,m.char_ptr,(m.size/1024+1)*1024);
+            MemoryPoolFree(profes->txt_pool,m.char_ptr);
         }
     }
     return 1;
@@ -79,8 +79,8 @@ int WorkerThreadInit(Worker_Thread** profes,int id)
     *profes=(Worker_Thread*)malloc(sizeof(Worker_Thread));
     (*profes)->id=id;
     WorkerQueueInit(&((*profes)->memory_queue),100);
-    MemoryPoolInit(&((*profes)->txt_pool),7,7,200,120);
-    MemoryPoolInit(&((*profes)->http_pool),6,6,10,10);
+    MemoryPoolInit(&((*profes)->txt_pool),2048*1024,8);
+    MemoryPoolInit(&((*profes)->http_pool),2048*1024,8);
     return 1;
 }
 
@@ -183,7 +183,7 @@ int WorkerMain(Worker_Thread* profes){
 
         { char* C=NULL; PackBackHead(&C,&Rsp); }
 
-        ReceiverQueuePush(W->Thing_queue, NULL,Fd,Serial,Rsp.error_reason,0,0,0,NULL,-1, 0);
+        ReceiverQueuePush(W->Thing_queue, NULL,Fd,Serial,Rsp.error_reason,0,0,0,NULL,-1, 0,(void*)Http);
         ReceiverNotify(W);   
     }else{
 
@@ -191,7 +191,8 @@ int WorkerMain(Worker_Thread* profes){
         int allocsize=0;
         off_t file_size=0;
         PackTotal(profes,&Rsp,&C,&allocsize,&file_size);
-        ReceiverQueuePush(W->Thing_queue, profes->memory_queue,Fd,Serial,200,allocsize,0,file_size,C,Rsp.send_fd,Rsp.offset);
+        ReceiverQueuePush(W->Thing_queue, profes->memory_queue,Fd,Serial,200,allocsize,0,
+            file_size,C,Rsp.send_fd,Rsp.offset,(void*)Http);
         ReceiverNotify(W);   
 
     }
@@ -220,11 +221,11 @@ int PackBackHead(char** c,Response* w)
     if(w->error_reason!=200)
     {
         if(w->body!=NULL){
-            MemoryPoolFree((Memory_Pool*)(w->pool),w->body,(w->body_size/1024+1)*1024);
+            MemoryPoolFree((Memory_Pool*)(w->pool),w->body);
         }
 
         if(w->headers!=NULL){
-            MemoryPoolFree((Memory_Pool*)(w->pool),w->headers,64512);
+            MemoryPoolFree((Memory_Pool*)(w->pool),w->headers);
         }
 
         if(w->send_fd!=-1){
@@ -239,11 +240,11 @@ int PackBackHead(char** c,Response* w)
         strcpy(*c,a);
         if(w->headers->begin<w->headers->ptr){
             strcat(*c,w->headers->begin);
-            MemoryPoolFree((Memory_Pool*)(w->pool),w->headers,64512);
+            MemoryPoolFree((Memory_Pool*)(w->pool),w->headers);
         }
         if(w->body!=NULL){
             strcat(*c,w->body);
-            MemoryPoolFree((Memory_Pool*)(w->pool),w->body,(w->body_size/1024+1)*1024);
+            MemoryPoolFree((Memory_Pool*)(w->pool),w->body);
         }
         
     }
@@ -253,13 +254,17 @@ int PackBackHead(char** c,Response* w)
     
 int RequestGet(Worker_Thread* profes,char* ptr,Request_Analysiser** h,int size,int* error_reason,Receiver_Thread* w)
 {
-    int allocsize=4*(size)+sizeof(Request_Analysiser)+2*sizeof(Analysiser_Hash)+sizeof(Analysiser_Hash_Entry)*14;
-  
-    RequestAnalysisInit(h,profes->http_pool,allocsize);
-    
+    //分析块 = 请求原文 + 结构体 + 两块 hash（结构/桶/溢出条目）
+    //原来写 4*size：1MB 的 body 会需要 4MB，超过池子 perSize 直接失败（memcpy(NULL) 崩溃）
+    int allocsize=size+sizeof(Request_Analysiser)+AnalysiserHashMemOverhead();
+
+    if(RequestAnalysisInit(h,profes->http_pool,allocsize)!=1||(*h)==NULL){
+        *error_reason=503;
+        return 0;
+    }
+
     memcpy((*h)->ptr,ptr,size);
     char* ptr2=(*h)->ptr;
-    MemoryPoolFree(w->http_pool,ptr,1024*(size/1024+1));
     (*h)->ptr=(*h)->ptr+size;
     RequestAnalysisReceive(*h,ptr2,error_reason);
     if(*error_reason!=200){

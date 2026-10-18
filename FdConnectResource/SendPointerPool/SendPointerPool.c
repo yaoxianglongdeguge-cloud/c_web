@@ -15,7 +15,7 @@ int SendPointerPoolAlloc(Send_Pointer_Pool* s,Memory_Pool* pool,int blocknum)
     void* ptr=NULL;
     int size=sizeof(Send_Pointer_Pool_Entry)*blocknum/1024+1;
     int notfull=0;
-    MemoryPoolAlloc(pool,size,&ptr,&notfull);
+    MemoryPoolAlloc(pool,size*1024,&ptr,&notfull);
     if(notfull==0)
     {
         return -1;
@@ -69,7 +69,7 @@ int SendPointerPoolFree(Send_Pointer_Pool* s,Memory_Pool* pool)
         return 1;
     }
     int size=s->blocknum*sizeof(Send_Pointer_Pool_Entry);
-    MemoryPoolFree(pool,s->store,size);
+    MemoryPoolFree(pool,s->store);
     s->store=NULL;
     s->blocknum=0;
     return 1;

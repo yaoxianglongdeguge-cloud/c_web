@@ -17,6 +17,12 @@ typedef struct Analysiser_Hash
    
 }Analysiser_Hash;
 
+#define ANALYSISER_HASH_BUCKETS   7     //初始桶数（= PRIME_BUCKET_SIZES_2[0]）
+#define ANALYSISER_HASH_SPILL_MAX 128   //每个 hash 允许的溢出条目上限（超出返回 400，不再越界写）
+
+//两块 hash（结构 + 桶数组 + 溢出条目）一共需要多少字节（用于请求分析块的大小计算）
+int AnalysiserHashMemOverhead(void);
+
 int AnalysiserHashInit(Request_Analysiser* Http, int init);//初始化.但这个最开始的哈希表没必要放到内存池，因为是这样，先是一个指针h，指向一个哈希表，这个表是用来存储本身信息和指向
 //键值对块的指针的，而存储键值对块的内存块放到内存池里。因为需要时常修改。而这个表本身大小和位置不会变，生命周期也很长，所以没必要放到内存池，每次和其他的一起注册。
 

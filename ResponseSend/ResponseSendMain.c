@@ -27,11 +27,12 @@ int GetAndJudge(Receiver_Thread* w,int fd,int edStoreBlockNum,int* send_info,int
         s = ReceiverQueueTopAndPop(w->Thing_queue,&e0);
         if(e0!=1) continue ;
 
+        MemoryPoolFree(w->http_pool,s.httpNeedFree);
         //获取连接对象
         *send_info=1;
         Fd_Entry* fd_ob=NULL;
         int e1=FdTableFind(w->fd_table,s.fd,&fd_ob);
-                
+        
         //如果该连接不存在，或者获取连接失败
         if(e1!=1||fd_ob==NULL){
             if(s.m_queue!=NULL){ //因为有可能是静态文件，本来就不用再给工作线程通知，所以可能也是NULL
@@ -48,7 +49,7 @@ int GetAndJudge(Receiver_Thread* w,int fd,int edStoreBlockNum,int* send_info,int
             
         //把要发的包信息存在send指针暂存池
         FdNextSendPut(fd_ob,&s);
-                    
+        
         //如果本连接下一个要发的包来了，那就开始发送
         if(s.serial==fd_ob->ser_nex_send) *sendFd=s.fd;
             
@@ -105,27 +106,40 @@ int ResponseSendMain(Receiver_Thread* w,int fd,int ed_store_blocknum,int* send_i
         if(fd_ob->send_pointer_pool->store[next].size_resp!=fd_ob->send_pointer_pool->store[next].off){
 
             int n=write(send_fd,fd_ob->send_pointer_pool->store[next].ptr+off1, len);
-            if(n==0){  FdClose(w,send_fd,200);  return 1;  }
-            else if(n<len&&n>0){
 
-                off1=off1+n;
-                fd_ob->send_pointer_pool->store[next].off=off1;    
+            if(n==len){                       //① 全写完（最常见）
 
-                EpollChangeReAndWr(w->epfd,send_fd);      
-                TimerReset(w->my_Timer,send_fd,w);
-
-                return 1;
-            } else if(n==-1&&errno==EAGAIN) {
-                
-                EpollChangeReAndWr(w->epfd,send_fd);       
-                TimerReset(w->my_Timer,send_fd,w);
-
-                return 1;
-            } else if(n>=len) {
-                
-                EpollChangeRead(w->epfd,send_fd);    
+                if(fd_ob->need_wr==1){ EpollChangeRead(w->epfd,send_fd); fd_ob->need_wr=0; }
                 MemoryQueuePushOperate(fd_ob,next);
 
+            }
+            else if(n>0){                     //② 部分写：没 EAGAIN，但也没写完
+
+                fd_ob->send_pointer_pool->store[next].off=off1+n;
+
+                if(fd_ob->need_wr==0){ EpollChangeReAndWr(w->epfd,send_fd); fd_ob->need_wr=1; }
+                TimerReset(w->my_Timer,send_fd,w);
+
+                return 1;
+            }
+            else if(n==0){                    //③ 对端关闭
+
+                FdClose(w,send_fd,200);
+                return 1;
+            }
+            else{                             //④ n==-1：按 errno 分流
+
+                if(errno==EAGAIN||errno==EWOULDBLOCK){       //发送缓冲满
+
+                    if(fd_ob->need_wr==0){ EpollChangeReAndWr(w->epfd,send_fd); fd_ob->need_wr=1; }
+                    TimerReset(w->my_Timer,send_fd,w);
+
+                    return 1;
+                }
+                if(errno==EINTR) return 1;                   //被信号打断：等 epoll 再触发
+
+                FdClose(w,send_fd,200);                      //EPIPE/ECONNRESET/EBADF…
+                return 1;
             }
         }
         
@@ -137,30 +151,36 @@ int ResponseSendMain(Receiver_Thread* w,int fd,int ed_store_blocknum,int* send_i
             ssize_t sent = sendfile(send_fd,send_ed_fd, 
                 &fd_ob->send_pointer_pool->store[next].offset,
                 size_file-fd_ob->send_pointer_pool->store[next].offset);
-            // 对端断开，关闭连接
-            if (sent < 0 && errno == EPIPE) {  FdClose(w,send_fd,200);  close(send_ed_fd);  return 1;  }
-            if (sent==0) {  FdClose(w,send_fd,200);  close(send_ed_fd);  return 1;  }
 
-            if(size_file!=fd_ob->send_pointer_pool->store[next].offset){//文件没写完
-
-                if(sent>0){
-
-                    EpollChangeReAndWr(w->epfd,send_fd);
-                    TimerReset(w->my_Timer,send_fd,w);
-                    return 1;
-                }
-                else if (sent<0 && errno == EAGAIN) {
-                    EpollChangeReAndWr(w->epfd,send_fd);
-                    TimerReset(w->my_Timer,send_fd,w);
-                    return 1;
-                }
-            }else{//文件写完了
-                EpollChangeRead(w->epfd,send_fd);  
-                close(send_ed_fd);
+            if(sent<0&&(errno==EPIPE||errno==ECONNRESET)){     //对端断开
+                FdClose(w,send_fd,200);  close(send_ed_fd);  return 1;
             }
-            
-        }
+            if(sent<0&&errno==EINTR) return 1;                 //被信号打断：等 epoll 再触发
+            if(sent<0&&errno!=EAGAIN&&errno!=EWOULDBLOCK){     //其它错误
+                FdClose(w,send_fd,200);  close(send_ed_fd);  return 1;
+            }
 
+            //非阻塞下 sent==0 但文件还没到末尾：当成 would-block，不能当断开
+            if(sent==0&&fd_ob->send_pointer_pool->store[next].offset<size_file){
+
+                if(fd_ob->need_wr==0){ EpollChangeReAndWr(w->epfd,send_fd); fd_ob->need_wr=1; }
+                TimerReset(w->my_Timer,send_fd,w);
+
+                return 1;
+            }
+
+            if(fd_ob->send_pointer_pool->store[next].offset<size_file){   //文件没写完
+
+                if(fd_ob->need_wr==0){ EpollChangeReAndWr(w->epfd,send_fd); fd_ob->need_wr=1; }
+                TimerReset(w->my_Timer,send_fd,w);
+
+                return 1;
+            }
+
+            //文件写完
+            if(fd_ob->need_wr==1){ EpollChangeRead(w->epfd,send_fd); fd_ob->need_wr=0; }
+            close(send_ed_fd);
+        }
 
         fd_ob->ser_nex_send++;
         fd_ob->send_pointer_pool->store[next].use=0;

@@ -162,3 +162,14 @@ int RequestIntergrityJudge(Request_Temp_Pool* hs,char** ptr,int* fail,int* fail_
     return 1;
 
 }
+
+int RequestHeadEndOffset(Request_Temp_Pool* hs)
+{
+    int n=hs->ptr_e-hs->begin;
+    if(n<=0) return -1;
+
+    char* p=strnstr_match(hs->begin,"\r\n\r\n",n);
+    if(p==NULL) return -1;
+
+    return (int)(p-hs->begin)+4;
+}

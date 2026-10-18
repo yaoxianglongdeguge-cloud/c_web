@@ -2,7 +2,7 @@
 CC = gcc
 
 # 编译选项（-I. 是为了让 Include/Include.h 里的 #include "foo.h" 能命中库根目录的 foo.h）
-CFLAGS = -g -O0 -Wall -I.
+CFLAGS = -g -O0 -Wall -I. -IAgentSpace
 
 # 链接选项
 LDFLAGS = -lpthread
@@ -16,7 +16,7 @@ LIB_TARGET = libcweb.a
 # 自动查找所有 .c 文件（目录最深三层，如 FdConnectManage/Timer/TimerDataStruct/）
 SRCS = $(wildcard *.c */*.c */*/*.c */*/*/*.c)
 # 排除 test/ 下的用例源码（它们各自带 main，混进来会导致 multiple definition of `main`）
-SRCS := $(filter-out test/%,$(SRCS))
+SRCS := $(filter-out test/% MemoryPool/OldPool/% AgentSpace/test/%,$(SRCS))
 OBJS = $(SRCS:.c=.o)
 
 # 编译规则

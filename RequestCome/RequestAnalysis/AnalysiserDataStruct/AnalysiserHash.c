@@ -61,8 +61,19 @@ int AnalysiserHashEntryInsert(Analysiser_Hash_Entry* head,char* url,void* func,v
     return -1;
 }
 
+int AnalysiserHashMemOverhead(void)
+{
+    int per = (int)sizeof(Analysiser_Hash) + ANALYSISER_HASH_BUCKETS * (int)sizeof(Analysiser_Hash_Entry);
+
+    //Query 一块 + Headers 一块 + 允许的溢出条目
+    return 2 * per + ANALYSISER_HASH_SPILL_MAX * (int)sizeof(Analysiser_Hash_Entry);
+}
+
 int AnalysiserHashAlloc(Analysiser_Hash* h,int size_h,Request_Analysiser* Http)
 {
+
+    //先判空间，再写：避免把桶数组写到分析块外面
+    if(Http->ptr + size_h * (int)sizeof(Analysiser_Hash_Entry) > Http->end) return 0;
 
     h->Elem=(Analysiser_Hash_Entry*)(Http->ptr);
 
@@ -89,6 +100,9 @@ int AnalysiserHashInit(Request_Analysiser* Http, int init)//1成功，0已存在
     h=(Analysiser_Hash*)Http->ptr;
 
     int bu_size=PRIME_BUCKET_SIZES_2[init-1];
+
+    //先判空间：结构体也要放得下
+    if(Http->ptr + (int)sizeof(*h) > Http->end) return 0;
 
     Http->ptr=Http->ptr+sizeof(*h);
     if(Http->ptr>=Http->end) return 0;
@@ -131,6 +145,9 @@ int AnalysiserHashInsert(Analysiser_Hash* h,Request_Analysiser* Http, char* url,
     int b_site=bucket_site_2(h->bu_num,url);
 
     Analysiser_Hash_Entry* head=&(h->Elem[b_site]);
+
+    //先判空间，再写：溢出条目超过上限就返回 0（上层转 400），绝不越界写
+    if(Http->ptr + (int)sizeof(Analysiser_Hash_Entry) > Http->end) return 0;
 
     int e=AnalysiserHashEntryInsert(head,url,func,Http->ptr);
     Http->ptr=Http->ptr+sizeof(Analysiser_Hash_Entry);

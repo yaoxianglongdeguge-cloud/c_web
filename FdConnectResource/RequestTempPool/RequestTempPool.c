@@ -1,5 +1,8 @@
 #include "../../Include/Include.h"
 
+//暂存块超过这个大小就改用 malloc（大请求扩容时，池里同时存在旧块+新块会超过 2MB 子池）
+#define REQUEST_TEMP_POOL_MAX (1024*1024)
+
 
 int RequestTempPoolInit(Request_Temp_Pool** h)//分配整个存储大小，单位是字节
 {
@@ -9,6 +12,7 @@ int RequestTempPoolInit(Request_Temp_Pool** h)//分配整个存储大小，单�
     (*h)->end=(*h)->begin;
     (*h)->ptr_b=(*h)->begin;
     (*h)->ptr_e=(*h)->begin;
+    (*h)->from_malloc=0;
 
     State_Machine* ht=NULL;
     int a=StateMachineInit(&ht);
@@ -44,7 +48,7 @@ int RequestTempPoolAlloc(Request_Temp_Pool* h,Memory_Pool* pool,int size)//单�
 {
      void* ptr=NULL;
      int notfull=0;
-    MemoryPoolAlloc(pool,size,&ptr,&notfull);
+    MemoryPoolAlloc(pool,size*1024,&ptr,&notfull);
     if(notfull==0)
     {
         return -1;
@@ -54,14 +58,19 @@ int RequestTempPoolAlloc(Request_Temp_Pool* h,Memory_Pool* pool,int size)//单�
     h->end=h->begin+(size*1024)-1;
     h->ptr_b=h->begin;
     h->ptr_e=h->begin;
+    h->from_malloc=0;
 
     return 1;
 }
 
 int RequestTempPoolFree(Request_Temp_Pool* h,Memory_Pool* pool)
 {
-    int size=h->end-h->begin+1;
-    MemoryPoolFree(pool,h->begin,size);
+    if(h->begin!=NULL){
+        if(h->from_malloc==1) free(h->begin);
+        else                  MemoryPoolFree(pool,h->begin);
+    }
+
+    h->from_malloc=0;
     h->begin=NULL;
     h->end=h->begin;
     h->ptr_b=h->begin;
@@ -72,27 +81,50 @@ int RequestTempPoolFree(Request_Temp_Pool* h,Memory_Pool* pool)
     return 1;
 }
 
-int RequestTempPoolExpend(Request_Temp_Pool* h,Memory_Pool* pool,int* hadBigest)
+int RequestTempPoolExpendTo(Request_Temp_Pool* h,Memory_Pool* pool,int needSize,int* hadBigest)
 {
-    int nowsize=h->end-h->begin;
-    int expendsize=nowsize*2/1024+1;
+    int cursize=h->end-h->begin+1;          //当前缓冲总字节（end 是最后一个可用字节）
+    int newsize=needSize;
+
+    //没有精确需求（或精确值不大于当前）→ 按 2 倍扩（保持原行为）
+    if(newsize<=cursize) newsize=cursize*2;
+
+    newsize=((newsize+1023)/1024)*1024;      //按 KB 取整
+
     int ptr_b=h->ptr_b-h->begin;
     int ptr_e=h->ptr_e-h->begin;
     void* ptr=NULL;
-
     int notfull=0;
-    MemoryPoolAlloc(pool,expendsize,&ptr,&notfull);
-    if(notfull==0) { *hadBigest = 1; return -1; }
-    
-    memcpy(ptr,h->begin,nowsize);
+
+    int newFromMalloc=0;
+
+    //超过 REQUEST_TEMP_POOL_MAX 时走 malloc：避免"旧块 + 新块"同时占子池把 2MB 撑爆
+    if(newsize<=REQUEST_TEMP_POOL_MAX){
+        MemoryPoolAlloc(pool,newsize,&ptr,&notfull);
+        if(notfull!=0) newFromMalloc=0;
+        else ptr=NULL;
+    }
+    if(ptr==NULL){
+        ptr=malloc(newsize);
+        if(ptr==NULL){ *hadBigest = 1; return -1; }
+        newFromMalloc=1;
+    }
+
+    memcpy(ptr,h->begin,ptr_e);              //只拷有效数据，不整块拷
     RequestTempPoolFree(h,pool);
+
     h->begin=(char*)ptr;
-    h->end=h->begin+expendsize*1024-1;
+    h->end=h->begin+newsize-1;
     h->ptr_b=h->begin+ptr_b;
     h->ptr_e=h->begin+ptr_e;
+    h->from_malloc=newFromMalloc;
 
     return 1;
+}
 
+int RequestTempPoolExpend(Request_Temp_Pool* h,Memory_Pool* pool,int* hadBigest)
+{
+    return RequestTempPoolExpendTo(h,pool,0,hadBigest);   //0 = 按 2 倍扩
 }
 
 int RequestTempPoolWrite(Request_Temp_Pool* h,int fd)

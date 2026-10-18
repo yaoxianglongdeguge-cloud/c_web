@@ -1,5 +1,15 @@
 #include "../../Include/Include.h"
 
+//单个请求（含 body）的字节上限：超过就直接 413，不再继续往内存里读
+#define MAX_REQUEST_BYTES (1024*1024 + 64*1024)
+
+static int RequestOverLimit(Fd_Entry* fd_ob)
+{
+    if(fd_ob->request_temp_pool==NULL||fd_ob->request_temp_pool->begin==NULL) return 0;
+
+    return (fd_ob->request_temp_pool->ptr_e - fd_ob->request_temp_pool->begin) > MAX_REQUEST_BYTES;
+}
+
 int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknum)
 {
 
@@ -20,57 +30,37 @@ int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknu
     //第一次向请求暂存池写入数据
     int r0=RequestTempPoolWrite(fd_ob->request_temp_pool,fd);//返回-1说明，没断开但是没数据
     if(r0==0) { FdClose(Receiver_Thread,fd,200); return 1; }//对端关闭连接
+    if(RequestOverLimit(fd_ob)) { FdClose(Receiver_Thread,fd,413); return 1; }//请求超过上限
 
     //拿到连接已经发的最新包序号
     int serial=fd_ob->ser_fina_send;
 
     while(1)
     {
-                   
         //状态机开始检索http请求
         int state=0;
         int error_reason=200;
         char* source_end=NULL;
 
         //请求完整性判断
-        RequestIntergrityJudge(fd_ob->request_temp_pool,&source_end,&state,&error_reason);//要复制的文本结尾，此处在文本中
-            
-        
-        //不够一个请求的，但是还不需要更大的存储区
-        if(state==-1&&fd_ob->request_temp_pool->ptr_e!=fd_ob->request_temp_pool->end){
-            //继续把数据读到暂存区
-            int r1=RequestTempPoolWrite(fd_ob->request_temp_pool,fd);
-            if(r1==-1){
-                //说明连接里没数据并且暂存区也没有残留数据,所以可以释放占有的暂存区
-                if(fd_ob->request_temp_pool->ptr_b==fd_ob->request_temp_pool->ptr_e){
-                    RequestTempPoolFree(fd_ob->request_temp_pool,Receiver_Thread->store_area);
-                }
-                break;
-            //对面断开了连接
-            }else if(r1==0){ FdClose(Receiver_Thread,fd,200); return 1; }
+        RequestIntergrityJudge(fd_ob->request_temp_pool,&source_end,&state,&error_reason);
 
-        }
-            
-        //解析出了一个完整请求
-        else if(state==1){
-     
-            //要复制的文本长度
+        //① 解析出一个完整请求
+        if(state==1){
+
             int h_size=5+(source_end-fd_ob->request_temp_pool->begin+1);
+            if(h_size>MAX_REQUEST_BYTES){ FdClose(Receiver_Thread,fd,413); return 1; }
 
-            //在请求存储池申请一块内存
             void* ptr=NULL;
             int notfull=0;
-            MemoryPoolAlloc(Receiver_Thread->http_pool,h_size/1024+1,&ptr,&notfull);
+            MemoryPoolAlloc(Receiver_Thread->http_pool,(h_size/1024+1)*1024,&ptr,&notfull);
             if(notfull==0) { FdClose(Receiver_Thread,fd,503); return 1; }
 
-            //把请求从暂存区拷贝到存储池
             char* hptr=(char*)ptr;
             RequestTempPoolCopy(fd_ob->request_temp_pool,source_end,hptr);
 
-            //重置状态机
-            RequestTempPoolStateReset(fd_ob->request_temp_pool);    
+            RequestTempPoolStateReset(fd_ob->request_temp_pool);
 
-            //发送
             fd_ob->ser_fina_send++;
             int put = ReceiverToWorker(Receiver_Thread,fd,hptr,h_size,error_reason,serial);
             if(put != 1) break;
@@ -78,19 +68,37 @@ int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknu
             serial++;
 
             error_reason=200;
-                
+
+            //内存里可能还有流水线请求：继续解析，不再 read
+            continue;
         }
-            
-        //这个暂存区根本装不下连接发来的一个请求
+
+        //② 缓冲满、请求还不完整：扩容（知道 Content-Length 就精确扩）+ 读一次
         else if(state==-1&&fd_ob->request_temp_pool->ptr_e==fd_ob->request_temp_pool->end){
+
+            int need=0;
+            if(fd_ob->request_temp_pool->state_machine->h_body_length>0){
+                int head_end=RequestHeadEndOffset(fd_ob->request_temp_pool);
+                if(head_end>0){
+                    need=head_end+fd_ob->request_temp_pool->state_machine->h_body_length+1;
+                }
+            }
+
             int hadbigest=0;
-            RequestTempPoolExpend(fd_ob->request_temp_pool,Receiver_Thread->store_area,&hadbigest);//换更大的暂存区
-            //如果暂存区无法再扩大就断开连接
-            if(hadbigest == 1) { FdClose(Receiver_Thread,fd,503); return 1; }
-            RequestTempPoolWrite(fd_ob->request_temp_pool,fd);
+            if(RequestTempPoolExpendTo(fd_ob->request_temp_pool,Receiver_Thread->store_area,need,&hadbigest)!=1){
+                FdClose(Receiver_Thread,fd,503);
+                return 1;
+            }
+
+            int r1=RequestTempPoolWrite(fd_ob->request_temp_pool,fd);
+            if(r1==0){ FdClose(Receiver_Thread,fd,200); return 1; }   //对端关闭
+            if(r1==-1) return 1;                                     //没数据：等下次事件，别连环扩
+            if(RequestOverLimit(fd_ob)){ FdClose(Receiver_Thread,fd,413); return 1; }
+
+            continue;
         }
-                
-        // 发生了错误
+
+        //③ 发生了错误
         else if(state==0){
 
             fd_ob->ser_fina_send++;
@@ -98,14 +106,20 @@ int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknu
             fd_ob->pack_in_path++;
             error_reason=200;
             serial++;
-                    
+
             break;
         }
-                      
-       
-   }
 
-                
+        //④ 还不够一个请求：本次事件不再读，等下一次 EPOLLIN（水平触发会再通知）
+        else{
+
+            if(fd_ob->request_temp_pool->ptr_b==fd_ob->request_temp_pool->ptr_e){
+                RequestTempPoolFree(fd_ob->request_temp_pool,Receiver_Thread->store_area);
+            }
+            break;
+        }
+    }
+
     return 1;
 
 }

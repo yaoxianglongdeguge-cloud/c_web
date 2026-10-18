@@ -29,8 +29,8 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id)
 
     *w=(Receiver_Thread*)malloc(sizeof(Receiver_Thread));
 
-    MemoryPoolInit(&((*w)->http_pool),6,6,500,400);
-    MemoryPoolInit(&((*w)->store_area),10,6,500,400);
+    MemoryPoolInit(&((*w)->http_pool),2048*1024,8);
+    MemoryPoolInit(&((*w)->store_area),2048*1024,8);
     ReceiverQueueInit(&((*w)->Thing_queue),100);
     TimerInit(&((*w)->my_Timer),5000);
     FdTableInit(&((*w)->fd_table),4);
@@ -38,6 +38,7 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id)
 
     (*w)->epfd=epoll_create1(0);
     (*w)->id=id;
+    (*w)->notified=0;
     EpollReadMount((*w)->epfd,Listen_fd);
 
     (*w)->wakeup_fd=eventfd(0,EFD_NONBLOCK);
@@ -52,9 +53,12 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id)
 int ReceiverNotify(Receiver_Thread* w)
 {
     if(w!=NULL&&w->wakeup_fd>=0){
-        uint64_t one=1;
-        ssize_t n=write(w->wakeup_fd,&one,sizeof(one));
-        (void)n;
+        //【唤醒合并】只有从"未通知"变成"已通知"时才真写一次；接待线程处理完会清 0
+        if(__atomic_exchange_n(&w->notified,1,__ATOMIC_ACQ_REL)==0){
+            uint64_t one=1;
+            ssize_t n=write(w->wakeup_fd,&one,sizeof(one));
+            (void)n;
+        }
     }
     return 1;
 }
@@ -105,6 +109,15 @@ int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_bl
             if(handle_fd==w->wakeup_fd){
                 uint64_t drain;
                 while(read(w->wakeup_fd,&drain,sizeof(drain))>0){}
+                __atomic_store_n(&w->notified,0,__ATOMIC_RELEASE);
+
+                //清完标志后再看一眼响应队列：还有积压就补一次唤醒，避免丢唤醒
+                if(w->Thing_queue!=NULL&&w->Thing_queue->num>0&&
+                   __atomic_exchange_n(&w->notified,1,__ATOMIC_ACQ_REL)==0){
+                    uint64_t one=1;
+                    ssize_t n=write(w->wakeup_fd,&one,sizeof(one));
+                    (void)n;
+                }
                 continue;
             }
 

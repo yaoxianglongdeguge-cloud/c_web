@@ -16,7 +16,7 @@ int RequestAnalysisInit(Request_Analysiser** h,Memory_Pool* pool,int h_size)//å
 {
     void* ptr=NULL;
     int notfull=0;
-    int e0=MemoryPoolAlloc(pool,(h_size/1024)+1,&ptr,&notfull);
+    int e0=MemoryPoolAlloc(pool,1024*((h_size/1024)+1),&ptr,&notfull);
     if(notfull==0)  return -1;
     
     (*h)=ptr;
@@ -45,7 +45,7 @@ int RequestAnalysisInit(Request_Analysiser** h,Memory_Pool* pool,int h_size)//å
 
 int RequestAnalysisFree(Request_Analysiser* h,Memory_Pool* pool)
 {
-    MemoryPoolFree(pool,h,h->size);
+    MemoryPoolFree(pool,h);
     return 1;
 }
 

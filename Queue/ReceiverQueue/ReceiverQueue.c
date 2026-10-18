@@ -24,7 +24,8 @@ int ReceiverQueueInit(Receiver_Queue** sq,int blocknum)
 
 }
 
-int ReceiverQueuePush(Receiver_Queue* sq,Worker_Queue* m_queue,int fd,int serial,int error_reason,int resp_size,int off,off_t file_size,char*char_ptr,int send_fd,off_t offset)
+int ReceiverQueuePush(Receiver_Queue* sq,Worker_Queue* m_queue,int fd,int serial,int error_reason,
+    int resp_size,int off,off_t file_size,char*char_ptr,int send_fd,off_t offset,void* httpNeedFree)
 {
     sem_wait(&(sq->sem_thing_queue_notfull));
     pthread_mutex_lock(&(sq->mutex_thing));
@@ -39,6 +40,7 @@ int ReceiverQueuePush(Receiver_Queue* sq,Worker_Queue* m_queue,int fd,int serial
     sq->queue[sq->ptr_in].serial=serial;
     sq->queue[sq->ptr_in].offset=offset;
     sq->queue[sq->ptr_in].off=off;
+    sq->queue[sq->ptr_in].httpNeedFree = httpNeedFree;
 
     if(sq->ptr_in+1==sq->end){
         sq->ptr_in=sq->begin;
@@ -68,6 +70,7 @@ Receiver_Queue_Entry ReceiverQueueTopAndPop(Receiver_Queue* sq,int* error)//0为
     s.m_queue=NULL;
     s.offset=0;
     s.off=0;
+    s.httpNeedFree = NULL;
 
 
     if(sq->num!=0){
@@ -82,6 +85,7 @@ Receiver_Queue_Entry ReceiverQueueTopAndPop(Receiver_Queue* sq,int* error)//0为
         s.m_queue=sq->queue[sq->ptr_out].m_queue;
         s.offset=sq->queue[sq->ptr_out].offset;
         s.off=sq->queue[sq->ptr_out].off;
+        s.httpNeedFree = sq->queue[sq->ptr_out].httpNeedFree;
 
         if(sq->ptr_out+1==sq->end){
             sq->ptr_out=sq->begin;
