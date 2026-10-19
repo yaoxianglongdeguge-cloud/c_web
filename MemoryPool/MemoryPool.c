@@ -60,8 +60,9 @@ static int MemoryPoolFindRun(Memory_Pool* p,int need){
         }
 
         //从 first 起，本字内连续空闲的长度
+        //注意：整字全空闲时 freem 为全 1，~freem==0，不能再喂给 ctz（UB）
         uint64_t freem = (~used) >> first;
-        int len = freem ? __builtin_ctzll(~freem) : (64 - first);
+        int len = (~freem) ? __builtin_ctzll(~freem) : (64 - first);
 
         if(run == 0) start = u;
         run += len;
@@ -73,7 +74,12 @@ static int MemoryPoolFindRun(Memory_Pool* p,int need){
         scanned += len;
         u = (u + len) % p->unitNum;
 
-        if(endbit == 64) continue;               //正好到字尾：保留 run，跨字续接
+        if(u == 0){                              //到 arena 末尾：不能和开头拼成一段
+            run = 0; start = -1;
+            continue;                            //从 0 继续扫（若还没扫满一圈）
+        }
+
+        if(endbit == 64) continue;               //没到末尾：跨字续接
 
         //下一位被占用：跳过它，并断开连续段
         u = (u + 1) % p->unitNum;
@@ -119,6 +125,14 @@ int MemoryPoolInit(Memory_Pool** p,int perSize,int entryNum){
         return 0;
     }
 
+    //最后一个 64 位字里超出 unitNum 的填充位标记为“已占用”。
+    //否则扫描会把它们当成空闲单位，算出跨过 arena 末尾的“环形连续段”，
+    //调用方按线性内存写就会越界。
+    int padded = (((*p)->unitNum + 63) / 64) * 64;
+    for(int k = (*p)->unitNum; k < padded; k++){
+        (*p)->bits[k >> 6] |= 1ULL << (k & 63);
+    }
+
     return 1;
 }
 
@@ -157,6 +171,7 @@ int MemoryPoolAlloc(Memory_Pool* p,int needSize,void** ptr,int* notfull){
 
     int start = MemoryPoolFindRun(p,n);
     if(start < 0) return 0;                               //没有连续空闲段 → notfull=0
+    if(start + n > p->unitNum) return 0;                  //只发线性块（环形段不能交给调用方）
 
     MemoryPoolBitsSet(p,start,n);
     p->lens[start] = (uint32_t)n;

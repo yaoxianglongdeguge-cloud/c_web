@@ -2,7 +2,7 @@
 
 //响应头块大小：16KB 足够（实际头部只有几百字节）；写满会由 ResponseHeaderSet 回 503
 #define RSP_HEADER_BLOCK (4*1024)
-
+#define RSP_FIRST_LINE 17
 
 int DealWithTask(Request* r,Response* w); //处理业务任务
 int PackBackHead(char** c,Response* w);
@@ -52,10 +52,11 @@ int PackTotal(Worker_Thread* profes,Response* Rsp,char** C,int* allocsize,off_t*
 
 
     //返回请求头和请求体，文件不用打包，直接把fd传给接待线程
-    *allocsize=strlen(Rsp->headers->begin)+Rsp->body_size+17;
+    //注意：allocsize 是真正要 write 的字节数；分配时还要给结尾 '\0' 和尾部节点留空间
+    *allocsize=strlen(Rsp->headers->begin)+Rsp->body_size+RSP_FIRST_LINE;
     void* ptr2=NULL;
     int notfull2=0;
-    MemoryPoolAlloc(profes->txt_pool,1024*(*allocsize/1024+1),&ptr2,&notfull2);
+    MemoryPoolAlloc(profes->txt_pool,WORKER_QUEUE_ALLOC_BYTES(*allocsize),&ptr2,&notfull2);
 
     if(notfull2==0){ Rsp->error_reason=503; *C=NULL; return 0; }
     *C = ptr2;
@@ -69,14 +70,17 @@ int PackTotal(Worker_Thread* profes,Response* Rsp,char** C,int* allocsize,off_t*
 int CleanMemoryQueue(Worker_Thread* profes){
 
     int e1=1;
-    while(e1!=0){
-        Worker_Queue_Entry m=WorkerQueueTopAndPop(profes->memory_queue,&e1);
-        if(e1==1){
-            MemoryPoolFree(profes->txt_pool,m.char_ptr);
-        }
+
+    Worker_Queue_Entry* m=WorkerQueueTopAndPop(profes->memory_queue,&e1);
+    while(m!=NULL){
+        //节点本身就在待释放的响应块里：先取 next，再还块
+        Worker_Queue_Entry* next=m->next;
+        MemoryPoolFree(profes->txt_pool,m->NeedFree);
+        m=next;
     }
+
     return 1;
-    
+
 }
 
 int WorkerThreadInit(Worker_Thread** profes,int id)
@@ -84,7 +88,7 @@ int WorkerThreadInit(Worker_Thread** profes,int id)
   
     *profes=(Worker_Thread*)malloc(sizeof(Worker_Thread));
     (*profes)->id=id;
-    WorkerQueueInit(&((*profes)->memory_queue),100);
+    if(WorkerQueueInit(&((*profes)->memory_queue))!=1) return 0;
     //txt_pool：响应头块 4KB + 响应体（<=8KB 在池内，>8KB 走 malloc）。
     //  队列 100 深时最多约 1.2MB 在途，保留 2MB。
     MemoryPoolInit(&((*profes)->txt_pool),2048*1024,1);
@@ -275,9 +279,7 @@ int PackBackHead(char** c,Response* w)
 }
     
 int RequestGet(Worker_Thread* profes,char* ptr,Request_Analysiser** h,int size,int* error_reason,Receiver_Thread* w)
-{
-    //分析块 = 请求原文 + 结构体 + 两块 hash（结构/桶/溢出条目）
-    //原来写 4*size：1MB 的 body 会需要 4MB，超过池子 perSize 直接失败（memcpy(NULL) 崩溃）
+
     int allocsize=size+sizeof(Request_Analysiser)+AnalysiserHashMemOverhead();
 
     if(RequestAnalysisInit(h,profes->http_pool,allocsize)!=1||(*h)==NULL){
