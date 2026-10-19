@@ -279,7 +279,8 @@ int PackBackHead(char** c,Response* w)
 }
     
 int RequestGet(Worker_Thread* profes,char* ptr,Request_Analysiser** h,int size,int* error_reason,Receiver_Thread* w)
-
+{
+    //分析块 = 请求原文 + 结构体 + 两块 hash（结构/桶/溢出条目）
     int allocsize=size+sizeof(Request_Analysiser)+AnalysiserHashMemOverhead();
 
     if(RequestAnalysisInit(h,profes->http_pool,allocsize)!=1||(*h)==NULL){
