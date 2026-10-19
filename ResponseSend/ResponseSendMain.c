@@ -38,6 +38,7 @@ int GetAndJudge(Receiver_Thread* w,int fd,int edStoreBlockNum,int* send_info,int
             if(s.m_queue!=NULL){ //因为有可能是静态文件，本来就不用再给工作线程通知，所以可能也是NULL
                 WorkerQueuePush(s.m_queue,s.size_resp,s.char_ptr);
             }
+            MemoryPoolFree(w->http_pool,s.httpNeedFree);   //连接已经没了，请求副本也要还（原来这里漏了）
                 continue;
         }
 
@@ -196,6 +197,13 @@ int ResponseSendMain(Receiver_Thread* w,int fd,int ed_store_blocknum,int* send_i
     if( fd_ob->ser_nex_send>= fd_ob->ser_fina_send) SendPointerPoolFree(fd_ob->send_pointer_pool,w->store_area);
 
     TimerReset(w->my_Timer,send_fd,w);
+
+    //一组包发完了：如果这个连接还有"因在途窗口满而暂存"的请求，就续着处理
+    //（否则那些已经读进暂存区的流水线请求会一直没人投递 → 客户端卡住）
+    if(fd_ob->pending==1&&fd_ob->pack_in_path<ed_store_blocknum){
+        fd_ob->pending=0;
+        RequestComeMain(send_fd,w,ed_store_blocknum);
+    }
 
     return 1;
 

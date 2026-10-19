@@ -1,5 +1,8 @@
 #include "../Include/Include.h"
 
+//响应头块大小：16KB 足够（实际头部只有几百字节）；写满会由 ResponseHeaderSet 回 503
+#define RSP_HEADER_BLOCK (4*1024)
+
 
 int DealWithTask(Request* r,Response* w); //处理业务任务
 int PackBackHead(char** c,Response* w);
@@ -9,9 +12,9 @@ int RspHeaderAlloc(Worker_Thread* profes,Response* Rsp){
 
     void* ptr=NULL;
     int notfull=0;
-    MemoryPoolAlloc(profes->txt_pool,63*1024,&ptr,&notfull);
+    MemoryPoolAlloc(profes->txt_pool,RSP_HEADER_BLOCK,&ptr,&notfull);
     if(notfull==0){
-        /* 【保险】池满时不要继续用 NULL 指针写 headers->begin（原来会直接段错误崩溃） */
+        //池满时不要继续用 NULL 指针写 headers->begin
         Rsp->error_reason=503;
         Rsp->headers=NULL;
         return 0;
@@ -21,7 +24,7 @@ int RspHeaderAlloc(Worker_Thread* profes,Response* Rsp){
     ptr=ptr+sizeof(Response_Header_Entry);
     Rsp->headers->begin=ptr;
     Rsp->headers->ptr=Rsp->headers->begin;
-    Rsp->headers->end=Rsp->headers->begin+64512;
+    Rsp->headers->end=(char*)Rsp->headers+RSP_HEADER_BLOCK-1;
 
     return 1;
 
@@ -41,7 +44,10 @@ int PackTotal(Worker_Thread* profes,Response* Rsp,char** C,int* allocsize,off_t*
     off_t totalbody_size=(off_t)Rsp->body_size+*file_size;
     char buf[32];
     snprintf(buf, sizeof(buf), "%ld", (long)totalbody_size);
-    ResponseHeaderSet(Rsp,"Content-Length",buf);
+    if(ResponseHeaderSet(Rsp,"Content-Length",buf)!=1){
+        *C=NULL;
+        return 0;                       //error_reason 已被置 503
+    }
    
 
 
@@ -51,8 +57,8 @@ int PackTotal(Worker_Thread* profes,Response* Rsp,char** C,int* allocsize,off_t*
     int notfull2=0;
     MemoryPoolAlloc(profes->txt_pool,1024*(*allocsize/1024+1),&ptr2,&notfull2);
 
-    if(notfull2==0)  Rsp->error_reason=503;
-    else  *C = ptr2;
+    if(notfull2==0){ Rsp->error_reason=503; *C=NULL; return 0; }
+    *C = ptr2;
 
     PackBackHead(C,Rsp);
 
@@ -79,8 +85,13 @@ int WorkerThreadInit(Worker_Thread** profes,int id)
     *profes=(Worker_Thread*)malloc(sizeof(Worker_Thread));
     (*profes)->id=id;
     WorkerQueueInit(&((*profes)->memory_queue),100);
-    MemoryPoolInit(&((*profes)->txt_pool),2048*1024,8);
-    MemoryPoolInit(&((*profes)->http_pool),2048*1024,8);
+    //txt_pool：响应头块 4KB + 响应体（<=8KB 在池内，>8KB 走 malloc）。
+    //  队列 100 深时最多约 1.2MB 在途，保留 2MB。
+    MemoryPoolInit(&((*profes)->txt_pool),2048*1024,1);
+
+    //http_pool：请求解析对象，1KB/个。每个 worker 同时处理的请求上限就是队列深度 100，
+    //  256KB（256 个）留 2.5 倍余量。
+    MemoryPoolInit(&((*profes)->http_pool),256*1024,1);
     return 1;
 }
 
@@ -187,12 +198,23 @@ int WorkerMain(Worker_Thread* profes){
         ReceiverNotify(W);   
     }else{
 
-        char* C;
+        char* C=NULL;
         int allocsize=0;
         off_t file_size=0;
         PackTotal(profes,&Rsp,&C,&allocsize,&file_size);
-        ReceiverQueuePush(W->Thing_queue, profes->memory_queue,Fd,Serial,200,allocsize,0,
-            file_size,C,Rsp.send_fd,Rsp.offset,(void*)Http);
+
+        if(Rsp.error_reason!=200||C==NULL){
+
+            //打包失败（头/正文分配不到、或头超 16KB）：先把打包块还回队列，再走错误路径
+            if(C!=NULL) WorkerQueuePush(profes->memory_queue,allocsize,C);
+            { char* C2=NULL; PackBackHead(&C2,&Rsp); }
+
+            ReceiverQueuePush(W->Thing_queue, NULL,Fd,Serial,(Rsp.error_reason!=200)?Rsp.error_reason:503,0,0,0,NULL,-1,0,(void*)Http);
+        }else{
+
+            ReceiverQueuePush(W->Thing_queue, profes->memory_queue,Fd,Serial,200,allocsize,0,
+                file_size,C,Rsp.send_fd,Rsp.offset,(void*)Http);
+        }
         ReceiverNotify(W);   
 
     }

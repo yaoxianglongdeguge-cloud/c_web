@@ -30,7 +30,9 @@ int ResponseHeaderSet(Response* r,char* key,char* value)
     int keylen=strlen(key);
     int valuelen=strlen(value);
 
-    if(4+keylen+valuelen+r->headers->begin>=r->headers->end){
+    //"key: value\r\n" + 结尾的 "\r\n\0" = keylen+2+valuelen+2+3
+    int need=keylen+2+valuelen+2+3;
+    if(r->headers->ptr+need>r->headers->end){
         r->error_reason=503;
         return 0;
     }

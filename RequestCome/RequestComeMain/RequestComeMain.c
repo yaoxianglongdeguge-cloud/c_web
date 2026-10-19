@@ -18,8 +18,11 @@ int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknu
     FdTableFind(Receiver_Thread->fd_table,fd,&fd_ob);
     if(fd_ob==NULL) return 0;
 
+    //本次进来先清"待续"标记，必要时下面会重新置位
+    fd_ob->pending=0;
+
     //如果在途包比send池大则先不继续发包，防止send池循环覆盖未发数据
-    if(fd_ob->pack_in_path>=ed_store_blocknum) return 1;
+    if(fd_ob->pack_in_path>=ed_store_blocknum){ fd_ob->pending=1; return 1; }
     
     //如果请求暂存池不存在则分配
     if(fd_ob->request_temp_pool->begin==NULL){
@@ -63,7 +66,10 @@ int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknu
 
             fd_ob->ser_fina_send++;
             int put = ReceiverToWorker(Receiver_Thread,fd,hptr,h_size,error_reason,serial);
-            if(put != 1) break;
+            if(put != 1){
+                if(put == -1){ MemoryPoolFree(Receiver_Thread->http_pool,hptr); FdClose(Receiver_Thread,fd,503); return 1; }
+                fd_ob->pending=1; break;
+            }
             fd_ob->pack_in_path++;
             serial++;
 

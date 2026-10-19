@@ -38,6 +38,9 @@ typedef struct Receiver_Queue{
 
 int ReceiverQueueInit(Receiver_Queue** sq,int blocknum);
 
+//线程安全地读队列长度（用于唤醒合并时的"还有积压吗"判断）
+int ReceiverQueueLen(Receiver_Queue* sq);
+
 int ReceiverQueuePush(Receiver_Queue* sq,Worker_Queue* m_queue,int fd,int serial,int error_reason,int resp_size,int off,
     off_t file_size,char*char_ptr,int send_fd,off_t offset,void* httpNeedFree);
 

@@ -9,6 +9,7 @@ typedef struct Fd_Entry{
     int ser_nex_send;//下一个要发的包的序号
     int pack_in_path;//在途的包个数
     int need_wr;//是否给这个 fd 加过 EPOLLOUT（写完要记得改回只读）
+    int pending;//在途窗口满时，暂存区里还有请求没投递；发完一组包后要续处理
 
     Request_Temp_Pool* request_temp_pool;
     Send_Pointer_Pool* send_pointer_pool;

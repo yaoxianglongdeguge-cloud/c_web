@@ -4,22 +4,49 @@
 int TempPackInit(Temp_Pack** tempPack){
 
     (*tempPack)=malloc(sizeof(Temp_Pack));
-    (*tempPack)->error_reason=-1;
-    (*tempPack)->h=NULL;
-    (*tempPack)->h_size=0;
-    (*tempPack)->had=false;
-    (*tempPack)->serial=-1;
+    if((*tempPack)==NULL) return -1;
+
+    (*tempPack)->head=0;
+    (*tempPack)->tail=0;
+    (*tempPack)->count=0;
 
     return 1;
 }
 
-int TempPackPut(Temp_Pack* tempPack,bool had,int fd,char* h,int h_size,int error_reason,int serial){
-    tempPack->error_reason=error_reason;
-    tempPack->fd=fd;
-    tempPack->h=h;
-    tempPack->h_size=h_size;
-    tempPack->had=had;
-    tempPack->serial=serial;
+//入队：1=成功，0=队列满
+int TempPackPush(Temp_Pack* tempPack,int fd,char* h,int h_size,int error_reason,int serial){
+
+    if(tempPack->count>=TEMP_PACK_MAX) return 0;
+
+    Temp_Pack_Entry* e=&tempPack->e[tempPack->tail];
+    e->fd=fd;
+    e->h=h;
+    e->h_size=h_size;
+    e->error_reason=error_reason;
+    e->serial=serial;
+
+    tempPack->tail++;
+    if(tempPack->tail>=TEMP_PACK_MAX) tempPack->tail=0;
+    tempPack->count++;
+
+    return 1;
+}
+
+//出队：1=成功，0=空
+int TempPackPop(Temp_Pack* tempPack,int* fd,char** h,int* h_size,int* error_reason,int* serial){
+
+    if(tempPack->count<=0) return 0;
+
+    Temp_Pack_Entry* e=&tempPack->e[tempPack->head];
+    *fd=e->fd;
+    *h=e->h;
+    *h_size=e->h_size;
+    *error_reason=e->error_reason;
+    *serial=e->serial;
+
+    tempPack->head++;
+    if(tempPack->head>=TEMP_PACK_MAX) tempPack->head=0;
+    tempPack->count--;
 
     return 1;
 }
@@ -29,8 +56,13 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id)
 
     *w=(Receiver_Thread*)malloc(sizeof(Receiver_Thread));
 
-    MemoryPoolInit(&((*w)->http_pool),2048*1024,8);
-    MemoryPoolInit(&((*w)->store_area),2048*1024,8);
+    //http_pool：请求副本，1KB/个，上限 1024 个（>8KB 的请求已改走 malloc，见 MemoryPool.h）
+    //  taskQueue 只有 100 深，1MB 足够；不够会返回 503，不会踩内存
+    MemoryPoolInit(&((*w)->http_pool),1024*1024,1);
+
+    //store_area：每个连接的暂存块【常驻】2KB（RequestTempPoolAlloc(...,2)），
+    //  2MB ⇒ 最多 1024 条连接。这个不能压，压了连接数上限直接砍半。
+    MemoryPoolInit(&((*w)->store_area),2048*1024,1);
     ReceiverQueueInit(&((*w)->Thing_queue),100);
     TimerInit(&((*w)->my_Timer),5000);
     FdTableInit(&((*w)->fd_table),4);
@@ -67,8 +99,8 @@ int ReceiverToWorker(Receiver_Thread* w,int fd,char* h,int h_size,int error_reas
 {
     int e0=TasKQueuePush(taskQueue,w,fd,serial,error_reason,h,h_size);
     if(e0!=1){
-        TempPackPut(w->tempPack,true,fd,h,h_size,error_reason,serial);
-        return 0;
+        if(TempPackPush(w->tempPack,fd,h,h_size,error_reason,serial)!=1) return -1;   //环也满
+        return 0;                                                                     //先放环里，下次再投
     }
     return 1;
 }
@@ -90,12 +122,14 @@ int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_bl
             
             }
 
-            if(n>0&&w->tempPack->had==false)  break;
+            if(n>0&&w->tempPack->count==0)  break;
             else{
-                if(w->tempPack->had==true){
-                    int put = ReceiverToWorker(w,w->tempPack->fd,w->tempPack->h,w->tempPack->h_size,
-                        w->tempPack->error_reason,w->tempPack->serial);
-                    if(put == 1) TempPackPut(w->tempPack,false,-1,NULL,0,-1,-1);
+                //把积压的请求尽量投递出去；队列还满就下次再试（失败的那条已由 ReceiverToWorker 放回环里）
+                int fd_t; char* h_t; int hs_t, er_t, se_t;
+                while(TempPackPop(w->tempPack,&fd_t,&h_t,&hs_t,&er_t,&se_t)==1){
+                    int put = ReceiverToWorker(w,fd_t,h_t,hs_t,er_t,se_t);
+                    if(put == 1) continue;
+                    break;
                 }
             }
             TimerOvertime(w->my_Timer,time,w);
@@ -112,7 +146,7 @@ int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_bl
                 __atomic_store_n(&w->notified,0,__ATOMIC_RELEASE);
 
                 //清完标志后再看一眼响应队列：还有积压就补一次唤醒，避免丢唤醒
-                if(w->Thing_queue!=NULL&&w->Thing_queue->num>0&&
+                if(ReceiverQueueLen(w->Thing_queue)>0&&
                    __atomic_exchange_n(&w->notified,1,__ATOMIC_ACQ_REL)==0){
                     uint64_t one=1;
                     ssize_t n=write(w->wakeup_fd,&one,sizeof(one));

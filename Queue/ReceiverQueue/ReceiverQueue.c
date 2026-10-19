@@ -24,6 +24,17 @@ int ReceiverQueueInit(Receiver_Queue** sq,int blocknum)
 
 }
 
+int ReceiverQueueLen(Receiver_Queue* sq){
+
+    if(sq==NULL) return 0;
+
+    pthread_mutex_lock(&(sq->mutex_thing));
+    int n=sq->num;
+    pthread_mutex_unlock(&(sq->mutex_thing));
+
+    return n;
+}
+
 int ReceiverQueuePush(Receiver_Queue* sq,Worker_Queue* m_queue,int fd,int serial,int error_reason,
     int resp_size,int off,off_t file_size,char*char_ptr,int send_fd,off_t offset,void* httpNeedFree)
 {

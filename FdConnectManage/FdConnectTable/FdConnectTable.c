@@ -108,6 +108,7 @@ Fd_Entry* FdEntryCreat(int fd)
     e->ser_nex_send=0;
     e->pack_in_path=0;
     e->need_wr=0;
+    e->pending=0;
     e->request_temp_pool=NULL;
     e->send_pointer_pool=NULL;
     e->next=NULL;

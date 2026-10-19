@@ -171,7 +171,7 @@ int RequestTempPoolCopy(Request_Temp_Pool* h,char*end,char* target)//把一整�
     int copy_num2=h->ptr_e-h->ptr_b;
     if(copy_num2!=0)
     {
-        memcpy(h->begin,h->ptr_b,copy_num2);
+        memmove(h->begin,h->ptr_b,copy_num2);//同一块缓冲内前移，区间重叠，必须用 memmove（memcpy 是未定义行为）
     }
     
     h->ptr_b=h->begin;

@@ -497,5 +497,12 @@ while((p = FreeQPop(&profes->free_q)) != NULL && n++ < 256)
 
 > 1~3 是"换池前置"，5~7 是"死锁根治"；两组可以并行推进，最后在第 8 步一起验收。
 
+> **前置项已闭环（无需改代码）**：曾怀疑 `FdEntryDelete()` 不归还 `store_area` 暂存块。
+> 实际回收点在连接关闭路径 `FdConnectOrClose/FdConnectOrClose.c:56` → `RequestTempPoolDestory()`；
+> 累计 23,000 条连接 churn 实测 RSS 恒定 1,152 kB、`fd` 恒为 6、`hello` 始终 200，
+> 详见 `AgentSpace/LEAK_AND_C300_VERIFY_REPORT.md`。因此可直接从第 1 行（待办 4）开始，
+> 不需要在 `FdEntryDelete` 里补释放。
+
+
 
 
