@@ -148,7 +148,6 @@ int StartThread(char* IPaddr,int PORT){
         pthread_create(&tid, NULL, func1, m1);
     }
 
-    //一组都没起来就别装死：直接返回失败，让 WebStater 的调用者知道
     if(started<=0) return -1;
 
     //各组的事件循环都在自己的线程里跑，当前线程只负责等（服务不返回）
