@@ -51,17 +51,14 @@ int TempPackPop(Temp_Pack* tempPack,int* fd,char** h,int* h_size,int* error_reas
     return 1;
 }
 
-int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id)
+int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id,int workersNum)
 {
 
     *w=(Receiver_Thread*)malloc(sizeof(Receiver_Thread));
 
-    //http_pool：请求副本，1KB/个，上限 1024 个（>8KB 的请求已改走 malloc，见 MemoryPool.h）
-    //  每个接待线程的 taskQueue 只有 100 深，1MB 足够；不够会返回 503，不会踩内存
+
     MemoryPoolInit(&((*w)->http_pool),1024*1024,1);
 
-    //store_area：每个连接的暂存块【常驻】2KB（RequestTempPoolAlloc(...,2)），
-    //  2MB ⇒ 最多 1024 条连接。这个不能压，压了连接数上限直接砍半。
     MemoryPoolInit(&((*w)->store_area),2048*1024,1);
     ReceiverQueueInit(&((*w)->Thing_queue),100);
 
@@ -81,6 +78,8 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id)
     EpollReadMount((*w)->epfd,(*w)->wakeup_fd);
 
     TempPackInit(&((*w)->tempPack));
+
+    ThreadPoolInit((*w),workersNum);
 
     return 1;
 

@@ -8,9 +8,6 @@ typedef  struct main{
 
 } main_t;
 
-typedef  struct main2{
-    Worker_Thread* p;
-} main_t2;
 
 //每组一个接待线程：参数从堆上取，取完就释放，不再依赖调用者的栈
 void* func1(void* arg)
@@ -78,8 +75,7 @@ int DriveListen(int* Fd,char* IPaddr,int PORT){
 #define RECEIVER_GROUP_NUM_DEFAULT 1
 #define RECEIVER_GROUP_NUM_MAX     32
 
-#define WORKER_THREAD_NUM_DEFAULT  2
-#define WORKER_THREAD_NUM_MAX      16
+#define PER_RECEIVER_WORKER 4
 
 //组数：一组 = 1 接待线程 + 1 条私有任务队列 + N 个工作线程
 //  默认 1 组；压测/部署时用环境变量 CWEB_GROUP_NUM 调，不用改代码重编
@@ -90,16 +86,6 @@ static int ReceiverGroupNum(void){
 
     if(n<1) n=1;
     if(n>RECEIVER_GROUP_NUM_MAX) n=RECEIVER_GROUP_NUM_MAX;
-
-    return n;
-}
-static int WorkerThreadNum(void){
-
-    char* s=getenv("CWEB_WORKER_NUM");
-    int n=(s!=NULL)?atoi(s):WORKER_THREAD_NUM_DEFAULT;
-
-    if(n<1) n=1;
-    if(n>WORKER_THREAD_NUM_MAX) n=WORKER_THREAD_NUM_MAX;
 
     return n;
 }
@@ -125,20 +111,7 @@ int StartThread(char* IPaddr,int PORT){
 
         //接待线程：任务队列是它私有的
         Receiver_Thread* w;
-        ReceiverThreadInit(&w,fd,i+1);
-
-        //工作线程：同组多个 worker 共享本组接待线程的任务队列。
-        //  TasKQueueTopAndPop 用 pending_idx 原子认领，同一条任务只会被一个 worker 取到。
-        for(int j=0;j<workers;j++){
-
-            Worker_Thread* p;
-            WorkerThreadInit(&p,i*workers+j+1);
-            p->taskQueue=w->taskQueue;
-
-            main_t2* m2=(main_t2*)malloc(sizeof(main_t2));
-            m2->p=p;
-            pthread_create(&tid, NULL, func2, m2);
-        }
+        ReceiverThreadInit(&w,fd,i+1,PER_RECEIVER_WORKER);
 
         main_t* m1=(main_t*)malloc(sizeof(main_t));
         m1->w=w;

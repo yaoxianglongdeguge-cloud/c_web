@@ -35,14 +35,14 @@ typedef struct Receiver_Thread{
     Task_Queue* taskQueue;//这个接待线程私有的任务队列（同组的工作线程/替补工作线程都从这里取）
 
     Temp_Pack* tempPack;
-
+    Thread_Pool* threadPool;
 
 
 }Receiver_Thread;
 
 
 
-int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id);
+int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id,int workersNum);
 
 int ReceiverToWorker(Receiver_Thread* w,int fd,char* h,int h_size,int error_reason,int serial);
 

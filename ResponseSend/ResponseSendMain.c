@@ -193,7 +193,6 @@ int ResponseSendMain(Receiver_Thread* w,int fd,int ed_store_blocknum,int* send_i
 
 
  //暂存池里没有包了.可以回收暂存池
-    if( fd_ob->ser_nex_send>= fd_ob->ser_fina_send) SendPointerPoolFree(fd_ob->send_pointer_pool,w->store_area);
 
     TimerReset(w->my_Timer,send_fd,w);
 
