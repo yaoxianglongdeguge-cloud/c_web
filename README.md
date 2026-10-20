@@ -7,7 +7,7 @@ HTTP 状态机解析、有序发送、断连定时器与跨线程内存所有权
 ## 核心特性
 
 - **半同步/半异步线程模型**：`Receiver_Thread`（收发线程，负责 accept / epoll / 读请求 / 发响应）
-  + `Worker_Thread`（业务线程，负责 HTTP 解析 / 路由分发 / 构造响应），通过全局任务队列解耦。
+  + `Worker_Thread`（业务线程，负责 HTTP 解析 / 路由分发 / 构造响应），通过本组接待线程私有的任务队列解耦。
 - **请求保序**：每个请求从读入起分配递增序号 `serial`，发送端用环形槽位
   `serial % blocknum` 保证同连接上响应顺序与请求顺序一致（乱序处理、有序发出）。
 - **HTTP 状态机 + 分块暂存**：`Request_Temp_Pool` 处理拆包/粘包；`StateMachine` 判定请求完整性；
@@ -23,18 +23,18 @@ HTTP 状态机解析、有序发送、断连定时器与跨线程内存所有权
 
 ```
         ┌──────────────────────────── WebStater(IP, PORT, Handler) ───────────────────────────┐
-        │  ① 忽略 SIGPIPE → ② 初始化全局路由表/任务队列 → ③ 回调 Handler() 注册路由              │
-        │  ④ 创建监听 socket → ⑤ 启动线程                                                    │
+        │  ① 忽略 SIGPIPE → ② 初始化全局路由表/任务队列容量 → ③ 回调 Handler() 注册路由            │
+        │  ④ 按组创建监听 socket → ⑤ 每组启动接待线程 + 工作线程                              │
         └──────────────────────────────┬───────────────────────────────────────────────────────┘
                                        │
                 ┌──────────────────────┴───────────────────────┐
-                │  Receiver_Thread 线程（当前直接跑在 WebStater 调用线程）│
-                │  · epoll 事件循环（50ms 超时）                │
+                │  Receiver_Thread ×N（每组一个，各自独立线程）          │
+                │  · epoll 事件循环（10ms 超时）                │
                 │  · accept / fd 表 / 定时器 / 有序发送         │
                 └──────────────────────┬───────────────────────┘
-                                       │ Task_Queue（全局，容量100，双信号量+锁）
+                                       │ Task_Queue（每个接待线程私有，容量100，双缓冲）
                 ┌──────────────────────▼───────────────────────┐
-                │  Worker_Thread 线程 ×2（业务处理）                │
+                │  Worker_Thread ×N（每组默认 2 个，业务处理）      │
                 │  · HTTP 解析 / 路由分发 / 构造响应            │
                 │  · 结果投回对应 Receiver_Thread 的发送队列             │
                 └──────────────────────┬───────────────────────┘
@@ -59,7 +59,7 @@ accept → epoll → RequestComeMain 读入暂存区 → StateMachine 判定完�
 | 目录/文件 | 职责 |
 |---|---|
 | `main.c` / `main.h` | `WebStater()` 启动驱动（框架入口） |
-| `server/` | 全局资源：路由表 + 任务队列初始化 |
+| `server/` | 全局资源：路由表 + 任务队列容量配置 |
 | `my_thread/` | `worker_thread`（收发线程）、`profession_thread`（业务线程） |
 | `connect_fd/` | 连接 fd 哈希表（fd → 暂存区/发送槽/序号） |
 | `connect_config/` | 连接管理：accept / 统一关闭 `FdClose` |
@@ -191,8 +191,9 @@ int WebStater(char* IPaddr, int PORT, HandlerFunc Handler);
 ```
 
 - `Handler`：`void (*)(void)` 回调，在 socket 建立**之前**执行，用于 `RouterAppend` 注册路由。
-- 内部流程：忽略 SIGPIPE → 初始化全局路由表与任务队列 → 回调注册路由 →
-  创建监听 socket → 启动 2 个 Worker_Thread 线程 → **当前线程进入 Receiver_Thread 事件循环（阻塞）**。
+- 内部流程：忽略 SIGPIPE → 初始化全局路由表与任务队列容量 → 回调注册路由 →
+  按 `CWEB_GROUP_NUM` 建组（每组一个 `SO_REUSEPORT` 监听 socket）→ 每组启动 2 个 Worker_Thread
+  （`CWEB_WORKER_NUM` 可调）→ **各组接待线程在自己的线程里跑事件循环，当前线程阻塞等待**。
 
 ### 路由
 
@@ -242,8 +243,9 @@ int ResponseErrorSet(Response* r, int error);                 // 设置错误码
 | 在途请求上限 | `ed_store_blocknum` | 100 | 每连接未发完请求数上限（发送槽数） |
 | Receiver_Thread 内存池 | `ReceiverThreadInit` → `http_pool(6,6,500,400)` / `store_area(10,6,500,400)` | — | 读侧：请求副本 / 暂存区 / 发送槽 |
 | Worker_Thread 内存池 | `WorkerThreadInit` → `txt_pool(7,7,200,120)` / `http_pool(6,6,10,10)` | — | 写侧：响应头/体/解析结构 |
-| 任务队列容量 | `GlobalResourceInit(100)` | 100 | 全局 Task_Queue |
-| Worker_Thread 线程数 | `WebStater` 内 `pthread_create(func2)` | 2 | 可增减 |
+| 任务队列容量 | `GlobalResourceInit(100)` | 100 | 每个接待线程各一条 Task_Queue（组内工作线程/替补线程共用） |
+| 组数 | 环境变量 `CWEB_GROUP_NUM` | 1 | 每组 1 接待线程 + `CWEB_WORKER_NUM` 个工作线程，上限 32；监听用 `SO_REUSEPORT` 分摊连接 |
+| 每组工作线程数 | 环境变量 `CWEB_WORKER_NUM` | 2 | 同组 worker 共享该组任务队列，上限 16；实测 2 核上共享队列的 2 worker 反而低于 1 worker，最佳为 `CWEB_GROUP_NUM=2` + `CWEB_WORKER_NUM=1` |
 
 > 内存池为**非扩容**语义：某大小类并发占用超过预分配条数时，新分配返回 `notfull=0`，
 > 上层降级 503。压测规模大时请调大 `*_init` 的 `strip_num` 参数。

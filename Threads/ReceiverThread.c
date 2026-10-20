@@ -1,5 +1,5 @@
 #include "../Include/Include.h"
-#include <sys/eventfd.h>   /* 【延迟修复】eventfd 唤醒通道 */
+#include <sys/eventfd.h>   /*eventfd 唤醒通道 */
 
 int TempPackInit(Temp_Pack** tempPack){
 
@@ -57,13 +57,17 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id)
     *w=(Receiver_Thread*)malloc(sizeof(Receiver_Thread));
 
     //http_pool：请求副本，1KB/个，上限 1024 个（>8KB 的请求已改走 malloc，见 MemoryPool.h）
-    //  taskQueue 只有 100 深，1MB 足够；不够会返回 503，不会踩内存
+    //  每个接待线程的 taskQueue 只有 100 深，1MB 足够；不够会返回 503，不会踩内存
     MemoryPoolInit(&((*w)->http_pool),1024*1024,1);
 
     //store_area：每个连接的暂存块【常驻】2KB（RequestTempPoolAlloc(...,2)），
     //  2MB ⇒ 最多 1024 条连接。这个不能压，压了连接数上限直接砍半。
     MemoryPoolInit(&((*w)->store_area),2048*1024,1);
     ReceiverQueueInit(&((*w)->Thing_queue),100);
+
+    //任务队列改成接待线程私有：每个组一条，组内的工作线程和替补工作线程都取这一条
+    TasKQueueInit(&((*w)->taskQueue),taskQueueBlocknum);
+
     TimerInit(&((*w)->my_Timer),5000);
     FdTableInit(&((*w)->fd_table),4);
 
@@ -97,7 +101,8 @@ int ReceiverNotify(Receiver_Thread* w)
 
 int ReceiverToWorker(Receiver_Thread* w,int fd,char* h,int h_size,int error_reason,int serial)
 {
-    int e0=TasKQueuePush(taskQueue,w,fd,serial,error_reason,h,h_size);
+    //投到本组接待线程自己的任务队列，不再投全局队列
+    int e0=TasKQueuePush(w->taskQueue,w,fd,serial,error_reason,h,h_size);
     if(e0!=1){
         if(TempPackPush(w->tempPack,fd,h,h_size,error_reason,serial)!=1) return -1;   //环也满
         return 0;                                                                     //先放环里，下次再投

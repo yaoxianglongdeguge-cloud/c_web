@@ -40,7 +40,6 @@ typedef struct Receiver_Queue{
 int ReceiverQueueInit(Receiver_Queue** sq,int blocknum);
 
 //线程安全地读队列长度（active + 尚未消费的 pending）。
-//注意：pending 计数是消费者线程私有的，本函数只应由消费者线程调用。
 int ReceiverQueueLen(Receiver_Queue* sq);
 
 //多生产者安全：任意业务线程都可以并发 push。

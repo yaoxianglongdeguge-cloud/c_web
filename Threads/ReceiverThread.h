@@ -22,8 +22,8 @@ typedef struct Receiver_Thread{
    
     int id;
     int epfd;
-    int wakeup_fd;   //【延迟修复】eventfd：业务线程把响应排入队列后立刻唤醒收发线程去发
-    int notified;    //【唤醒合并】1=已经写过 eventfd（避免每个响应都 write 一次）
+    int wakeup_fd;   //eventfd：业务线程把响应排入队列后立刻唤醒收发线程去发
+    int notified;    //1=已经写过 eventfd（避免每个响应都 write 一次）
 
     Fd_Table* fd_table;
     Memory_Pool* store_area;
@@ -31,6 +31,8 @@ typedef struct Receiver_Thread{
     Timer* my_Timer;//断连计时器
     
     Receiver_Queue* Thing_queue;//接收已经准备好的要发的包的事件
+
+    Task_Queue* taskQueue;//这个接待线程私有的任务队列（同组的工作线程/替补工作线程都从这里取）
 
     Temp_Pack* tempPack;
 

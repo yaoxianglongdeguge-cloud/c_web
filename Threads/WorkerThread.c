@@ -88,6 +88,7 @@ int WorkerThreadInit(Worker_Thread** profes,int id)
   
     *profes=(Worker_Thread*)malloc(sizeof(Worker_Thread));
     (*profes)->id=id;
+    (*profes)->taskQueue=NULL;   //由 StaterMain 在启动线程前绑定到本组接待线程的队列
     if(WorkerQueueInit(&((*profes)->memory_queue))!=1) return 0;
     //txt_pool：响应头块 4KB + 响应体（<=8KB 在池内，>8KB 走 malloc）。
     //  队列 100 深时最多约 1.2MB 在途，保留 2MB。
@@ -121,14 +122,25 @@ int GetFromTaskQueue(Task_Queue_Entry* t,Worker_Thread* profes){
     while(1){
 
         int e0=0;
-        *t=TasKQueueTopAndPop(taskQueue,&e0);
+
+        //只从自己所属的任务队列取；队列指针在启动线程前就绑好了
+        if(profes->taskQueue!=NULL){
+            *t=TasKQueueTopAndPop(profes->taskQueue,&e0);
+        }
+
         if(e0!=1){ 
            CleanMemoryQueue(profes);
+
+           if(profes->taskQueue==NULL){
+               usleep(100000);          //还没绑定队列：先睡一会，别空转
+               continue;
+           }
+
            struct timespec wait_ts;
            clock_gettime(CLOCK_REALTIME,&wait_ts);
            wait_ts.tv_nsec+=100000000;
            if(wait_ts.tv_nsec>=1000000000){ wait_ts.tv_nsec-=1000000000; wait_ts.tv_sec++; }
-           sem_timedwait(&(taskQueue->sem_task_notempty),&wait_ts);
+           sem_timedwait(&(profes->taskQueue->sem_task_notempty),&wait_ts);
         }else{
             break;
         }
