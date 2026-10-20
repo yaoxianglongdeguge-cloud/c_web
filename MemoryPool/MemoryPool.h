@@ -1,37 +1,37 @@
+#ifndef CWEB_MEMORY_POOL_H
+#define CWEB_MEMORY_POOL_H
+
 #include "../Include/Variate.h"
 #include <stdint.h>
+#include <stddef.h>
 
-//扫描式内存池（位图 + 1KB 单位）
-//  · 分配：找一段连续空闲单位（从 hint 开始按 64 位字扫描）
-//  · 释放：把块覆盖的单位位清零 —— 空间【立刻】可复用，不需要"整池归零"
-//  · free 不需要尺寸：分配时把"占几个单位"记在 lens[起点]
-//  · 线程私有、无锁（和原来的池一样）
-//API 与原 MemoryPool 完全一致，调用点不用改：
-//    MemoryPoolInit(&p, perSize, entryNum)     // 总大小 = perSize * entryNum
-//    MemoryPoolAlloc(p, needBytes, &ptr, &notfull)
-//    MemoryPoolFree(p, ptr)
-
-//请求内存池单次分配上限：<= 8KB 走池；> 8KB 直接 malloc
-//  这样大请求（大 header / 1MB 上传体 / 大暂存扩容）不会把子池撑满，也不会因为找不到
-//  连续空闲段而误判"池满"。free 时靠 big[] 判断这块是不是 malloc 来的。
-#define MEMORY_POOL_MAX_POOLED (8*1024)
+/*
+ * 过渡实现：MemoryPool 现在直接用 malloc/free。
+ *
+ * 背景：位图 arena 版存在"跨尾误判池满""跨线程释放""重复释放靠 lens 兜底"等问题，
+ *       正确性优先，先换回 libc 分配器；等吃透分配器原理后，只需替换本文件即可换回自研池。
+ *
+ * API 保持不变，上层调用点一行都不用改：
+ *     MemoryPoolInit(&p, perSize, entryNum);      // 总配额 = perSize * entryNum
+ *     MemoryPoolAlloc(p, needBytes, &ptr, &notfull);
+ *     MemoryPoolFree(p, ptr);
+ *
+ * 与旧版位图池的语义差异：
+ *   1) notfull 只在 malloc 失败（真 OOM）时为 0；正常恒为 1。
+ *      => 不会再出现"池满 / 找不到连续段"导致的 503。
+ *   2) 没有硬配额上限，quota 只用于统计和调试。
+ *   3) MemoryPoolFree 的契约等同 free：ptr 必须是本 API 返回的，或 NULL；
+ *      重复释放属于未定义行为（旧池靠 lens[u]==0 静默忽略，新实现不保证）。
+ *   4) 线程安全：malloc/free 本身线程安全，统计计数使用原子操作。
+ */
 
 typedef struct Memory_Pool{
 
-    char* arena;        //一次申请的大块
-    int arenaSize;      //总字节
-    int unitSize;       //单位字节（默认 1KB）
-    int unitNum;        //单位个数
-
-    uint64_t* bits;     //位图：1=占用，0=空闲
-    uint32_t* lens;     //每个分配起点占几个单位（free 时靠它反推长度）
-
-    int hint;           //上次分配后的位置（扫描起点）
-    int usedUnits;      //在用单位数（统计）
-
-    void** big;         //> 8KB、直接 malloc 的块（free 时先在这里找）
-    int bigNum;
-    int bigCap;
+    size_t usedBytes;    //当前在用字节数（统计）
+    size_t peakBytes;    //峰值（统计）
+    size_t allocCount;   //累计分配次数
+    size_t freeCount;    //累计释放次数
+    size_t quotaBytes;   //初始化时配置的配额，仅用于统计/调试
 
 }Memory_Pool;
 
@@ -41,5 +41,10 @@ int MemoryPoolAlloc(Memory_Pool* p,int needSize,void** ptr,int* notfull);
 
 int MemoryPoolFree(Memory_Pool* p,void* ptr);
 
-//统计：在用字节、在用单位数、总单位数
+//统计：在用字节、在用 KB 数、配置的总 KB 数
 int MemoryPoolStat(Memory_Pool* p,int* usedBytes,int* usedUnits,int* unitNum);
+
+//释放池对象本身（尚未归还的块不会自动回收，和 malloc 语义一致）
+void MemoryPoolDestroy(Memory_Pool** p);
+
+#endif

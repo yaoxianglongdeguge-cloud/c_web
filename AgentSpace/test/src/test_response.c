@@ -1,4 +1,4 @@
-#include "../../Include/Include.h"
+#include "../../../Include/Include.h"
 
 static int g_pass = 0;
 static int g_fail = 0;
@@ -17,7 +17,8 @@ static Response rsp_make(void)
 {
     void* ptr = NULL;
     int notfull = 0;
-    MemoryPoolAlloc(g_pool, 63, &ptr, &notfull);
+    //头缓冲按 64KB 申请：旧 API 的 63 表示"63KB 类"，新 API 单位是字节
+    MemoryPoolAlloc(g_pool, 64*1024, &ptr, &notfull);
 
     Response r = {
         .error_reason = 200,
@@ -41,7 +42,7 @@ int main(void)
 {
     printf("== test_response : Response 构造接口 ==\n");
 
-    CHECK(MemoryPoolInit(&g_pool, 7, 7, 200, 120) == 1, "初始化业务线程内存池（1KB~64KB）");
+    CHECK(MemoryPoolInit(&g_pool, 1024*1024, 1) == 1, "初始化业务线程内存池（1KB~64KB）");
 
     Response r = rsp_make();
 

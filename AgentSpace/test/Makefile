@@ -7,7 +7,7 @@
 #   或在根 Makefile 加 `SRCS := $(filter-out test/%,$(SRCS))`。
 # 用法： make -C test run     （内置 30s/用例超时，卡死用例会被判定为 HANG 而不是永久阻塞）
 
-ROOT    := ..
+ROOT    := ../..
 CC      := gcc
 CFLAGS  := -g -O0 -Wall -I$(ROOT)   # -I$(ROOT)：Include/Include.h 里 #include "foo.h" 要能命中仓库根的 foo.h
 LDFLAGS := -lpthread

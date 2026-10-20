@@ -1,4 +1,4 @@
-#include "../../Include/Include.h"
+#include "../../../Include/Include.h"
 #include <unistd.h>
 #include <sys/wait.h>
 
@@ -151,7 +151,7 @@ int main(void)
 {
     printf("== test_integrity : 请求完整性判定（方法识别 / Content-Length / 查询串）==\n");
 
-    CHECK(MemoryPoolInit(&g_pool, 7, 7, 200, 120) == 1, "初始化解析用内存池");
+    CHECK(MemoryPoolInit(&g_pool, 1024*1024, 1) == 1, "初始化解析用内存池");
 
     run_isolated("MethodMatch 能识别 GET（不应崩溃）", child_method_match);
     run_isolated("Content-Length: 5 → 解析出 5", child_body_length_small);

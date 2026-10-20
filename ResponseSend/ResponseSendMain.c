@@ -38,7 +38,6 @@ int GetAndJudge(Receiver_Thread* w,int fd,int edStoreBlockNum,int* send_info,int
             if(s.m_queue!=NULL){ //因为有可能是静态文件，本来就不用再给工作线程通知，所以可能也是NULL
                 WorkerQueuePush(s.m_queue,s.size_resp,s.char_ptr);
             }
-            MemoryPoolFree(w->http_pool,s.httpNeedFree);   //连接已经没了，请求副本也要还（原来这里漏了）
                 continue;
         }
 

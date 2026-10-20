@@ -12,8 +12,8 @@ HTTP 状态机解析、有序发送、断连定时器与跨线程内存所有权
   `serial % blocknum` 保证同连接上响应顺序与请求顺序一致（乱序处理、有序发出）。
 - **HTTP 状态机 + 分块暂存**：`Request_Temp_Pool` 处理拆包/粘包；`StateMachine` 判定请求完整性；
   请求超过暂存区大小时自动扩容。
-- **内存池**：按 2 的幂分级，非扩容分配（池满返回 `notfull=0`，由调用方降级为 503）；
-  跨线程内存通过 `Worker_Queue` 归还，绝不跨线程 free。
+- **内存分配**：当前为 `malloc/free` 过渡实现（保留原 `MemoryPool` API，便于后续换回自研池）；
+  分配失败时 `notfull=0`，由调用方降级为 503；响应块经 `Worker_Queue` 归还原线程统一释放。
 - **大文件零拷贝**：文件响应使用 `sendfile`，内存中响应支持 1MB 以内。
 - **断连定时器**：小顶堆 + 线性扫描重置，空闲连接超时返回 408（默认 1 秒）。
 - **路由表**：DJB2+盐值哈希，URL 精确匹配，支持启动时静态注册。
@@ -175,12 +175,12 @@ static void HHello(Request* r, Response* w)          // 签名：void (*)(Reques
 端到端验证（与单元测试一样，退出码即结论）：
 
 ```bash
-make -C test run            # 单元 + 组件级：256 PASS / 0 FAIL / 0 HANG
-bash test/website_test.sh   # 网站端到端：PASS 27 / FAIL 0（含 10MB 下载与 4 路并发）
+make -C AgentSpace/test run              # 单元 + 组件级（12 个用例，退出码即结论）
+bash AgentSpace/test/website_test.sh     # 网站端到端（含 10MB 下载与 4 路并发）
 ```
 
 > 已知限制：框架暂不支持 HEAD 语义（`HEAD /` 会命中 405）；查询串不做 URL 解码（示例在应用层补了 `UrlDecode`）；
-> 静态文件路径是相对工作目录的。详见 `test/TEST_REPORT.md` 第 13 章。
+> 静态文件路径是相对工作目录的。详见 `AgentSpace/test/TEST_REPORT.md` 第 13 章。
 
 ## API 参考
 
@@ -241,14 +241,14 @@ int ResponseErrorSet(Response* r, int error);                 // 设置错误码
 |---|---|---|---|
 | 空闲超时 | `main_t m1 = {.time = 1}` | 1 秒 | 超过无活动返回 408 |
 | 在途请求上限 | `ed_store_blocknum` | 100 | 每连接未发完请求数上限（发送槽数） |
-| Receiver_Thread 内存池 | `ReceiverThreadInit` → `http_pool(6,6,500,400)` / `store_area(10,6,500,400)` | — | 读侧：请求副本 / 暂存区 / 发送槽 |
-| Worker_Thread 内存池 | `WorkerThreadInit` → `txt_pool(7,7,200,120)` / `http_pool(6,6,10,10)` | — | 写侧：响应头/体/解析结构 |
+| Receiver_Thread 内存池 | `ReceiverThreadInit` → `http_pool(1MB)` / `store_area(2MB)` | — | 读侧：请求副本 / 暂存区 / 发送槽；现为 malloc 过渡实现，参数仅记录配额 |
+| Worker_Thread 内存池 | `WorkerThreadInit` → `txt_pool(2MB)` / `http_pool(256KB)` | — | 写侧：响应头/体/解析结构；现为 malloc 过渡实现 |
 | 任务队列容量 | `GlobalResourceInit(100)` | 100 | 每个接待线程各一条 Task_Queue（组内工作线程/替补线程共用） |
 | 组数 | 环境变量 `CWEB_GROUP_NUM` | 1 | 每组 1 接待线程 + `CWEB_WORKER_NUM` 个工作线程，上限 32；监听用 `SO_REUSEPORT` 分摊连接 |
 | 每组工作线程数 | 环境变量 `CWEB_WORKER_NUM` | 2 | 同组 worker 共享该组任务队列，上限 16；实测 2 核上共享队列的 2 worker 反而低于 1 worker，最佳为 `CWEB_GROUP_NUM=2` + `CWEB_WORKER_NUM=1` |
 
-> 内存池为**非扩容**语义：某大小类并发占用超过预分配条数时，新分配返回 `notfull=0`，
-> 上层降级 503。压测规模大时请调大 `*_init` 的 `strip_num` 参数。
+> 当前 `MemoryPool` 是 **malloc/free 过渡实现**：`notfull=0` 只在真正 OOM 时出现，
+> 不再有"预分配条数用尽"导致的 503；`*_init` 的参数现在只用于记录配额/统计。
 
 ## 内存管理约定
 
@@ -275,20 +275,20 @@ int ResponseErrorSet(Response* r, int error);                 // 设置错误码
 运行示例：
 
 ```bash
-# 单元测试
-gcc -g -O0 test/src/test_memory_pool.c memory_pool/memory_pool.c -o /tmp/t && /tmp/t
+# 单元测试（也可以直接 make -C AgentSpace/test run）
+gcc -g -O0 AgentSpace/test/src/test_memory_pool.c MemoryPool/MemoryPool.c -I. -o /tmp/t && /tmp/t
 # 集成测试（链接全部模块，main.c 用 -Dmain= 避免入口冲突）
 # 详见《代码检查与测试报告.md》
 ```
 
-当前验证结果：**单元 5/5 全过、集成 0 失败、valgrind 0 Invalid/0 SIGSEGV/0 未初始化**。
+当前验证结果：**单元用例全过、集成 0 失败、valgrind 0 Invalid/0 SIGSEGV/0 未初始化**。
 
 ## 已知限制
 
 - 路由为**静态精确匹配**，不支持 `/user/:id` 动态参数。
 - 请求体仅记录指针，不解析表单格式（`x-www-form-urlencoded` 等）。
 - 不支持 chunked 传输编码、HTTP/2、WebSocket。
-- 内存池非扩容：超过预分配条数时降级 503（可调大 `*_init` 参数）。
+- `MemoryPool` 当前为 **malloc/free 过渡实现**（尚无自研分配器）；`notfull=0` 只在 OOM 时出现。
 - 请求副本按 `h_size/1024+1` 向上取整分配，单请求头+体合计建议 < 1MB。
 
 ## 版本记录

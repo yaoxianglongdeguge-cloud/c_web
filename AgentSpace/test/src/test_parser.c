@@ -1,4 +1,4 @@
-#include "../../Include/Include.h"
+#include "../../../Include/Include.h"
 
 static int g_pass = 0;
 static int g_fail = 0;
@@ -34,7 +34,7 @@ int main(void)
 {
     printf("== test_parser : HTTP 请求头/URL/Query/Body 解析 ==\n");
 
-    CHECK(MemoryPoolInit(&g_pool, 7, 7, 200, 120) == 1, "初始化业务线程内存池（1KB~64KB 类）");
+    CHECK(MemoryPoolInit(&g_pool, 1024*1024, 1) == 1, "初始化业务线程内存池（1KB~64KB 类）");
 
     //-------- 1.带查询串与请求头的 GET --------
     int err = 200;

@@ -1,16 +1,141 @@
 #include "MemoryPool.h"
+#include <stdlib.h>
+
+/*
+ * 过渡实现：MemoryPool 现在直接用 malloc/free。
+ *
+ * 每个分配块前面放一个头部，用于：
+ *   1) free 时知道这块多大（统计 usedBytes 用）；
+ *   2) 识别"不是本池分配的指针"，避免误 free 把进程打崩。
+ *
+ * 头部按 16 字节对齐，保证返回给调用方的指针对齐不低于 malloc 的保证。
+ * 注意：和 malloc 一样，本实现【不能】可靠检测重复释放——块可能已被复用。
+ *       调用方必须保证一次分配只释放一次。
+ */
+
+#define MP_HEADER_MAGIC 0x4D504F4F4C313233ULL   /* "MPOOL123" */
+
+typedef struct Memory_Pool_Header {
+    uint64_t magic;
+    Memory_Pool* owner;
+    size_t size;
+    size_t pad;
+} Memory_Pool_Header;
+
+#define MP_HEADER_BYTES (((sizeof(Memory_Pool_Header) + 15u) / 16u) * 16u)
+
+static Memory_Pool_Header* MpHeaderOf(void* ptr)
+{
+    return (Memory_Pool_Header*)((char*)ptr - MP_HEADER_BYTES);
+}
+
+int MemoryPoolInit(Memory_Pool** p,int perSize,int entryNum)
+{
+    if(p == NULL) return 0;
+
+    //先置空：初始化失败时调用方拿到的必须是 NULL，而不是野指针
+    *p = NULL;
+
+    if(perSize <= 0 || entryNum <= 0) return 0;
+
+    Memory_Pool* np = (Memory_Pool*)calloc(1,sizeof(Memory_Pool));
+    if(np == NULL) return 0;
+
+    //总配额只用于统计/调试：真正的分配上限由 malloc 决定
+    long long total = (long long)perSize * (long long)entryNum;
+    if(total <= 0){ free(np); return 0; }
+
+    np->quotaBytes = (size_t)total;
+    *p = np;
+
+    return 1;
+}
+
+int MemoryPoolAlloc(Memory_Pool* p,int needSize,void** ptr,int* notfull)
+{
+    if(notfull != NULL) *notfull = 0;
+    if(ptr == NULL) return 0;
+
+    *ptr = NULL;
+
+    //池对象为空 / 非法大小：和旧实现一样视为分配失败
+    if(p == NULL || needSize <= 0) return 0;
+
+    size_t total = MP_HEADER_BYTES + (size_t)needSize;
+    Memory_Pool_Header* h = (Memory_Pool_Header*)malloc(total);
+    if(h == NULL) return 0;                 //只有真 OOM 才会走到这里
+
+    h->magic = MP_HEADER_MAGIC;
+    h->owner = p;
+    h->size  = (size_t)needSize;
+    h->pad   = 0;
+
+    *ptr = (void*)((char*)h + MP_HEADER_BYTES);
+    if(notfull != NULL) *notfull = 1;
+
+    //统计：free 可能发生在另一个线程，用原子操作避免数据竞争
+    size_t used = __atomic_add_fetch(&p->usedBytes,h->size,__ATOMIC_RELAXED);
+    __atomic_add_fetch(&p->allocCount,1,__ATOMIC_RELAXED);
+
+    size_t peak = __atomic_load_n(&p->peakBytes,__ATOMIC_RELAXED);
+    while(used > peak &&
+          !__atomic_compare_exchange_n(&p->peakBytes,&peak,used,0,
+                                       __ATOMIC_RELAXED,__ATOMIC_RELAXED)){
+        //peak 被其它线程改过：重试
+    }
+
+    return 1;
+}
+
+int MemoryPoolFree(Memory_Pool* p,void* ptr)
+{
+    if(ptr == NULL) return 1;               //和 free(NULL) 一致
+    if(p == NULL) return 0;
+
+    Memory_Pool_Header* h = MpHeaderOf(ptr);
+
+    //归属校验：不是本池分配的指针直接拒绝（旧池也是这个语义，返回 0）
+    if(h->magic != MP_HEADER_MAGIC || h->owner != p) return 0;
+
+    size_t size = h->size;
+
+    h->magic = 0;
+    h->owner = NULL;
+
+    __atomic_sub_fetch(&p->usedBytes,size,__ATOMIC_RELAXED);
+    __atomic_add_fetch(&p->freeCount,1,__ATOMIC_RELAXED);
+
+    free(h);
+
+    return 1;
+}
+
+int MemoryPoolStat(Memory_Pool* p,int* usedBytes,int* usedUnits,int* unitNum)
+{
+    if(p == NULL) return 0;
+
+    size_t used = __atomic_load_n(&p->usedBytes,__ATOMIC_RELAXED);
+
+    if(usedBytes != NULL) *usedBytes = (int)used;
+    if(usedUnits != NULL) *usedUnits = (int)((used + 1023u) / 1024u);
+    if(unitNum   != NULL) *unitNum   = (int)(p->quotaBytes / 1024u);
+
+    return 1;
+}
+
+void MemoryPoolDestroy(Memory_Pool** p)
+{
+    if(p == NULL || *p == NULL) return;
+
+    //注意：这里只释放池对象本身；尚未归还的块会和 malloc 一样泄漏
+    free(*p);
+    *p = NULL;
+}
+
+#if 0   /* ---------------- 旧位图实现（保留作参考，不参与编译） ---------------- */
 
 //把 [u, u+n) 的单位在位图里置 1（环形，允许跨尾）
-static void MemoryPoolBitsSet(Memory_Pool* p,int u,int n){
-
-    for(int i=0;i<n;i++){
-
-        int k = u + i;
-        if(k >= p->unitNum) k -= p->unitNum;
-
-        p->bits[k >> 6] |= 1ULL << (k & 63);
-    }
-}
+/* 旧位图实现已移除；当前实现见本文件顶部（malloc 过渡实现） */
 
 //把 [u, u+n) 的单位在位图里清 0（环形）
 static void MemoryPoolBitsClear(Memory_Pool* p,int u,int n){
@@ -232,4 +357,6 @@ int MemoryPoolStat(Memory_Pool* p,int* usedBytes,int* usedUnits,int* unitNum){
 
     return 1;
 }
+
+#endif  /* ---------------- 旧位图实现结束 ---------------- */
 

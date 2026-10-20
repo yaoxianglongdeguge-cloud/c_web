@@ -237,7 +237,8 @@ int WorkerMain(Worker_Thread* profes){
     
     //最后清理一下已经发完的包
     CleanMemoryQueue(profes);
-        
+
+    return 1;        
     }
     
     
@@ -260,10 +261,12 @@ int PackBackHead(char** c,Response* w)
     {
         if(w->body!=NULL){
             MemoryPoolFree((Memory_Pool*)(w->pool),w->body);
+            w->body=NULL;
         }
 
         if(w->headers!=NULL){
             MemoryPoolFree((Memory_Pool*)(w->pool),w->headers);
+            w->headers=NULL;
         }
 
         if(w->send_fd!=-1){
@@ -276,13 +279,18 @@ int PackBackHead(char** c,Response* w)
 
         char* a="HTTP/1.1 200 OK\r\n";
         strcpy(*c,a);
-        if(w->headers->begin<w->headers->ptr){
-            strcat(*c,w->headers->begin);
+        if(w->headers!=NULL){
+            if(w->headers->begin<w->headers->ptr){
+                strcat(*c,w->headers->begin);
+            }
+            //即使没有自定义头，这块 4KB 头缓冲也必须归还；置 NULL 防止二次释放
             MemoryPoolFree((Memory_Pool*)(w->pool),w->headers);
+            w->headers=NULL;
         }
         if(w->body!=NULL){
             strcat(*c,w->body);
             MemoryPoolFree((Memory_Pool*)(w->pool),w->body);
+            w->body=NULL;
         }
         
     }

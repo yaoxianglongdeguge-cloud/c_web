@@ -1,4 +1,4 @@
-#include "../../Include/Include.h"
+#include "../../../Include/Include.h"
 
 static int g_pass = 0;
 static int g_fail = 0;
@@ -29,7 +29,7 @@ int main(void)
 {
     printf("== test_temp_pool : 请求暂存区 + 完整性判断（半包/粘包）==\n");
 
-    CHECK(MemoryPoolInit(&g_store, 7, 7, 200, 120) == 1, "初始化 store_area 内存池");
+    CHECK(MemoryPoolInit(&g_store, 1024*1024, 1) == 1, "初始化 store_area 内存池");
     CHECK(socketpair(AF_UNIX, SOCK_STREAM, 0, g_sv) == 0, "建立模拟连接（socketpair）");
 
     Request_Temp_Pool* tp = NULL;
@@ -55,7 +55,7 @@ int main(void)
 
     void* store = NULL;
     int notfull = 0;
-    MemoryPoolAlloc(g_store, 1, &store, &notfull);
+    MemoryPoolAlloc(g_store, 1024, &store, &notfull);
     CHECK(notfull == 1 && store != NULL, "在请求存储池申请 1KB 存放请求");
     CHECK(RequestTempPoolCopy(tp, end, (char*)store) == 1, "把整个请求拷出暂存区");
     CHECK(strncmp((char*)store, req1, L1 - 4) == 0, "拷出的请求文本正确");
