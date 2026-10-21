@@ -4,10 +4,14 @@ typedef struct Worker_Thread{
 
     int id;
     _Atomic int isMain;
+    _Atomic int isOut;//1为运行，0为休眠
     _Atomic pid_t tid;
-    _Atomic int   state;//1为运行，0为休眠
     pthread_cond_t workerCond; 
     pthread_mutex_t workerMutex;
+
+    _Atomic long long taskStart;
+    _Atomic long long taskEnd;
+
 
     Task_Queue* taskQueue;//这个业务线程对应的任务队列（同组接待线程私有）
 

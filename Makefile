@@ -2,7 +2,10 @@
 CC = gcc
 
 # 编译选项（-I. 是为了让 Include/Include.h 里的 #include "foo.h" 能命中库根目录的 foo.h）
-CFLAGS = -g -O0 -Wall -I. -IAgentSpace
+# -MMD -MP：为每个 .o 生成 .d 头文件依赖，改结构体/头文件后 make 会自动重编相关 .o
+# OPT：-O0 便于调试；压测/发布用 make OPT="-O2 -march=native"
+OPT ?= -O0
+CFLAGS = -g $(OPT) -Wall -I. -IAgentSpace -MMD -MP
 
 # 链接选项
 LDFLAGS = -lpthread
@@ -18,6 +21,7 @@ SRCS = $(wildcard *.c */*.c */*/*.c */*/*/*.c)
 # 排除 test/ 下的用例源码（它们各自带 main，混进来会导致 multiple definition of `main`）
 SRCS := $(filter-out test/% MemoryPool/OldPool/% AgentSpace/test/%,$(SRCS))
 OBJS = $(SRCS:.c=.o)
+DEPS = $(OBJS:.o=.d)
 
 # 编译规则
 $(TARGET): $(OBJS)
@@ -36,7 +40,7 @@ lib: $(LIB_TARGET)
 
 # 清理
 clean:
-	rm -f $(TARGET) $(LIB_TARGET) $(OBJS)
+	rm -f $(TARGET) $(LIB_TARGET) $(OBJS) $(DEPS)
 
 # 运行
 run: $(TARGET)
@@ -51,3 +55,6 @@ valgrind: $(TARGET)
 	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(TARGET)
 
 .PHONY: clean run debug valgrind lib
+
+# 头文件依赖（由 -MMD 生成；首次构建时文件不存在，用 -include 忽略）
+-include $(DEPS)

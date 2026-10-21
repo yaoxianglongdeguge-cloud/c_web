@@ -1,3 +1,4 @@
+
 #include "../Include/Variate.h"
 
 #define TEMP_PACK_MAX 1024
@@ -24,6 +25,10 @@ typedef struct Receiver_Thread{
     int epfd;
     int wakeup_fd;   //eventfd：业务线程把响应排入队列后立刻唤醒收发线程去发
     int notified;    //1=已经写过 eventfd（避免每个响应都 write 一次）
+
+
+    _Atomic int isFull;
+
 
     Fd_Table* fd_table;
     Memory_Pool* store_area;

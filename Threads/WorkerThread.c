@@ -1,4 +1,5 @@
 #include "../Include/Include.h"
+#include <sys/syscall.h>
 
 //响应头块大小：16KB 足够（实际头部只有几百字节）；写满会由 ResponseHeaderSet 回 503
 #define RSP_HEADER_BLOCK (4*1024)
@@ -89,8 +90,12 @@ int WorkerThreadInit(Worker_Thread** profes,int id)
     *profes=(Worker_Thread*)malloc(sizeof(Worker_Thread));
     (*profes)->id=id;
     (*profes)->isMain = 0;
-    (*profes)->threadCond = PTHREAD_COND_INITIALIZER;
-    (*profes)->workerMutex = PTHREAD_MUTEX_INITIALIZER;
+    (*profes)->isOut = 0;
+    (*profes)->tid = 0;
+    (*profes)->taskEnd = 0;
+    (*profes)->taskStart = 0;
+    pthread_cond_init(&((*profes)->workerCond),NULL);
+    pthread_mutex_init(&((*profes)->workerMutex),NULL);
     (*profes)->taskQueue=NULL;   //由 StaterMain 在启动线程前绑定到本组接待线程的队列
     if(WorkerQueueInit(&((*profes)->memory_queue))!=1) return 0;
     //txt_pool：响应头块 4KB + 响应体（<=8KB 在池内，>8KB 走 malloc）。
@@ -153,19 +158,19 @@ int GetFromTaskQueue(Task_Queue_Entry* t,Worker_Thread* profes){
 
 }
 
-
 int WorkerMain(Worker_Thread* profes){
 
     atomic_store(&(profes->tid), (pid_t)syscall(SYS_gettid));
-    atomic_store(&(profes->state), 1);
 
     while(1){
 
-        pthread_mutex_lock(profes->workerMutex);
-        while (isMain == 0){
-            pthread_cond_wait(&cond, profes->workerMutex);
+        pthread_mutex_lock(&(profes->workerMutex));
+        while (atomic_load(&(profes->isMain)) == 0){
+            atomic_store(&(profes->isOut),0);
+            pthread_cond_wait(&(profes->workerCond), &(profes->workerMutex));
         }
-        pthread_mutex_unlock(profes->workerMutex);  
+        atomic_store(&(profes->isOut),1);
+        pthread_mutex_unlock(&(profes->workerMutex));  
         
 
 
@@ -209,8 +214,9 @@ int WorkerMain(Worker_Thread* profes){
                     .Version=(const char* const)h->Version,
                     
                 };
-                
+                atomic_store(&(profes->taskStart),now_ns());
                 DealWithTask(&Req,&Rsp);
+                atomic_store(&(profes->taskEnd),now_ns());
                 
                 RequestAnalysisFree(h,profes->http_pool);
             }else{
@@ -251,18 +257,18 @@ int WorkerMain(Worker_Thread* profes){
                 
             }
             
-        }
-
-    return 1;        
+        }   
+        
+        return 1;
     }
     
     
     
-int DealWithTask(Request* r,Response* w)
-{
-    char* url=(char*)(r->Url);
-    Handler func=RouterHandlerFind(url);
-
+    int DealWithTask(Request* r,Response* w)
+    {
+        char* url=(char*)(r->Url);
+        Handler func=RouterHandlerFind(url);
+        
     if(func!=NULL)  func(r,w);
     else  ResponseErrorSet(w,404);
 

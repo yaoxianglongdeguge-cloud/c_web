@@ -4,8 +4,11 @@
 typedef struct Router Router;
 typedef void (*RouterFunc)();
 
+long long now_ns(void);
+
 typedef struct Receiver_Thread Receiver_Thread; 
 typedef struct Worker_Thread Worker_Thread;
+typedef struct Thread_Pool Thread_Pool;
 
 typedef struct Fd_Entry Fd_Entry;
 typedef struct Fd_Table Fd_Table;

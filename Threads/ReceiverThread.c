@@ -1,5 +1,5 @@
 #include "../Include/Include.h"
-#include <sys/eventfd.h>   /*eventfd 唤醒通道 */
+#include <sys/eventfd.h>  
 
 int TempPackInit(Temp_Pack** tempPack){
 
@@ -63,15 +63,16 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id,int workersNum)
     ReceiverQueueInit(&((*w)->Thing_queue),100);
 
     //任务队列改成接待线程私有：每个组一条，组内的工作线程和替补工作线程都取这一条
-    TasKQueueInit(&((*w)->taskQueue),taskQueueBlocknum);
+    TasKQueueInit(&((*w)->taskQueue),TASK_QUEUE_NUM);
 
     TimerInit(&((*w)->my_Timer),5000);
     FdTableInit(&((*w)->fd_table),4);
 
 
-    (*w)->epfd=epoll_create1(0);
-    (*w)->id=id;
-    (*w)->notified=0;
+    (*w)->id = id;
+    (*w)->epfd = epoll_create1(0);
+    (*w)->notified = 0;
+    (*w)->isFull = 0;
     EpollReadMount((*w)->epfd,Listen_fd);
 
     (*w)->wakeup_fd=eventfd(0,EFD_NONBLOCK);
@@ -117,7 +118,26 @@ int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_bl
     {
         int n=-1;
         while(1){
-            n=epoll_wait(w->epfd,events,1024,10);  
+            n=epoll_wait(w->epfd,events,1024,CWEB_EPOLL_TICK_MS);  
+            Thread_Pool* t = w->threadPool;
+            Worker_Thread* main = t->workers[t->mainThread];
+
+            if(main->taskStart != 0 && main->taskEnd <= main->taskStart){
+#ifdef CWEB_DEBUG_SWITCH
+                fprintf(stderr,"[pending] ts=%lld te=%lld age_ms=%lld\n",
+                        (long long)main->taskStart,(long long)main->taskEnd,
+                        (long long)((now_ns()-main->taskStart)/1000000));
+#endif
+                if(now_ns() - main->taskStart >= ONE_TASK_TIME*1000000){
+#ifdef CWEB_DEBUG_SWITCH
+                    fprintf(stderr,"[check] switch: age_ms=%lld\n",
+                            (long long)((now_ns()-main->taskStart)/1000000));
+#endif
+                    int isSuccess = 0;
+                    ThreadPoolChange(w,&isSuccess);
+                }
+            }
+    
             for(int i=0;i<100;i++)
             {
                 int send_info=0;

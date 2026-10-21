@@ -40,6 +40,7 @@ int FdClose(Receiver_Thread* w,int client_fd,int error_reason)
 {
     if(error_reason!=200)
     {
+        if(error_reason == 503){ atomic_store(&(w->isFull),1); }
         char re[1024]={0};
         int len=BuildErrorResponse(re,1024,error_reason);
         int n=write(client_fd,re,len);
