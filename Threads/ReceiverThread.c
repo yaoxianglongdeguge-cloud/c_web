@@ -60,7 +60,8 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id,int workersNum)
     MemoryPoolInit(&((*w)->http_pool),1024*1024,1);
 
     MemoryPoolInit(&((*w)->store_area),2048*1024,1);
-    ReceiverQueueInit(&((*w)->Thing_queue),100);
+    ReceiverQueueInit(&((*w)->Thing_queue));
+    ReceiverQueueTempInit(&((*w)->sendTemp));
 
     //任务队列改成接待线程私有：每个组一条，组内的工作线程和替补工作线程都取这一条
     TasKQueueInit(&((*w)->taskQueue),TASK_QUEUE_NUM);
@@ -123,16 +124,9 @@ int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_bl
             Worker_Thread* main = t->workers[t->mainThread];
 
             if(main->taskStart != 0 && main->taskEnd <= main->taskStart){
-#ifdef CWEB_DEBUG_SWITCH
-                fprintf(stderr,"[pending] ts=%lld te=%lld age_ms=%lld\n",
-                        (long long)main->taskStart,(long long)main->taskEnd,
-                        (long long)((now_ns()-main->taskStart)/1000000));
-#endif
+       
                 if(now_ns() - main->taskStart >= ONE_TASK_TIME*1000000){
-#ifdef CWEB_DEBUG_SWITCH
-                    fprintf(stderr,"[check] switch: age_ms=%lld\n",
-                            (long long)((now_ns()-main->taskStart)/1000000));
-#endif
+          
                     int isSuccess = 0;
                     ThreadPoolChange(w,&isSuccess);
                 }

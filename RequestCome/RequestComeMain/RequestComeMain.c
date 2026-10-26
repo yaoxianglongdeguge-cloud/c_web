@@ -56,7 +56,7 @@ int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknu
 
             void* ptr=NULL;
             int notfull=0;
-            MemoryPoolAlloc(Receiver_Thread->http_pool,(h_size/1024+1)*1024,&ptr,&notfull);
+            MemoryPoolAlloc(Receiver_Thread->http_pool,RECEIVER_QUEUE_ALLOC_BYTES(h_size),&ptr,&notfull);
             if(notfull==0) { FdClose(Receiver_Thread,fd,503); return 1; }
 
             char* hptr=(char*)ptr;
@@ -107,8 +107,14 @@ int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknu
         //③ 发生了错误
         else if(state==0){
 
+            void* ptr=NULL;
+            int nf=0;
+            int need=RECEIVER_QUEUE_ALLOC_BYTES(0);   // 只放节点，不放请求
+            MemoryPoolAlloc(Receiver_Thread->http_pool, need, &ptr, &nf);
+            if(nf==0){ FdClose(Receiver_Thread,fd,503); return 1; }
+
             fd_ob->ser_fina_send++;
-            ReceiverToWorker(Receiver_Thread,fd,NULL,0,error_reason,serial);
+            ReceiverToWorker(Receiver_Thread,fd,(char*)ptr,0,error_reason,serial);
             fd_ob->pack_in_path++;
             error_reason=200;
             serial++;

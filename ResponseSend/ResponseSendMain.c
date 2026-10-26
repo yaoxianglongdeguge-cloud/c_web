@@ -19,15 +19,19 @@ int FdNextSendPut(Fd_Entry* fd_ob,Receiver_Queue_Entry* s){
 
 int GetAndJudge(Receiver_Thread* w,int fd,int edStoreBlockNum,int* send_info,int* sendFd){
 
+    int e2=1;
+    Receiver_Queue_Entry* list = ReceiverQueueTopAndPop(w->Thing_queue,&e2);
+    ReceiverQueueTempPush(w->sendTemp,list);//先把需要读的挂到临时链上，防止丢失
+
     *send_info=0;
     Receiver_Queue_Entry s;
     int e0=1;
     while(e0!=0&&*sendFd==-2){
 
-        s = ReceiverQueueTopAndPop(w->Thing_queue,&e0);
+        s = ReceiverQueueTempTopAndPop(w->sendTemp,&e0);
         if(e0!=1) continue ;
 
-        MemoryPoolFree(w->http_pool,s.httpNeedFree);
+        MemoryPoolFree(w->http_pool,s.httpNeedFree);//由于信息节点和队列节点是一个指针一起分配的，所以不需要指明节点大小，直接释放指针
         //获取连接对象
         *send_info=1;
         Fd_Entry* fd_ob=NULL;

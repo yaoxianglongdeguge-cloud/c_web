@@ -232,7 +232,7 @@ int WorkerMain(Worker_Thread* profes){
             
             { char* C=NULL; PackBackHead(&C,&Rsp); }
             
-            ReceiverQueuePush(W->Thing_queue, NULL,Fd,Serial,Rsp.error_reason,0,0,0,NULL,-1, 0,(void*)Http);
+            ReceiverQueuePush(W->Thing_queue, NULL,Fd,Serial,Rsp.error_reason,0,0,0,NULL,-1, 0,(void*)Http,Size);
             ReceiverNotify(W);   
         }else{
             
@@ -247,11 +247,11 @@ int WorkerMain(Worker_Thread* profes){
                 if(C!=NULL) WorkerQueuePush(profes->memory_queue,allocsize,C);
                 { char* C2=NULL; PackBackHead(&C2,&Rsp); }
                 
-                ReceiverQueuePush(W->Thing_queue, NULL,Fd,Serial,(Rsp.error_reason!=200)?Rsp.error_reason:503,0,0,0,NULL,-1,0,(void*)Http);
+                ReceiverQueuePush(W->Thing_queue, NULL,Fd,Serial,(Rsp.error_reason!=200)?Rsp.error_reason:503,0,0,0,NULL,-1,0,(void*)Http,Size);
             }else{
                 
                 ReceiverQueuePush(W->Thing_queue, profes->memory_queue,Fd,Serial,200,allocsize,0,
-                    file_size,C,Rsp.send_fd,Rsp.offset,(void*)Http);
+                    file_size,C,Rsp.send_fd,Rsp.offset,(void*)Http,Size);
                 }
                 ReceiverNotify(W);   
                 

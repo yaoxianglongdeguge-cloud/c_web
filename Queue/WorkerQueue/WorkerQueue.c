@@ -37,9 +37,8 @@ int WorkerQueuePush(Worker_Queue* sq,int size,char*char_ptr)
 {
     if(sq==NULL||char_ptr==NULL||size<0) return 0;
 
-    //节点位置由“响应实际字节数”唯一决定，调用方必须和 PackTotal 用同一个 size
     Worker_Queue_Entry* e = (Worker_Queue_Entry*)(char_ptr + WORKER_QUEUE_NODE_OFFSET(size));
-    e->NeedFree = char_ptr;                 //释放时要用块基址，不是节点地址
+    e->NeedFree = char_ptr;              
 
     pthread_mutex_lock(&(sq->mutex));
     e->next = sq->tail;
