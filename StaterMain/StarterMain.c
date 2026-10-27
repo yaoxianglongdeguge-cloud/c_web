@@ -84,9 +84,6 @@ int DriveListen(int* Fd,char* IPaddr,int PORT){
 }
 
 
-
-//组数：一组 = 1 接待线程 + 1 条私有任务队列 + N 个工作线程
-//  默认 1 组；压测/部署时用环境变量 CWEB_GROUP_NUM 调，不用改代码重编
 static int ReceiverGroupNum(void){
 
     char* s=getenv("CWEB_GROUP_NUM");
@@ -98,24 +95,9 @@ static int ReceiverGroupNum(void){
     return n;
 }
 
-
-
-static int WorkerThreadNum(void){
-
-    char* s=getenv("CWEB_WORKER_NUM");
-    int n=(s!=NULL)?atoi(s):WORKER_THREAD_NUM_DEFAULT;
-
-    if(n<1) n=1;
-    if(n>WORKER_THREAD_NUM_MAX) n=WORKER_THREAD_NUM_MAX;
-
-    return n;
-}
-
-
 int StartThread(char* IPaddr,int PORT){
     pthread_t tid;
     int group=ReceiverGroupNum();
-    int workers=WorkerThreadNum();
     int started=0;
     
     printf("[WebStater] 组数=%d，每组接待线程=1，每组工作线程=%d\n",group,workers);
@@ -168,13 +150,3 @@ int WebStater(char* IPaddr,int PORT, RouterFunc Handler)
     
 }
 
-// static int WorkerThreadNum(void){
-
-//     char* s=getenv("CWEB_WORKER_NUM");
-//     int n=(s!=NULL)?atoi(s):WORKER_THREAD_NUM_DEFAULT;
-
-//     if(n<1) n=1;
-//     if(n>WORKER_THREAD_NUM_MAX) n=WORKER_THREAD_NUM_MAX;
-
-//     return n;
-// }

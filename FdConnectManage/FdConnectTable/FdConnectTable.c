@@ -1,12 +1,12 @@
 #include "../../Include/Include.h"
 
 
-static const int PRIME_BUCKET_SIZES_3[15] = {
+static const int PRIME_BUCKET_SIZES_3[5] = {
     7,
     17,     // 起点
     31,     // 1.82x
     59,     // 1.90x
-    113,    // 1.92x
+    113
     
 };//用于哈希表扩容
 
