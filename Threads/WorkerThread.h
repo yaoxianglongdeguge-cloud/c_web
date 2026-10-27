@@ -9,8 +9,10 @@ typedef struct Worker_Thread{
     pthread_cond_t workerCond; 
     pthread_mutex_t workerMutex;
 
-    _Atomic long long taskStart;
-    _Atomic long long taskEnd;
+    // 为了防止因为在业务外阻塞却被判断为在业务阻塞，进而导致误触发换线程
+    // 两个时间的刷新都要紧邻业务
+    _Atomic long long taskStart; //当前业务开始时间
+    _Atomic long long taskEnd; //当前业务结束时间
 
 
     Task_Queue* taskQueue;//这个业务线程对应的任务队列（同组接待线程私有）

@@ -19,9 +19,13 @@ LIB_TARGET = libcweb.a
 # 自动查找所有 .c 文件（目录最深三层，如 FdConnectManage/Timer/TimerDataStruct/）
 SRCS = $(wildcard *.c */*.c */*/*.c */*/*/*.c)
 # 排除 test/ 下的用例源码（它们各自带 main，混进来会导致 multiple definition of `main`）
-SRCS := $(filter-out test/% MemoryPool/OldPool/% AgentSpace/test/%,$(SRCS))
+SRCS := $(filter-out test/% MemoryPool/OldPool/% AgentSpace/test/% bench/%,$(SRCS))
 OBJS = $(SRCS:.c=.o)
 DEPS = $(OBJS:.o=.d)
+
+# QPS 测试服务器（排除 AgentSpace/main.o，避免 main 冲突）
+BENCH_SERVER = bench/bench_server
+BENCH_OBJS   = $(filter-out AgentSpace/main.o,$(OBJS))
 
 # 编译规则
 $(TARGET): $(OBJS)
@@ -38,9 +42,16 @@ lib: $(LIB_TARGET)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(BENCH_SERVER): bench/bench_main.c $(BENCH_OBJS)
+	$(CC) $(CFLAGS) -o $@ bench/bench_main.c $(BENCH_OBJS) $(LDFLAGS)
+
+# 一键 QPS：make qps OPT="-O2 -march=native"
+qps: $(BENCH_SERVER)
+	bash bench/run_qps.sh
+
 # 清理
 clean:
-	rm -f $(TARGET) $(LIB_TARGET) $(OBJS) $(DEPS)
+	rm -f $(TARGET) $(LIB_TARGET) $(OBJS) $(DEPS) $(BENCH_SERVER) bench/bench_main.o bench/bench_main.d
 
 # 运行
 run: $(TARGET)
@@ -54,7 +65,7 @@ debug: $(TARGET)
 valgrind: $(TARGET)
 	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(TARGET)
 
-.PHONY: clean run debug valgrind lib
+.PHONY: clean run debug valgrind lib qps
 
 # 头文件依赖（由 -MMD 生成；首次构建时文件不存在，用 -include 忽略）
 -include $(DEPS)

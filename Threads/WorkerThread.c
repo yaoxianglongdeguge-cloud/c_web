@@ -144,6 +144,7 @@ int GetFromTaskQueue(Task_Queue_Entry* t,Worker_Thread* profes){
                continue;
            }
 
+           //每次进入沉睡都增加沉睡时间
            struct timespec wait_ts;
            clock_gettime(CLOCK_REALTIME,&wait_ts);
            wait_ts.tv_nsec+=100000000;

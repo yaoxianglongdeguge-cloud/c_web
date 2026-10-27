@@ -21,8 +21,8 @@ typedef struct Task_Queue{
     int active;          //生产者当前写入的缓冲
     int pending;         //消费者当前处理的缓冲
 
-    int active_num;      //active 中已写入条数（生产者私有，锁内修改）
-    int pending_num;     //本轮 pending 的总条数（换缓冲时写）
+    int active_num;      //active 中已写入格数（生产者私有，锁内修改）
+    int pending_num;     //本轮 pending 的总格数（换缓冲时写）
     int pending_idx;     //下一条要被认领的下标（多消费者原子自增）
     int pending_reader;  //正在读 pending 的消费者数（换缓冲前必须为 0）
     int swapping;        //1=正在换缓冲，消费者先别认领

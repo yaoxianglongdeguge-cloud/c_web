@@ -123,6 +123,8 @@ int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_bl
             Thread_Pool* t = w->threadPool;
             Worker_Thread* main = t->workers[t->mainThread];
 
+            // 结束时间在开始时间前面说明在业务中没出来，如果是在任务队列那里阻塞的话，那开始时间是在结束时间前面的
+            // 所以不会误触发换线程
             if(main->taskStart != 0 && main->taskEnd <= main->taskStart){
        
                 if(now_ns() - main->taskStart >= ONE_TASK_TIME*1000000){
@@ -152,6 +154,8 @@ int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_bl
             }
             TimerOvertime(w->my_Timer,time,w);
         }
+
+        
         for(int i=0;i<n;i++){
 
             int handle_fd=events[i].data.fd;

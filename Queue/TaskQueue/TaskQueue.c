@@ -87,11 +87,10 @@ Task_Queue_Entry TasKQueueTopAndPop(Task_Queue* sq,int* error)
     if(error!=NULL) *error=0;
     if(sq==NULL) return s;
 
-    //最多走两轮：第一轮把 active 换到 pending，第二轮从新 pending 里认领一条
     for(int i=0;i<2;i++){
 
         //1) 先登记“我在读 pending”：换缓冲的人要等读者全部退出，
-        //   才敢把这块旧缓冲交回给生产者写，否则会把正在拷贝的条目覆盖掉
+        //   才把这块旧缓冲交回给生产者写，否则会把正在拷贝的条目覆盖掉
         __atomic_add_fetch(&(sq->pending_reader),1,__ATOMIC_SEQ_CST);
 
         if(__atomic_load_n(&(sq->swapping),__ATOMIC_SEQ_CST)!=0){
@@ -106,6 +105,7 @@ Task_Queue_Entry TasKQueueTopAndPop(Task_Queue* sq,int* error)
 
         if(__atomic_load_n(&(sq->pending_idx),__ATOMIC_SEQ_CST)<num){
             idx=__atomic_fetch_add(&(sq->pending_idx),1,__ATOMIC_SEQ_CST);
+            //防止被换缓冲，所以这里再确认一下，其实上面已经把要换缓冲的挡住了，如果有的话那本次就进不来这里
             num=__atomic_load_n(&(sq->pending_num),__ATOMIC_SEQ_CST);
         }
 
@@ -115,6 +115,7 @@ Task_Queue_Entry TasKQueueTopAndPop(Task_Queue* sq,int* error)
             s=sq->buf[__atomic_load_n(&(sq->pending),__ATOMIC_SEQ_CST)][idx];
             __atomic_sub_fetch(&(sq->pending_reader),1,__ATOMIC_SEQ_CST);
 
+            //虽然这里可能发生换缓存，但是num是记录的两条缓存的总有效个数，所以直接原子减没问题
             __atomic_sub_fetch(&(sq->num),1,__ATOMIC_SEQ_CST);
             while(sem_trywait(&(sq->sem_task_notempty))!=0){
                 if(errno!=EINTR) break;        //信号量只用来唤醒，取不到也不影响本次取任务
