@@ -126,7 +126,7 @@ const char* RequestGetter(Request* r, char* get1, char* get2);
  *     ResponseBodySet  ：设置文本响应体，按 Content-Length 自动补齐头
  *                        成功 1；池满/分配失败自动降级 503
  *     ResponseHeaderSet：追加一个自定义响应头（如 Content-Type）；
- *                        重复设置同名头会被拒绝（返回 0）
+ *                        按调用顺序直接追加、不去重；头区（4KB）不足返回 0 并降级 503
  *     ResponseFileSet  ：文件响应（sendfile 零拷贝）：先 open() 得到 fd，
  *                        再调用本函数；发送完成后由**框架负责 close(fd)**，
  *                        Content-Length 由框架 fstat 填充

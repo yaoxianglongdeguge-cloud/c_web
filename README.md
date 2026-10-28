@@ -1,299 +1,418 @@
-# c_web —— 纯 C 实现的并发 HTTP 服务器框架
+# c_web（libcweb）—— 纯 C 的 epoll HTTP 服务器库
 
-一个用纯 C 从零实现的并发 HTTP/1.1 服务器，以**静态库**形式提供给上层框架使用。
-采用"收发线程 + 业务线程"的半同步/半异步模型，内置内存池、无锁化连接表、
-HTTP 状态机解析、有序发送、断连定时器与跨线程内存所有权管理。
+一个用纯 C 从零实现的 HTTP/1.1 服务器**静态库**。核心是「收发线程 + 业务线程」的
+半同步/半异步模型：`epoll` 事件循环负责连接与收发，工作线程负责解析、路由与构造响应，
+中间用每组的任务队列解耦；静态文件走 `sendfile` 零拷贝。
 
-## 核心特性
+> **当前状态**：仅支持 Linux（epoll / eventfd / sendfile / SO_REUSEPORT / POSIX 线程）。
+> 本仓库只包含**库本体**，不含示例站点、示例应用和测试程序 —— `main()` 由使用方自己提供，
+> 构建产物是 `libcweb.a`。
 
-- **半同步/半异步线程模型**：`Receiver_Thread`（收发线程，负责 accept / epoll / 读请求 / 发响应）
-  + `Worker_Thread`（业务线程，负责 HTTP 解析 / 路由分发 / 构造响应），通过本组接待线程私有的任务队列解耦。
-- **请求保序**：每个请求从读入起分配递增序号 `serial`，发送端用环形槽位
-  `serial % blocknum` 保证同连接上响应顺序与请求顺序一致（乱序处理、有序发出）。
-- **HTTP 状态机 + 分块暂存**：`Request_Temp_Pool` 处理拆包/粘包；`StateMachine` 判定请求完整性；
-  请求超过暂存区大小时自动扩容。
-- **内存分配**：当前为 `malloc/free` 过渡实现（保留原 `MemoryPool` API，便于后续换回自研池）；
-  分配失败时 `notfull=0`，由调用方降级为 503；响应块经 `Worker_Queue` 归还原线程统一释放。
-- **大文件零拷贝**：文件响应使用 `sendfile`，内存中响应支持 1MB 以内。
-- **断连定时器**：小顶堆 + 线性扫描重置，空闲连接超时返回 408（默认 1 秒）。
-- **路由表**：DJB2+盐值哈希，URL 精确匹配，支持启动时静态注册。
-- **错误响应**：400/404/405/408/411/413/414/431/500/503 自动生成文本响应。
+---
 
-## 架构概览
+## 目录
+
+- [特性](#特性)
+- [架构](#架构)
+- [目录结构](#目录结构)
+- [构建与快速开始](#构建与快速开始)
+- [配置](#配置)
+- [对外 API](#对外-api)
+- [线程模型与容量](#线程模型与容量)
+- [日志与排障](#日志与排障)
+- [平台与运行环境](#平台与运行环境)
+- [已知限制](#已知限制)
+- [变更记录](#变更记录)
+
+---
+
+## 特性
+
+- **半同步/半异步**：每组 `1 个接待线程 + N 个工作线程`。接待线程负责 accept / epoll / 读请求 / 发响应，
+  工作线程负责 HTTP 解析 / 路由 / 构造响应。
+- **多组监听**：`group.num` 组各自 `socket + SO_REUSEPORT`，由内核按四元组分摊新连接。
+- **同连接响应保序**：每个请求分配递增 `serial`，发送端用 `serial % blocknum` 的环形槽位，
+  允许乱序处理、保证按请求顺序发出。
+- **HTTP 解析**：分块暂存区 + 状态机判定完整性，支持拆包/粘包与同连接流水线（pipelining）；
+  URL 与 Query 分离，请求头/查询参数为哈希表。
+- **静态文件零拷贝**：`sendfile` + 非阻塞 + `EPOLLOUT` 续写；`TCP_NODELAY` 已默认开启。
+- **断连定时器**：小顶堆 + 线性重置，空闲超过 `receiver.idle_timeout_s` 回 408。
+- **内存管理**：`MemoryPool` 目前是 `malloc/free` 薄封装（保留原 API），分配失败降级 503；
+  响应内存经 `Worker_Queue` 交还工作线程统一释放。
+- **配置文件驱动**：`key = value` 文本配置，启动时一次性读入并校验，无需重编译。
+- **可观测**：启动摘要 + 分组就绪 + 关键错误日志（见[日志与排障](#日志与排障)）。
+
+---
+
+## 架构
 
 ```
-        ┌──────────────────────────── WebStater(IP, PORT, Handler) ───────────────────────────┐
-        │  ① 忽略 SIGPIPE → ② 初始化全局路由表/任务队列容量 → ③ 回调 Handler() 注册路由            │
-        │  ④ 按组创建监听 socket → ⑤ 每组启动接待线程 + 工作线程                              │
-        └──────────────────────────────┬───────────────────────────────────────────────────────┘
-                                       │
-                ┌──────────────────────┴───────────────────────┐
-                │  Receiver_Thread ×N（每组一个，各自独立线程）          │
-                │  · epoll 事件循环（10ms 超时）                │
-                │  · accept / fd 表 / 定时器 / 有序发送         │
-                └──────────────────────┬───────────────────────┘
-                                       │ Task_Queue（每个接待线程私有，容量100，双缓冲）
-                ┌──────────────────────▼───────────────────────┐
-                │  Worker_Thread ×N（每组默认 2 个，业务处理）      │
-                │  · HTTP 解析 / 路由分发 / 构造响应            │
-                │  · 结果投回对应 Receiver_Thread 的发送队列             │
-                └──────────────────────┬───────────────────────┘
-                                       │ Receiver_Queue（每 Receiver_Thread 一个）
-                ┌──────────────────────▼───────────────────────┐
-                │  Receiver_Thread 发送端：按 serial 保序 write / sendfile│
-                └──────────────────────┬───────────────────────┘
-                                       │ Worker_Queue（响应内存归还给 Worker_Thread 释放）
-                                       ▼
+WebStater(IP, PORT, Handler)
+   │  ① 忽略 SIGPIPE ② 初始化路由表 ③ 回调 Handler 注册路由
+   │  ④ 按 group.num 建监听 socket（SO_REUSEPORT）⑤ 每组起接待线程 + 工作线程
+   ▼
+Receiver_Thread × group.num       （各自独立线程 + 独立 epoll + 独立任务队列）
+   │  epoll 事件循环（epoll.tick_ms）
+   │  accept / fd 表 / 断连定时器 / 按 serial 有序发送
+   ├── Task_Queue（每组私有，容量 task_queue.capacity，双缓冲）
+   ▼
+Worker_Thread × worker.per_group
+   │  解析请求 → RouterHandlerFind(url) → 业务函数写 Response → 打包
+   └── Receiver_Queue（投回本组接待线程）
+   ▼
+Receiver_Thread 发送：按 serial 顺序 write / sendfile
+   ▼
+Worker_Queue（响应内存归还给工作线程释放）
 ```
 
 一次请求的生命周期：
 
 ```
-accept → epoll → RequestComeMain 读入暂存区 → StateMachine 判定完整请求 → 复制到 http_pool
-→ 投递 Task_Queue → Worker_Thread: 解析头部/URL/Query → RouterHandlerFind(url) → 业务函数写 Response
-→ PackBackHead 打包 → Receiver_Queue → Receiver_Thread 按 serial 保序发送 → 内存经 Worker_Queue 归还
+accept → epoll → 读入请求暂存区 → 状态机判定完整 → 复制到 http_pool
+→ Task_Queue → 工作线程解析/路由/构造响应 → Receiver_Queue
+→ 接待线程按 serial 保序发送 → 内存经 Worker_Queue 归还
 ```
+
+---
 
 ## 目录结构
 
-| 目录/文件 | 职责 |
+| 目录 / 文件 | 职责 |
 |---|---|
-| `main.c` / `main.h` | `WebStater()` 启动驱动（框架入口） |
-| `server/` | 全局资源：路由表 + 任务队列容量配置 |
-| `my_thread/` | `worker_thread`（收发线程）、`profession_thread`（业务线程） |
-| `connect_fd/` | 连接 fd 哈希表（fd → 暂存区/发送槽/序号） |
-| `connect_config/` | 连接管理：accept / 统一关闭 `FdClose` |
-| `http_analysis/` | HTTP 读入、暂存区、状态机、头部/URL/Query 解析 |
-| `send_pointer_pool/` | 有序发送槽环形缓冲 + 发送主逻辑 |
-| `queue/` | `task_queue`（全局任务）、`send_thing_queue`（发送事件）、`memory_queue`（内存回收） |
-| `memory_pool/` | 分级内存池（非扩容，notfull 降级） |
-| `Timer/` | 断连计时器（小顶堆 + `TimerFree` 移除） |
-| `data_struct/` | hash_1 路由表 / hash_2 请求头键值 / hash_3 fd 表 / Prior_Queue_Timer 小顶堆 |
-| `router/` | URL → Handler 路由 |
-| `request_response/` | Request 只读接口、Response 构造接口 |
-| `my_lock/` | 写优先读写锁（预置组件） |
-| `test/` | 自动化测试（单元 + 集成 + valgrind） |
+| `ToOut/foo.h` | **对外 API 头文件**（业务代码只包含它） |
+| `Include/` | 内部聚合头 `Include.h`、公共宏 `CWEBCommon.h`、标准头 `IncludeStandard.h`、前置声明 `Variate.h` |
+| `Config/CWebConfig.{c,h}` | 运行期配置结构体 + 配置文件解析/校验/打印 |
+| `StaterMain/StarterMain.c` | `WebStater` 入口：监听 socket、建组、起线程 |
+| `Threads/` | `ReceiverThread`（接待/收发）、`WorkerThread`（业务） |
+| `ThreadPool/` | 每组的 worker 池、唤醒与「卡住换线程」 |
+| `FdConnectManage/` | `EpollOperate`（读/写事件挂载）、`FdConnectTable`（fd 哈希表）、`Timer`（断连定时器） |
+| `FdConnectOrClose/` | accept 新连接、统一关闭与错误响应构造 |
+| `FdConnectResource/` | `RequestTempPool`（请求暂存区 + 状态机）、`SendPointerPool`（发送槽） |
+| `Queue/` | `TaskQueue`（组内任务）、`ReceiverQueue`（响应队列）、`WorkerQueue`（内存归还）、`TempPackQueue` |
+| `RequestCome/` | 读请求、完整性判定、头部/URL/Query 解析、请求头哈希 |
+| `ResponseSend/` | 发送主循环（小响应 `write`、文件 `sendfile`） |
+| `RequestAndResponse/` | `Request` 只读视图、`Response` 构造接口 |
+| `Router/` | URL → Handler 路由（DJB2 + 盐值哈希，精确匹配） |
+| `MemoryPool/` | 内存池 API（当前为 malloc/free 实现，配额仅统计） |
+| `MyLock/` | 写优先读写锁（预置组件） |
+| `Makefile` | 构建静态库 `libcweb.a` |
+| `cweb.conf.example` | 配置文件示例 |
 
+---
 
-## 构建
+## 构建与快速开始
 
-```bash
-make            # 编译可执行程序 main（需要自己提供 main() 入口，见下）
-make lib        # 编译静态库 libcweb.a（推荐，框架以库形式使用）
-make clean      # 清理目标文件/可执行/静态库
-```
-
-静态库包含 25 个模块（`ar t libcweb.a` 可查看），生成后链接方式：
+### 构建库
 
 ```bash
-gcc app.c -I<c_web路径> -L<c_web路径> -lcweb -lpthread -o app
+make                              # 默认目标：生成 libcweb.a（-O0，便于调试）
+make OPT="-O2 -march=native"      # 发布构建
+make lib                          # 等价写法
+make clean                        # 清理 .o / .d / libcweb.a
 ```
 
-> 注意：本仓库 `main.c` 只提供 `WebStater()` 启动驱动，**不含 `main()` 入口**，
-> 由上层框架提供程序入口（服务器实例）。Makefile 的 `main` 目标仅为本地调试预留。
+> 仓库本身没有 `main()`，`make` 默认只构建静态库。
+> 想直接在仓库根生成可执行文件：把含 `main()` 的 `app.c` 放到仓库根，执行 `make main`
+> （或按下面的命令手动链接）。
 
-## 快速上手
+### 写一个最小应用
 
 ```c
-#include "include.h"
+/* app.c */
+#include "ToOut/foo.h"
 
-/* 业务处理函数：收到匹配请求时被调用 */
-static void handler_home(Request* r, Response* w)
+static void home(Request* r, Response* w)
 {
     (void)r;
-    ResponseBodySet(w, "hello cweb");                    /* 写响应体 */
-    ResponseHeaderSet(w, "Content-Type", "text/plain");  /* 自定义响应头 */
+    ResponseHeaderSet(w, "Content-Type", "text/plain; charset=utf-8");
+    ResponseBodySet(w, "hello cweb");
 }
 
-static void handler_echo(Request* r, Response* w)
+static void routes(void)
 {
-    const char* name = RequestGetter(r, "Query", "name");    /* 取查询参数 */
-    char buf[128];
-    snprintf(buf, sizeof(buf), "echo:%s", name ? name : "(null)");
-    ResponseBodySet(w, buf);
-}
-
-/* 路由注册回调：在监听 socket 建立前被 WebStater 调用 */
-static void register_routes(void)
-{
-    RouterAppend("/", handler_home);
-    RouterAppend("/echo", handler_echo);
+    RouterAppend("/", home);          /* url 请传静态字符串 */
 }
 
 int main(void)
 {
-    /* 阻塞运行：WebStater 会直接在当前线程跑 Receiver_Thread 事件循环 */
-    WebStater("127.0.0.1", 8899, register_routes);
-    return 0;
+    /* 成功时 WebStater 不返回；失败返回 -1 */
+    return WebStater("127.0.0.1", 5343, routes) == 1 ? 0 : 1;
 }
 ```
 
-## 示例网站与在线接口
-
-仓库自带一个可直接运行的示例站点：
-
-| 目录/文件 | 说明 |
-|---|---|
-| `WebSite/` | 静态网站（`index.html`、`about.html`、`style.css`、`app.js`、`favicon.ico`、`static/10mb.bin`），由框架 `sendfile` 零拷贝下发 |
-| `WebApp/WebApp.c` | 应用层：14 条路由的注册与 handler 实现（入口 `WebAppRegisterRoutes`） |
-| `main.c` | `WebStater("127.0.0.1",5343,WebAppRegisterRoutes)`，启动即注册路由 |
-
 ```bash
-make                 # 或 VS Code 的 build 任务 / F5（preLaunchTask 已包含 WebApp/WebApp.c）
-./main               # 必须在仓库根目录启动：WebSite/ 是相对工作目录的路径
-# 浏览器打开 http://127.0.0.1:5343
+gcc -O2 -Wall -I. app.c -L. -lcweb -lpthread -o app
+
+# 用默认配置（/etc/cweb.conf，不存在则全用内置默认值）
+./app
+
+# 或指定配置文件
+CWEB_CONF=./my.conf ./app
+
+curl -v http://127.0.0.1:5343/
 ```
 
-| 路由 | 方法 | 说明 |
-|---|---|---|
-| `/`、`/index.html`、`/about`、`/about.html` | GET | 静态页面（`text/html`） |
-| `/style.css`、`/app.js`、`/favicon.ico` | GET | 静态资源 |
-| `/hello` | GET | `Hello, c_web!` |
-| `/time` | GET | 服务器本地时间 `YYYY-MM-DD HH:MM:SS` |
-| `/echo?name=&msg=` | GET | 查询串回显 JSON（应用层做 URL 解码 + JSON 转义） |
-| `/api/echo` | POST | 回显请求体 JSON；同 URL 的 GET 返回 **405** |
-| `/api/info` | GET | 服务信息 JSON（pid / uptime / port） |
-| `/mem/256k` | GET | 262144 字节内存响应（超过内存池最大类，走 malloc 兜底） |
-| `/download/10mb` | GET | 10MiB 文件 `sendfile` 下载（`Content-Length` 由框架 fstat 自动填） |
-| 未注册路径 | 任意 | 框架统一回 **404 Not Found** |
-
-应用层写法（`WebApp/WebApp.c`）：
+### 静态文件响应
 
 ```c
-static void HHello(Request* r, Response* w)          // 签名：void (*)(Request*, Response*)
+static void logo(Request* r, Response* w)
 {
-    if (strcmp(RequestGetter(r, "Method", NULL), "GET") != 0) {
-        ResponseErrorSet(w, 405);                    // 方法不符
-        return;
-    }
-    ResponseHeaderSet(w, "Content-Type", "text/plain; charset=utf-8"); // 应用负责 Content-Type
-    ResponseBodySet(w, "Hello, c_web!");             // Content-Length 由框架打包时生成
+    (void)r;
+    const char* path = "WebSite/logo.png";     /* 建议绝对路径，或基于 web.root 拼接 */
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) { ResponseErrorSet(w, 404); return; }
+
+    ResponseHeaderSet(w, "Content-Type", "image/png");
+    ResponseFileSet(w, fd, 0);                 /* Content-Length 自动填，发送完由框架 close(fd) */
 }
-// 文件响应：ResponseFileSet(w, open(path, O_RDONLY), 0);  发完由框架 close
 ```
 
-端到端验证（与单元测试一样，退出码即结论）：
+> `web.root` 只提供字符串，框架**不会**自动拼路径；业务函数按自己的规则拼接即可。
 
-```bash
-make -C AgentSpace/test run              # 单元 + 组件级（12 个用例，退出码即结论）
-bash AgentSpace/test/website_test.sh     # 网站端到端（含 10MB 下载与 4 路并发）
+---
+
+## 配置
+
+### 文件格式与加载规则
+
+```ini
+# 整行注释；key = value，一行一个
+listen.port    = 5343
+web.root       = /srv/www
+worker.parallel = 0
 ```
 
-> 已知限制：框架暂不支持 HEAD 语义（`HEAD /` 会命中 405）；查询串不做 URL 解码（示例在应用层补了 `UrlDecode`）；
-> 静态文件路径是相对工作目录的。详见 `AgentSpace/test/TEST_REPORT.md` 第 13 章。
+- 支持空格/制表符、`\r\n`（Windows 换行）；值里的 `#` 是普通字符（只支持整行注释）。
+- **不支持 UTF-8 BOM**：带 BOM 的首行会被当作未知键，启动日志会给出提示。
+- 查找顺序：`CWEB_CONF` 指定的文件 → `/etc/cweb.conf`。
+  - 显式指定（`CWEB_CONF` 或非 NULL 路径）但文件不存在 → **启动失败**；
+  - 默认路径不存在 → 使用内置默认值，正常启动。
+- 优先级：**配置文件 > `WebStater(ip, port, ...)` 入参 > 内置默认值**。
+  只有文件里没写的键，`WebStater` 的 `ip/port` 才会覆盖。
+- **不再读取 `CWEB_xxx` 环境变量来注入配置值**；`CWEB_CONF` 只用于选择配置文件路径。
+- 配置只在启动时读一次，**不支持热重载**。改容量类参数必须重启。
 
-## API 参考
+完整示例见仓库根 `cweb.conf.example`。
+
+### 配置项一览（括号内为允许范围）
+
+**监听 / 站点**
+
+| 键 | 默认 | 说明 |
+|---|---|---|
+| `listen.addr` | `127.0.0.1` | 监听地址（不能为空） |
+| `listen.port` | `5343` | 监听端口（1..65535） |
+| `listen.backlog` | `100` | `listen()` 的 backlog（≥1）；超过内核 `somaxconn` 会被截断，启动日志会提示 |
+| `web.root` | `WebSite` | 静态站点根目录字符串（相对路径相对启动时的 CWD） |
+
+**线程模型**
+
+| 键 | 默认 | 说明 |
+|---|---|---|
+| `group.num` | `1` | 组数（1..32），每组一个监听 socket |
+| `worker.per_group` | `4` | 每组工作线程数（2..16） |
+
+总线程数 = `group.num × (1 + worker.per_group) + 1`（`+1` 是 `main` 线程在 `pause()`）。
+
+**接待线程 / 连接**
+
+| 键 | 默认 | 说明 |
+|---|---|---|
+| `receiver.idle_timeout_s` | `60` | 连接空闲超时秒数（≥1），超时回 408 |
+| `receiver.send_batch` | `100` | 每轮事件最多连续发送多少次 |
+| `timer.capacity` | `5000` | 定时器节点数（≥1），应 ≥ 单组最大连接数 |
+| `fd_table.init_level` | `4` | fd 表初始桶等级（1..5 → 7/17/31/59/113） |
+
+**队列 / 背压**
+
+| 键 | 默认 | 说明 |
+|---|---|---|
+| `task_queue.capacity` | `100` | 每组任务队列容量（≥1） |
+| `temp_pack.capacity` | `1024` | 队列满时的暂存环容量（1..65536），建议 ≥ 任务队列容量 |
+| `send.pipeline_window` | `100` | 每连接在途未发完请求上限（发送槽数，≥1） |
+
+**内存池配额（单位 KB，仅统计/告警，不是硬上限）**
+
+| 键 | 默认 | 说明 |
+|---|---|---|
+| `pool.recv_http_kb` | `1024` | 接待线程：请求副本池（64..65536） |
+| `pool.recv_store_kb` | `2048` | 接待线程：请求暂存区（64..65536） |
+| `pool.worker_txt_kb` | `2048` | 工作线程：响应头/体（64..65536） |
+| `pool.worker_http_kb` | `256` | 工作线程：解析结构（64..65536） |
+
+**HTTP 限额**
+
+| 键 | 默认 | 说明 |
+|---|---|---|
+| `request.max_url_bytes` | `8192` | 超过回 414（256..65536） |
+| `request.max_header_bytes` | `16384` | 超过回 431（1024..65536） |
+| `request.max_body_bytes` | `1048576` | 超过回 413（≥1024） |
+| `request.max_total_bytes` | `1114112` | 请求总字节上限，必须 ≥ header + body |
+| `request.max_header_fields` | `128` | 单个请求最大头字段数（≥8） |
+| `request.temp_init_kb` | `2` | 每连接初始暂存区大小（1..64 KB） |
+| `request.temp_pool_max_bytes` | `1048576` | 暂存区扩容走 malloc 的阈值（≥1024） |
+
+**工作线程 / 事件循环**
+
+| 键 | 默认 | 说明 |
+|---|---|---|
+| `worker.stall_ms` | `4` | 主 worker 超过这么久没结束就认为卡住并换线程（1..1000） |
+| `worker.sem_wait_ms` | `100` | 任务队列为空时在信号量上的等待时长（1..1000） |
+| `worker.idle_sleep_us` | `100000` | 未绑定队列时的休眠微秒数（0..1000000） |
+| `worker.parallel` | `0` | `1` = 唤醒同组全部 worker；`0` = 只唤醒 worker[0] |
+| `epoll.tick_ms` | `2` | `epoll_wait` 超时（1..1000） |
+
+---
+
+## 对外 API
+
+业务代码只需要 `#include "ToOut/foo.h"`（编译时加 `-I<仓库根>`）。
 
 ### 启动
 
 ```c
-int WebStater(char* IPaddr, int PORT, HandlerFunc Handler);
+typedef void (*Handler)(Request* r, Response* w);   /* 业务处理函数 */
+typedef void (*RouterFunc)();                       /* 注册路由的回调 */
+
+int WebStater(char* IPaddr, int PORT, RouterFunc Handler);
+
+extern int cweb_listen_port;   /* 实际监听端口，可在 /api/info 之类接口里读取 */
 ```
 
-- `Handler`：`void (*)(void)` 回调，在 socket 建立**之前**执行，用于 `RouterAppend` 注册路由。
-- 内部流程：忽略 SIGPIPE → 初始化全局路由表与任务队列容量 → 回调注册路由 →
-  按 `CWEB_GROUP_NUM` 建组（每组一个 `SO_REUSEPORT` 监听 socket）→ 每组启动 2 个 Worker_Thread
-  （`CWEB_WORKER_NUM` 可调）→ **各组接待线程在自己的线程里跑事件循环，当前线程阻塞等待**。
+- `WebStater` 会：忽略 `SIGPIPE` → 读配置 → 初始化路由表 → 调用 `Handler()` 注册路由 →
+  按 `group.num` 建监听 socket → 起接待/工作线程 → 当前线程 `pause()` 阻塞。
+- **成功不返回**；失败（监听失败、初始化失败）返回 `-1`。
+- `IPaddr/PORT` 只是兜底：配置文件里写了 `listen.addr/listen.port` 时以配置为准。
 
 ### 路由
 
 ```c
-typedef void (*Handler)(Request*, Response*);
-int RouterAppend(char* url, Handler func);   // 注册 URL → 处理函数（静态精确匹配）
-Handler RouterHandlerFind(char* url);               // 查找（未命中返回 NULL → 404）
+int RouterAppend(char* url, Handler func);   /* 成功 1；重复注册/失败 0 */
+Handler RouterHandlerFind(char* url);        /* 未命中返回 NULL（框架回 404） */
 ```
+
+- URL **精确匹配**（不含查询串），不支持动态参数。
+- `url` 指针被直接保存、不复制 —— 必须传静态字符串（或保证生命周期覆盖整个服务期）。
+- 只能在启动期（`RouterFunc` 回调里）注册。
 
 ### 请求（只读）
 
 ```c
-typedef struct Request {
-    const char* const Method;      // "GET" / "POST" ...
-    const char* const Url;         // 去掉查询串的路径，如 "/echo"
-    const char* const Version;     // "HTTP/1.1"
-    const Analysiser_Hash* const Query; // 查询参数键值表
-    const Analysiser_Hash* const Headers;// 请求头键值表
-    const char* const Body;        // 请求体
-} Request;
-
-const char* const RequestGetter(Request* r, "Method"|"Url"|"Version"|"Body", NULL);
-const char* const RequestGetter(Request* r, "Headers"|"Query", "键名");  // 查头/查参数
+const char* RequestGetter(Request* r, char* get1, char* get2);
 ```
+
+| `get1` | `get2` | 返回 |
+|---|---|---|
+| `"Method"` / `"Url"` / `"Version"` / `"Body"` | `NULL` | 对应字符串；`Url` 已剥离查询串 |
+| `"Headers"` / `"Query"` | 键名 | 该头/该查询参数的值 |
+
+未命中返回 `NULL`（不同于空串）。`Query` 是**未解码**的原始串（`%XX`、`+` 不还原）。
 
 ### 响应
 
 ```c
-int ResponseBodySet(Response* r, char* c);      // 设置文本响应体（自动分配内存）
-int ResponseHeaderSet(Response* r, char* key, char* value);  // 追加自定义头
-int ResponseFileSet(Response* r, int fd, off_t offset);        // 文件响应（sendfile 零拷贝）
-int ResponseErrorSet(Response* r, int error);                 // 设置错误码
+int ResponseBodySet(Response* r, char* c);                   /* 文本响应体 */
+int ResponseHeaderSet(Response* r, char* key, char* value);  /* 追加自定义头 */
+int ResponseFileSet(Response* r, int fd, off_t offset);      /* 文件响应（sendfile） */
+int ResponseErrorSet(Response* r, int error);                /* 错误码 */
 ```
 
-- `Content-Length` 由框架自动补齐（body + 文件大小）。
-- 文件响应示例：业务函数里 `open()` 静态文件后 `ResponseFileSet(w, fd, 0)`，
-  发送完毕由框架负责 `close(fd)`。
-- 响应头/体内存不足时自动降级为 **503**。
+- `Content-Length` 由框架自动补齐（body 或文件大小）；`Body` 与 `File` 二选一。
+- `ResponseFileSet` 的 `fd` 由框架在发送完成后 `close`，业务不要重复关闭。
+- 响应头按调用顺序**直接追加，不做去重**；单个响应的头区固定 4KB，写不下时返回 0 并置 503。
+- 内存不足时自动降级 **503**（`ResponseBodySet`/`ResponseHeaderSet` 返回 0，`error_reason=503`）。
+- 支持的状态码：`400 404 405 408 411 413 414 431 500 503`（`ResponseErrorSet` 会生成对应文本响应）。
 
-## 配置与调优
+---
 
-参数在 `main.c` 的 `WebStater` 与各 `*_init` 中集中设置：
+## 线程模型与容量
 
-| 参数 | 位置 | 默认 | 说明 |
-|---|---|---|---|
-| 空闲超时 | `main_t m1 = {.time = 1}` | 1 秒 | 超过无活动返回 408 |
-| 在途请求上限 | `ed_store_blocknum` | 100 | 每连接未发完请求数上限（发送槽数） |
-| Receiver_Thread 内存池 | `ReceiverThreadInit` → `http_pool(1MB)` / `store_area(2MB)` | — | 读侧：请求副本 / 暂存区 / 发送槽；现为 malloc 过渡实现，参数仅记录配额 |
-| Worker_Thread 内存池 | `WorkerThreadInit` → `txt_pool(2MB)` / `http_pool(256KB)` | — | 写侧：响应头/体/解析结构；现为 malloc 过渡实现 |
-| 任务队列容量 | `GlobalResourceInit(100)` | 100 | 每个接待线程各一条 Task_Queue（组内工作线程/替补线程共用） |
-| 组数 | 环境变量 `CWEB_GROUP_NUM` | 1 | 每组 1 接待线程 + `CWEB_WORKER_NUM` 个工作线程，上限 32；监听用 `SO_REUSEPORT` 分摊连接 |
-| 每组工作线程数 | 环境变量 `CWEB_WORKER_NUM` | 2 | 同组 worker 共享该组任务队列，上限 16；实测 2 核上共享队列的 2 worker 反而低于 1 worker，最佳为 `CWEB_GROUP_NUM=2` + `CWEB_WORKER_NUM=1` |
+- **每组**：1 个接待线程（独立 `epoll`、独立监听 fd、独立任务队列、独立 fd 表/定时器）
+  + `worker.per_group` 个工作线程。
+- **保序**：同连接请求按 `serial` 递增，发送端用 `serial % send.pipeline_window` 的槽位，
+  保证响应顺序 == 请求顺序（处理可以乱序）。
+- **换线程**：接待线程每轮检查主 worker 的 `taskStart/taskEnd`，超过 `worker.stall_ms`
+  未结束就读取该线程在 `/proc/self/task/<tid>/stat` 的状态，`S/D` 时切换到空闲备用 worker。
+  `/proc` 不可用时该机制会自动失效，并在日志里告警。
 
-> 当前 `MemoryPool` 是 **malloc/free 过渡实现**：`notfull=0` 只在真正 OOM 时出现，
-> 不再有"预分配条数用尽"导致的 503；`*_init` 的参数现在只用于记录配额/统计。
+容量关系建议（配置校验只查单值范围，跨键约束要自己保证）：
 
-## 内存管理约定
+- `timer.capacity ≥ 单组最大并发连接数`，否则连接挂不上定时器（永不超时）。
+- `temp_pack.capacity ≥ task_queue.capacity`，否则队列一满就直接 503。
+- `request.max_total_bytes ≥ request.max_header_bytes + request.max_body_bytes`（已有校验）。
+- `listen.backlog ≤ /proc/sys/net/core/somaxconn`，否则被内核静默截断。
+- `pool.recv_store_kb` 与 `send.pipeline_window × request.temp_init_kb × 并发连接数` 相关，
+  过小会频繁走 malloc 扩容（`request.temp_pool_max_bytes` 是扩容阈值）。
 
-- **所有权明确**：Receiver_Thread 侧内存池（`http_pool`/`store_area`）与 Worker_Thread 侧内存池
-  （`txt_pool`/`http_pool`）各自独立，跨线程只转移"使用权"，最终由所属线程释放。
-- 响应文本发完后经 `Worker_Queue` 交回 Worker_Thread 释放；请求副本解析完即归还 Receiver_Thread 的 `http_pool`。
-- `ResponseBodySet` / `ResponseHeaderSet` 内部自动从 `txt_pool` 分配，业务代码**无需手动释放**
-  （打包完成后框架统一回收）。文件 fd 由框架在发送完毕后 `close`。
-- 路由表 URL 以**指针保存不复制**：注册时请传静态字符串或确保字符串生命周期覆盖整个服务期。
+---
 
-## 测试
+## 日志与排障
 
-`test/` 目录包含自动化测试（不参与 `make`/`make lib` 编译，`test/src/*.c` 不在通配范围内）：
+启动信息走 **stdout**（启动期会 `fflush`），告警/错误走 **stderr**；高频错误限流打印 1~3 次。
 
-| 测试 | 覆盖 |
-|---|---|
-| `test_memory_pool` | 内存池新语义：分配/复用/池满降级/超大 malloc 兜底 |
-| `test_rwlock` | 读写锁互斥与阻塞行为 |
-| `test_hash` | hash_1/2/3 插入/查找/扩容/删除 |
-| `test_Request_Temp_Pool` | 暂存区读入/请求切分/残留保留/扩容 |
-| `test_queue` | 三个队列单线程 + 多线程压力 |
-| `test_server` | 真实 `WebStater` 集成：200/404/query/8KB/管道化/半包/408/重复头/大请求 |
+| 前缀 | 来源 | 典型内容 |
+|---|---|---|
+| `[Config]` | `Config/CWebConfig.c` | 用了哪个配置文件 / 全部默认值、未知键、值非法、重复键、校验失败、BOM 提示 |
+| `[WebStater]` | `StaterMain/StarterMain.c` | 启动摘要（组数/worker/线程数）、某组监听或建线程失败、组数未完全生效 |
+| `[Net]` | `StarterMain` / `FdConnectOrClose` | `socket/setsockopt/bind/listen/accept/TCP_NODELAY` 失败、backlog 被截断、fd 用尽 |
+| `[Recv]` | `Threads/ReceiverThread.c` | `epoll_create1/eventfd/线程池` 初始化失败、组就绪、`epoll_wait` 失败 |
+| `[Worker]` | `Threads/WorkerThread.c` | 线程就绪（id + tid）、`sem_timedwait` 失败、未绑定任务队列 |
+| `[Pool]` | `ThreadPool/ThreadPool.c` | `/proc` 不可用导致换线程失效、`malloc/pthread_create` 失败 |
+| `[Send]` | `ResponseSend/ResponseSendMain.c` | `write/sendfile` 失败（正常断连不打印） |
 
-运行示例：
+典型输出：
 
-```bash
-# 单元测试（也可以直接 make -C AgentSpace/test run）
-gcc -g -O0 AgentSpace/test/src/test_memory_pool.c MemoryPool/MemoryPool.c -I. -o /tmp/t && /tmp/t
-# 集成测试（链接全部模块，main.c 用 -Dmain= 避免入口冲突）
-# 详见《代码检查与测试报告.md》
+```
+[Config] 已加载配置文件：/etc/cweb.conf
+[Config] 生效配置：
+  listen.addr=127.0.0.1  listen.port=5343  ...
+[WebStater] 组数=1，每组接待线程=1，每组工作线程=4，线程总数≈6
+[Recv] 组1 就绪：epfd=4 wakeup_fd=5 worker=4
+[Worker] 线程就绪：id=0 tid=89088
 ```
 
-当前验证结果：**单元用例全过、集成 0 失败、valgrind 0 Invalid/0 SIGSEGV/0 未初始化**。
+排查建议：
+
+- 端口起不来：看 `[Net] bind(ip:port) 失败` 的 `errno`，以及 `[WebStater] 只有 x/N 组启动成功`。
+- 配置没生效：看 `[Config] 未知键 …` / `提示：没有识别到任何已知键`（多为 BOM 或拼错）。
+- 压测上不去：确认 `[Net] listen.backlog … 超过内核 somaxconn …`，再调 `worker.per_group`。
+- 卡死连接不超时：`timer.capacity` 是否小于并发连接数。
+
+---
+
+## 平台与运行环境
+
+- **仅 Linux**：使用 `epoll_create1`/`epoll_wait`、`eventfd`、`sendfile`、`SO_REUSEPORT`、
+  `pthread`、POSIX 信号量、`SYS_gettid`、`/proc`、`__atomic_*`。
+- 建议 **内核 ≥ 3.9**（`SO_REUSEPORT`）。老内核上多组会因 `bind` 失败而退化成单组，
+  启动日志会明确提示。
+- 建议 **64 位**（`off_t`/`time_t`）。32 位需加 `-D_FILE_OFFSET_BITS=64`（glibc ≥2.34 再配 `-D_TIME_BITS=64`），
+  否则 `sendfile` 无法处理 >2GB 文件，定时器有 2038 问题。
+- 运行限制：
+  - `ulimit -n`：每连接 1 个 fd，过小会 `accept` 失败（日志提示 `fd 用尽`）；
+  - cgroup `pids.max`：总线程数 = `group.num × (1 + worker.per_group) + 1`；
+  - `net.core.somaxconn`：`listen.backlog` 的真实上限；
+  - `/proc` 可读：否则 `worker.stall_ms` 换线程失效；
+  - `MemoryPool` 是 malloc 实现，`pool.*_kb` 不是硬上限，容器内存限额下仍可能被 OOM kill。
+
+---
 
 ## 已知限制
 
-- 路由为**静态精确匹配**，不支持 `/user/:id` 动态参数。
-- 请求体仅记录指针，不解析表单格式（`x-www-form-urlencoded` 等）。
-- 不支持 chunked 传输编码、HTTP/2、WebSocket。
-- `MemoryPool` 当前为 **malloc/free 过渡实现**（尚无自研分配器）；`notfull=0` 只在 OOM 时出现。
-- 请求副本按 `h_size/1024+1` 向上取整分配，单请求头+体合计建议 < 1MB。
+- 仅 HTTP/1.1；不支持 TLS、HTTP/2、WebSocket。
+- 不支持 `Transfer-Encoding: chunked`；带体请求需要 `Content-Length`（否则 411）。
+- 不处理 `Connection: close`：连接默认保持，直到空闲超时或出错。
+- 路由为静态精确匹配，不支持 `/user/:id` 这类动态参数。
+- 请求体只提供指针，不解析表单（`x-www-form-urlencoded`/multipart 需业务自己处理）。
+- 配置只有 `key = value` 一种语法，无 include/分段覆盖机制，不支持热重载。
+- `MemoryPool` 尚未换成自研分配器，配额只用于统计/告警。
+- 无优雅退出：进程收到的终止信号按系统默认行为处理。
 
-## 版本记录
+---
 
-- 多轮修复（2026-08）：管道化保序、>2KB 请求崩溃、重复请求头崩溃、超时失效、
-  内存池扩容悬垂（改非扩容）、定时器陈旧 fd、优先队列越界/计数、send_pointer_pool 503、hash 泄漏。
-  详见《代码检查与测试报告.md》。
+## 变更记录
 
+- **2026-10**：配置解析简化为「读键名 → if 注入结构体」，配置只来自文件（不再读 `CWEB_xxx` 环境变量，
+  `CWEB_CONF` 仅指定文件路径）；新增启动/错误日志与失败分支（`[Config] [Net] [Recv] [Worker] [Pool] [Send]`）；
+  README 按当前库结构重写，修正了旧文档中的目录、环境变量和默认值描述。
+- 更早的修复与压测记录请查看 git 历史。

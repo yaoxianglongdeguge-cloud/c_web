@@ -1,5 +1,5 @@
 //对外接口
-#include "../AgentSpace/foo.h"
+#include "../ToOut/foo.h"
 #include "CWEBCommon.h"
 #include "../Config/CWebConfig.h"
 
