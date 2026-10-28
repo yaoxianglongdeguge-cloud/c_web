@@ -3,7 +3,7 @@
 
 unsigned long salt=0;//随机数防止攻击者发送特定信息都哈希选进一个桶里
 
-static const int PRIME_BUCKET_SIZES[15] = {
+static const int PRIME_BUCKET_SIZES[] = {
     7,
     17,     // 起点
     31,     // 1.82x
@@ -21,7 +21,7 @@ static const int PRIME_BUCKET_SIZES[15] = {
     102107, // 2.00x
 };//用于哈希表扩容
 
-int PRIME_BUCKET_SIZES_nidex=0;
+static int PRIME_BUCKET_SIZES_nidex=0;
 
 
 Router_Hash_Entry* RouterEntryCreate(char* key,Handler value);//创建节点
@@ -109,21 +109,31 @@ int RouterHashAlloc(Router_Hash* h,int size_h)
 Router_Hash* RouterHashInit(int* Error,int init)//1成功，0已存在，-1过程错误
 {
     *Error=0;
+
+    if(init<1||init>CWEB_ARRAY_LEN(PRIME_BUCKET_SIZES)){
+        *Error=-1;
+        return NULL;
+    }
+
     Router_Hash* h;
 
     h=(Router_Hash*)malloc(sizeof(Router_Hash));
-    if(h==NULL) *Error=-1;
+    if(h==NULL){ *Error=-1; return NULL; }
     
     h->Elem=NULL;
 
     int bu_size=PRIME_BUCKET_SIZES[init-1];
 
-    int a=RouterHashAlloc(h,bu_size);
-    if(a==-1) *Error=-1;
-    else if(a==0) *Error=0;
-
     h->bu_num=bu_size;
     h->elem_num=0;
+
+    if(RouterHashAlloc(h,bu_size)!=1){
+        free(h);
+        *Error=-1;
+        return NULL;
+    }
+
+    PRIME_BUCKET_SIZES_nidex=init-1;
 
     salt=random_salt();
 
@@ -135,15 +145,24 @@ Router_Hash* RouterHashInit(int* Error,int init)//1成功，0已存在，-1过�
 
 int RouterHashExpend(Router_Hash** h)
 {
+    int next=PRIME_BUCKET_SIZES_nidex+1;
+
+    if(next>=CWEB_ARRAY_LEN(PRIME_BUCKET_SIZES)) return 0;
+
     Router_Hash* m;
     m=(Router_Hash*)malloc(sizeof(Router_Hash));
-    int a=RouterHashAlloc(m,PRIME_BUCKET_SIZES[PRIME_BUCKET_SIZES_nidex+1]);
-    if(a==-1) return -1;
-    else if(a==0) return 0;
-    
-    m->bu_num=PRIME_BUCKET_SIZES[PRIME_BUCKET_SIZES_nidex+1];
+    if(m==NULL) return -1;
 
-    PRIME_BUCKET_SIZES_nidex++;
+    m->Elem=NULL;
+    m->bu_num=PRIME_BUCKET_SIZES[next];
+    m->elem_num=0;
+
+    if(RouterHashAlloc(m,PRIME_BUCKET_SIZES[next])!=1){
+        free(m);
+        return -1;
+    }
+
+    PRIME_BUCKET_SIZES_nidex=next;
 
     for(int i=0;i<(*h)->bu_num;i++){
         Router_Hash_Entry* n=(*h)->Elem[i].next;
@@ -214,7 +233,13 @@ int RouterHashInsert(Router_Hash**hm,Router_Hash* h,char* url,Handler func)
 
     h->elem_num++;
 
-    if(h->elem_num>h->bu_num*2) RouterHashExpend(hm);
+    if(h->elem_num>h->bu_num*2){
+        static int warned=0;
+        if(RouterHashExpend(hm)==0&&warned==0){
+            warned=1;
+            printf("[RouterHash] 路由表已达扩容上限，停止扩容（%d 桶 / %d 条）\n",h->bu_num,h->elem_num);
+        }
+    }
     
 
     return 1;

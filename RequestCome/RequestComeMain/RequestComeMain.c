@@ -1,13 +1,12 @@
 #include "../../Include/Include.h"
 
-//单个请求（含 body）的字节上限：超过就直接 413，不再继续往内存里读
-#define MAX_REQUEST_BYTES (1024*1024 + 64*1024)
+#define RECEIVER_H_SIZE_EXTRA 5
 
 static int RequestOverLimit(Fd_Entry* fd_ob)
 {
     if(fd_ob->request_temp_pool==NULL||fd_ob->request_temp_pool->begin==NULL) return 0;
 
-    return (fd_ob->request_temp_pool->ptr_e - fd_ob->request_temp_pool->begin) > MAX_REQUEST_BYTES;
+    return (fd_ob->request_temp_pool->ptr_e - fd_ob->request_temp_pool->begin) > HTTP_MAX_REQUEST_BYTES;
 }
 
 int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknum)
@@ -51,8 +50,8 @@ int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknu
         //① 解析出一个完整请求
         if(state==1){
 
-            int h_size=5+(source_end-fd_ob->request_temp_pool->begin+1);
-            if(h_size>MAX_REQUEST_BYTES){ FdClose(Receiver_Thread,fd,413); return 1; }
+            int h_size=RECEIVER_H_SIZE_EXTRA+(source_end-fd_ob->request_temp_pool->begin+1);
+            if(h_size>HTTP_MAX_REQUEST_BYTES){ FdClose(Receiver_Thread,fd,413); return 1; }
 
             void* ptr=NULL;
             int notfull=0;
@@ -99,6 +98,7 @@ int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknu
             int r1=RequestTempPoolWrite(fd_ob->request_temp_pool,fd);
             if(r1==0){ FdClose(Receiver_Thread,fd,200); return 1; }   //对端关闭
             if(r1==-1) return 1;                                     //没数据：等下次事件，别连环扩
+            //如果此时请求总大小已经超过规定了就直接结束
             if(RequestOverLimit(fd_ob)){ FdClose(Receiver_Thread,fd,413); return 1; }
 
             continue;

@@ -82,19 +82,32 @@ int FdCloseChecked(Receiver_Thread* w,int client_fd,uint64_t onlyId,int error_re
     return FdClose(w,client_fd,error_reason);
 }
 
+enum{
+    HTTP_STATUS_BAD_REQUEST             = 400,
+    HTTP_STATUS_NOT_FOUND               = 404,
+    HTTP_STATUS_METHOD_NOT_ALLOWED      = 405,
+    HTTP_STATUS_REQUEST_TIMEOUT         = 408,
+    HTTP_STATUS_LENGTH_REQUIRED         = 411,
+    HTTP_STATUS_PAYLOAD_TOO_LARGE       = 413,
+    HTTP_STATUS_URI_TOO_LONG            = 414,
+    HTTP_STATUS_HEADERS_TOO_LARGE       = 431,
+    HTTP_STATUS_INTERNAL_ERROR          = 500,
+    HTTP_STATUS_UNAVAILABLE             = 503
+};
+
 char* StatusText(int error_reason)
 {
     switch (error_reason) {
-        case 400: return "Bad Request";
-        case 404: return "Not Found";
-        case 405: return "Method Not Allowed";
-        case 408: return "Request Timeout";
-        case 411: return "Length Required";
-        case 413: return "Payload Too Large";
-        case 414: return "URI Too Long";
-        case 431: return "Header Fields Too Large";
-        case 500: return "Internal Server Error";
-        case 503: return "Service Unavailable";
+        case HTTP_STATUS_BAD_REQUEST:        return "Bad Request";
+        case HTTP_STATUS_NOT_FOUND:          return "Not Found";
+        case HTTP_STATUS_METHOD_NOT_ALLOWED: return "Method Not Allowed";
+        case HTTP_STATUS_REQUEST_TIMEOUT:    return "Request Timeout";
+        case HTTP_STATUS_LENGTH_REQUIRED:    return "Length Required";
+        case HTTP_STATUS_PAYLOAD_TOO_LARGE:  return "Payload Too Large";
+        case HTTP_STATUS_URI_TOO_LONG:       return "URI Too Long";
+        case HTTP_STATUS_HEADERS_TOO_LARGE:  return "Header Fields Too Large";
+        case HTTP_STATUS_INTERNAL_ERROR:     return "Internal Server Error";
+        case HTTP_STATUS_UNAVAILABLE:        return "Service Unavailable";
         default:  return "Unknown";
     }
 }

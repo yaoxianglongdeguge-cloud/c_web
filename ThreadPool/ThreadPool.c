@@ -38,6 +38,16 @@ int wakeThread(Worker_Thread* worker){
     return 1;
 }
 
+static int CWebParallelMode(void)
+{
+    const char* s=getenv("CWEB_PARALLEL");
+
+    if(s==NULL||*s=='\0') return 0;
+    if(strcmp(s,"0")==0||strcmp(s,"false")==0||strcmp(s,"off")==0||strcmp(s,"no")==0) return 0;
+
+    return 1;
+}
+
 int ThreadPoolInit(Receiver_Thread* receiver,int totalNum){
     if(totalNum <= 1){
         return 0;
@@ -58,8 +68,8 @@ int ThreadPoolInit(Receiver_Thread* receiver,int totalNum){
     }
     
     // 可选并行模式：默认只唤醒 worker[0]（1 主 + N 备）；
-    // CWEB_PARALLEL=1 时唤醒全部 worker，让同组多 worker 并行消费（压测/吞吐优先）
-    if(getenv("CWEB_PARALLEL") != NULL){
+    // CWEB_PARALLEL 为真（非 0/false/off/no）时唤醒全部 worker，让同组多 worker 并行消费（压测/吞吐优先）
+    if(CWebParallelMode()){
         for(int i=0;i<totalNum;i++) wakeThread(t->workers[i]);
     }else{
         wakeThread(t->workers[0]);

@@ -2,6 +2,7 @@
 
 #define MAX_URL_LEN 8192         // 8KB
 #define MAX_HEADER_LEN 16384     // 16KB
+#define HTTP_HEAD_END_LEN 4
 
 
 
@@ -16,11 +17,11 @@ int RequestAnalysisInit(Request_Analysiser** h,Memory_Pool* pool,int h_size)//�
 {
     void* ptr=NULL;
     int notfull=0;
-    int e0=MemoryPoolAlloc(pool,1024*((h_size/1024)+1),&ptr,&notfull);
+    MemoryPoolAlloc(pool,CWEB_ALLOC_KB(h_size),&ptr,&notfull);
     if(notfull==0)  return -1;
     
     (*h)=ptr;
-    (*h)->size=1024*((h_size/1024)+1);
+    (*h)->size=CWEB_ALLOC_KB(h_size);
 
     if((*h)==NULL)  return -1;
 
@@ -62,7 +63,7 @@ int RequestAnalysisReceive(Request_Analysiser* h,char* http_request,int *error_r
 
     }else{  
        *body_start = '\0';       // 切断头部
-       body_start += 4;          // 跳过 \r\n\r\n
+       body_start += HTTP_HEAD_END_LEN;          // 跳过 \r\n\r\n
     } 
 
     int a1=RequestAnalysisHead(h,http_request,error_reason);

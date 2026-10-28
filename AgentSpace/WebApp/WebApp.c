@@ -204,7 +204,7 @@ static void HApiInfo(Request* r, Response* w)
     char body[200];
     snprintf(body, sizeof(body),
              "{\"server\":\"c_web\",\"pid\":%d,\"uptime\":%ld,\"port\":%d}",
-             (int)getpid(), (long)(time(NULL) - g_start_time), 5343);
+             (int)getpid(), (long)(time(NULL) - g_start_time), cweb_listen_port);
 
     SendText(w, "application/json; charset=utf-8", body);
 }

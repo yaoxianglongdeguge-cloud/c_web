@@ -95,6 +95,9 @@ typedef void (*RouterFunc)();
  * ------------------------------------------------------------------- */
 int WebStater(char* IPaddr, int PORT, RouterFunc Handler);
 
+/* 当前监听端口：WebStater 里写入，供 /api/info 这类自描述接口读取 */
+extern int cweb_listen_port;
+
 /* ---------------------------------------------------------------------
  *  ② 路由（DJB2+盐值哈希，URL 精确匹配，仅支持启动阶段静态注册）
  *     RouterAppend：把一个 URL 绑到处理函数；成功 1，失败 0（重复注册会失败）。

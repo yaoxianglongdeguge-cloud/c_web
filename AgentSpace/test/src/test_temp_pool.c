@@ -99,6 +99,7 @@ int main(void)
     RequestTempPoolCopy(tp, end, c1);
     CHECK(strcmp(c1, "GET /b HTTP/1.1") == 0, "第二个请求内容正确");
     CHECK(tp->ptr_e == tp->begin, "两个请求消费完，暂存区清空");
+    temp_pool_recycle(tp);
 
     //-------- D.非法方法 → 400 --------
     feed("XXXX / HTTP/1.1\r\n\r\n");

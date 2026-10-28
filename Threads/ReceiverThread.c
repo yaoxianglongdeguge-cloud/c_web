@@ -1,5 +1,13 @@
 #include "../Include/Include.h"
-#include <sys/eventfd.h>  
+#include <sys/eventfd.h>
+
+#define TASK_QUEUE_NUM 100
+#define ONE_TASK_TIME 4
+
+// epoll 检查粒度：超时想比它更小时，需要把这个 tick 一起调小，或改用 timerfd
+#ifndef CWEB_EPOLL_TICK_MS
+#define CWEB_EPOLL_TICK_MS 2
+#endif
 
 
 int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id,int workersNum)

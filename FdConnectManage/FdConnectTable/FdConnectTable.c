@@ -8,7 +8,7 @@ uint64_t nextSeq(Fd_Table* t) {
 
 }
 
-static const int PRIME_BUCKET_SIZES_3[5] = {
+static const int PRIME_BUCKET_SIZES_3[] = {
     7,
     17,     // 起点
     31,     // 1.82x
@@ -28,8 +28,10 @@ int bucket_site_3(int bucket_size,int url);
 int FdTableInit(Fd_Table** h,int init)//1成功，0已存在，-1过程错误
 {
 
+    if(h==NULL||init<1||init>CWEB_ARRAY_LEN(PRIME_BUCKET_SIZES_3)) return -1;
+
     (*h)=(Fd_Table*)malloc(sizeof(Fd_Table));
-    if(h==NULL) return -1;
+    if(*h==NULL) return -1;
 
     int bu_size=PRIME_BUCKET_SIZES_3[init-1];
 

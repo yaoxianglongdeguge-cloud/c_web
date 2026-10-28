@@ -5,6 +5,8 @@
 
 Router* router;
 
+int cweb_listen_port=0;
+
 int GlobalResourceInit(RouterFunc Handler)
 {
 

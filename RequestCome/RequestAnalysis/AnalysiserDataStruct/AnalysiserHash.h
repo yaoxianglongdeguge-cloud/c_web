@@ -17,8 +17,8 @@ typedef struct Analysiser_Hash
    
 }Analysiser_Hash;
 
-#define ANALYSISER_HASH_BUCKETS   7     //初始桶数（= PRIME_BUCKET_SIZES_2[0]）
-#define ANALYSISER_HASH_SPILL_MAX 128   //每个 hash 允许的溢出条目上限（超出返回 400，不再越界写）
+#define CWEB_ANALYSISER_HASH_BUCKETS   7     //初始桶数（= PRIME_BUCKET_SIZES_2[0]）
+#define CWEB_ANALYSISER_SPILL_MAX 128   //每个 hash 允许的溢出条目上限（超出返回 400，不再越界写）
 
 //两块 hash（结构 + 桶数组 + 溢出条目）一共需要多少字节（用于请求分析块的大小计算）
 int AnalysiserHashMemOverhead(void);

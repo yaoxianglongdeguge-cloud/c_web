@@ -1,5 +1,9 @@
 #include "../Include/Include.h"
 
+#define RECEIVER_GROUP_NUM_DEFAULT 1
+#define RECEIVER_GROUP_NUM_MAX     32
+#define PER_RECEIVER_WORKER 4
+
 long long now_ns() {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -139,7 +143,9 @@ int WebStater(char* IPaddr,int PORT, RouterFunc Handler)
     
     //忽略信号
     IgnoreSignal();
-    
+
+    cweb_listen_port=PORT;
+
     //初始化全局资源，加载路由函数（任务队列容量也在这里配置）
     GlobalResourceInit(Handler);
     

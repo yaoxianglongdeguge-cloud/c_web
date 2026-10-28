@@ -13,9 +13,9 @@ int SendPointerPoolAlloc(Send_Pointer_Pool* s,Memory_Pool* pool,int blocknum)
 {
     s->blocknum=blocknum;
     void* ptr=NULL;
-    int size=sizeof(Send_Pointer_Pool_Entry)*blocknum/1024+1;
+    int size=CWEB_ALLOC_KB((int)sizeof(Send_Pointer_Pool_Entry)*blocknum);
     int notfull=0;
-    MemoryPoolAlloc(pool,size*1024,&ptr,&notfull);
+    MemoryPoolAlloc(pool,size,&ptr,&notfull);
     if(notfull==0)
     {
         return -1;

@@ -1,9 +1,9 @@
 #include "../Include/Include.h"
 #include <sys/syscall.h>
 
-//响应头块大小：16KB 足够（实际头部只有几百字节）；写满会由 ResponseHeaderSet 回 503
+//响应头块大小：4KB 
 #define RSP_HEADER_BLOCK (4*1024)
-#define RSP_FIRST_LINE 17
+#define RSP_FIRST_LINE ((int)(sizeof("HTTP/1.1 200 OK\r\n")-1))
 
 int DealWithTask(Request* r,Response* w); //处理业务任务
 int PackBackHead(char** c,Response* w);
@@ -45,7 +45,7 @@ int PackTotal(Worker_Thread* profes,Response* Rsp,char** C,int* allocsize,off_t*
     off_t totalbody_size=(off_t)Rsp->body_size+*file_size;
     char buf[32];
     snprintf(buf, sizeof(buf), "%ld", (long)totalbody_size);
-    if(ResponseHeaderSet(Rsp,"Content-Length",buf)!=1){
+    if(ResponseHeaderSet(Rsp,HTTP_HDR_CONTENT_LENGTH,buf)!=1){
         *C=NULL;
         return 0;                       //error_reason 已被置 503
     }
@@ -105,23 +105,6 @@ int WorkerThreadInit(Worker_Thread** profes,int id)
     //http_pool：请求解析对象，1KB/个。每个 worker 同时处理的请求上限就是队列深度 100，
     //  256KB（256 个）留 2.5 倍余量。
     MemoryPoolInit(&((*profes)->http_pool),256*1024,1);
-    return 1;
-}
-
-int sleepInit(struct timespec* ts){
-    ts->tv_nsec = 0;
-    ts->tv_sec = 0;
-
-    return 1;
-}
-
-int sleepAdd(struct timespec* ts){
-    if(ts->tv_nsec == 1000000){
-        return 1;
-    }else{
-        ts->tv_nsec = ts->tv_nsec+100000;
-    }
-
     return 1;
 }
 

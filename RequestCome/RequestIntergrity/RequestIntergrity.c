@@ -1,7 +1,8 @@
 #include "../../Include/Include.h"
 
 
-#define MAX_BODY_SIZE (1024 * 1024)  // 1MB
+#define HTTP_METHOD_MAX_LEN 8
+#define HTTP_METHOD_POST 7
 char* Method_p[9]={"GET ","DELETE ","HEAD ","OPTIONS ","TRACE ","CONNECT ","POST ","PUT ","PATCH "};
 
 int GetNextArray(const char* needle,int* nextArray,int len){
@@ -64,7 +65,7 @@ char* strnstr_match(char *haystack, char *needle, size_t n) {
 int MethodMatch(Request_Temp_Pool* hs,int* sit,char** method){
     for(;*sit<9;(*sit)++){
 
-        *method=strnstr_match(hs->begin,Method_p[*sit],8);
+        *method=strnstr_match(hs->begin,Method_p[*sit],HTTP_METHOD_MAX_LEN);
         if(*method!=NULL)  break;
 
     }
@@ -115,7 +116,7 @@ int RequestIntergrityJudge(Request_Temp_Pool* hs,char** ptr,int* fail,int* fail_
 
         if(method==NULL){  *fail=0;  *fail_reason=400;  return 0;  }
          
-        hs->state_machine->h_method=i;     
+        hs->state_machine->h_method=i+1;     
     }
 
     //判断分隔符存在
@@ -137,19 +138,19 @@ int RequestIntergrityJudge(Request_Temp_Pool* hs,char** ptr,int* fail,int* fail_
 
     //判断请求体存在并求长度
     if(hs->state_machine->h_body_length==0){
-        char* body_length=strnstr_match(hs->begin,"Content-Length:",check_size);
+        char* body_length=strnstr_match(hs->begin,HTTP_HDR_CL_FIELD,check_size);
         if(body_length==NULL){
 
             hs->state_machine->h_body_length=0;
 
-            if(hs->state_machine->h_method>=7){  *fail_reason=411;  *fail=0;  return 0;  }
+            if(hs->state_machine->h_method>=HTTP_METHOD_POST){  *fail_reason=411;  *fail=0;  return 0;  }
 
         }else{
             *fail=0;
             int len=0;
             BodyLength(&len,body_length);
 
-            if(len>MAX_BODY_SIZE){  *fail_reason=413;  *fail=0;  return 0;  }
+            if(len>HTTP_MAX_BODY_BYTES){  *fail_reason=413;  *fail=0;  return 0;  }
 
             target=target+4+len;
             if(target<hs->ptr_e){ *fail=1; } else { *fail=-1; }

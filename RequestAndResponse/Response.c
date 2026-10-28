@@ -5,7 +5,7 @@ int ResponseBodySet(Response* r,char* c)
     int len=strlen(c);
     void* ptr=NULL;
     int notfull=0;
-    int n=MemoryPoolAlloc((Memory_Pool*)(r->pool),1024*(len/1024+1),&ptr,&notfull);
+    MemoryPoolAlloc((Memory_Pool*)(r->pool),CWEB_ALLOC_KB(len),&ptr,&notfull);
     if(notfull==0){
         r->error_reason=503;
         return 0;

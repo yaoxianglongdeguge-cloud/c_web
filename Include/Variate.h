@@ -46,7 +46,7 @@ typedef struct my_rwlock_t my_rwlock_t;
 
 extern Router* router;
 
-extern int taskQueueBlocknum;//每个接待线程私有任务队列的容量（GlobalResourceInit 里设置）
+extern int cweb_listen_port;
 
 //extern sem_t sem_task_queue_notfull;     // D-31：阻塞式背压已取消，本声明无定义/无引用
 extern pthread_mutex_t mutex_task;
