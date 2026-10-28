@@ -1,13 +1,36 @@
 #include "../Include/Include.h"
 
-int TempPackInit(Temp_Pack** tempPack){
+int TempPackInit(Temp_Pack** tempPack,int blocknum){
 
-    (*tempPack)=malloc(sizeof(Temp_Pack));
+    if(tempPack==NULL) return -1;
+
+    *tempPack=NULL;
+
+    if(blocknum<=0) return -1;
+    if(blocknum>CWEB_TEMP_PACK_CAP_MAX) blocknum=CWEB_TEMP_PACK_CAP_MAX;
+
+    (*tempPack)=(Temp_Pack*)calloc(1,sizeof(Temp_Pack));
     if((*tempPack)==NULL) return -1;
 
-    (*tempPack)->head=0;
-    (*tempPack)->tail=0;
-    (*tempPack)->count=0;
+    (*tempPack)->e=(Temp_Pack_Entry*)calloc((size_t)blocknum,sizeof(Temp_Pack_Entry));
+    if((*tempPack)->e==NULL){
+        free(*tempPack);
+        *tempPack=NULL;
+        return -1;
+    }
+
+    (*tempPack)->blocknum=blocknum;
+
+    return 1;
+}
+
+int TempPackDestroy(Temp_Pack** tempPack){
+
+    if(tempPack==NULL||*tempPack==NULL) return 1;
+
+    free((*tempPack)->e);
+    free(*tempPack);
+    *tempPack=NULL;
 
     return 1;
 }
@@ -15,7 +38,7 @@ int TempPackInit(Temp_Pack** tempPack){
 //入队：1=成功，0=队列满
 int TempPackPush(Temp_Pack* tempPack,int fd,uint64_t onlyId,char* h,int h_size,int error_reason,int serial){
 
-    if(tempPack->count>=TEMP_PACK_MAX) return 0;
+    if(tempPack->count>=tempPack->blocknum) return 0;
 
     Temp_Pack_Entry* e=&tempPack->e[tempPack->tail];
     e->fd=fd;
@@ -26,7 +49,7 @@ int TempPackPush(Temp_Pack* tempPack,int fd,uint64_t onlyId,char* h,int h_size,i
     e->serial=serial;
 
     tempPack->tail++;
-    if(tempPack->tail>=TEMP_PACK_MAX) tempPack->tail=0;
+    if(tempPack->tail>=tempPack->blocknum) tempPack->tail=0;
     tempPack->count++;
 
     return 1;
@@ -46,7 +69,7 @@ int TempPackPop(Temp_Pack* tempPack,int* fd,uint64_t* onlyId,char** h,int* h_siz
     *serial=e->serial;
 
     tempPack->head++;
-    if(tempPack->head>=TEMP_PACK_MAX) tempPack->head=0;
+    if(tempPack->head>=tempPack->blocknum) tempPack->head=0;
     tempPack->count--;
 
     return 1;

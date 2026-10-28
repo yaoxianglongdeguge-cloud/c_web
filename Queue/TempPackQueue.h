@@ -1,6 +1,12 @@
 #include "../Include/Variate.h"
 
-#define TEMP_PACK_MAX 1024
+#ifndef CWEB_TEMP_PACK_CAP
+#define CWEB_TEMP_PACK_CAP 1024
+#endif
+
+#ifndef CWEB_TEMP_PACK_CAP_MAX
+#define CWEB_TEMP_PACK_CAP_MAX 65536
+#endif
 
 typedef struct Temp_Pack_Entry{
     char* h;
@@ -16,10 +22,13 @@ typedef struct Temp_Pack{
     int head;
     int tail;
     int count;
-    Temp_Pack_Entry e[TEMP_PACK_MAX];
+    int blocknum;
+    Temp_Pack_Entry* e;
 }Temp_Pack;
 
-int TempPackInit(Temp_Pack** tempPack);
+int TempPackInit(Temp_Pack** tempPack,int blocknum);
+
+int TempPackDestroy(Temp_Pack** tempPack);
 
 int TempPackPush(Temp_Pack* tempPack,int fd,uint64_t onlyId,char* h,int h_size,int error_reason,int serial);
 

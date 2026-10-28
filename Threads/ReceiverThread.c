@@ -30,7 +30,7 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id,int workersNum)
     (*w)->wakeup_fd=eventfd(0,EFD_NONBLOCK);
     EpollReadMount((*w)->epfd,(*w)->wakeup_fd);
 
-    TempPackInit(&((*w)->tempPack));
+    if(TempPackInit(&((*w)->tempPack),CWEB_TEMP_PACK_CAP)!=1) return 0;
 
     ThreadPoolInit((*w),workersNum);
 
