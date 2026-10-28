@@ -17,6 +17,7 @@ int PriorQueueTimerInit(Prior_Queue_Timer** p,int num)//节点个数
 
     for(int i=0;i<(*p)->end;i++){
         (*p)->queue[i].fd=-2;
+        (*p)->queue[i].onlyId=0;
         (*p)->queue[i].time=-2;
     }
 
@@ -31,12 +32,15 @@ int PriorQueueTimerSwap(Prior_Queue_Timer* p,int t1,int t2)
 {
     time_t time=p->queue[t2].time;
     int fd=p->queue[t2].fd;
+    uint64_t onlyId=p->queue[t2].onlyId;
     
     p->queue[t2].time=p->queue[t1].time;
     p->queue[t2].fd=p->queue[t1].fd;
+    p->queue[t2].onlyId=p->queue[t1].onlyId;
     
     p->queue[t1].time=time;
     p->queue[t1].fd=fd;
+    p->queue[t1].onlyId=onlyId;
     
     return 1;
 }
@@ -102,11 +106,12 @@ int PriorQueueTimerDown(Prior_Queue_Timer* p,int t)
     return 1;
 }
 
-int PriorQueueTimerInsert(Prior_Queue_Timer* p,int fd,time_t time)
+int PriorQueueTimerInsert(Prior_Queue_Timer* p,int fd,uint64_t onlyId,time_t time)
 {
     if(p->elem_end>=p->end) return 0;
 
     p->queue[p->elem_end].fd=fd;
+    p->queue[p->elem_end].onlyId=onlyId;
     p->queue[p->elem_end].time=time;
     p->elem_end=p->elem_end+1;
     
@@ -130,6 +135,7 @@ int PriorQueueTimerPop(Prior_Queue_Timer* p)
     }
 
     p->queue[1].fd=p->queue[p->elem_end-1].fd;
+    p->queue[1].onlyId=p->queue[p->elem_end-1].onlyId;
     p->queue[1].time=p->queue[p->elem_end-1].time;
     p->elem_end=p->elem_end-1;
 
@@ -151,9 +157,11 @@ Timer_Entry PriorQueueTimerTop(Prior_Queue_Timer* p){
     if(p->queue[0].fd>0)
     {
         t.fd=p->queue[1].fd;
+        t.onlyId=p->queue[1].onlyId;
         t.time=p->queue[1].time;
     }else{
         t.fd=-2;
+        t.onlyId=0;
         t.time=-2;
     }
 

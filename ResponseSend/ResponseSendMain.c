@@ -38,10 +38,11 @@ int GetAndJudge(Receiver_Thread* w,int fd,int edStoreBlockNum,int* send_info,int
         int e1=FdTableFind(w->fd_table,s.fd,&fd_ob);
         
         //如果该连接不存在，或者获取连接失败
-        if(e1!=1||fd_ob==NULL){
+        if(e1!=1||fd_ob==NULL||fd_ob->onlyId!=s.onlyId){
             if(s.m_queue!=NULL){ //因为有可能是静态文件，本来就不用再给工作线程通知，所以可能也是NULL
                 WorkerQueuePush(s.m_queue,s.size_resp,s.char_ptr);
             }
+            if(s.send_fd>=0) close(s.send_fd);
                 continue;
         }
 
@@ -122,7 +123,7 @@ int ResponseSendMain(Receiver_Thread* w,int fd,int ed_store_blocknum,int* send_i
                 fd_ob->send_pointer_pool->store[next].off=off1+n;
 
                 if(fd_ob->need_wr==0){ EpollChangeReAndWr(w->epfd,send_fd); fd_ob->need_wr=1; }
-                TimerReset(w->my_Timer,send_fd,w);
+                TimerReset(w->my_Timer,send_fd,fd_ob->onlyId,w);
 
                 return 1;
             }
@@ -136,7 +137,7 @@ int ResponseSendMain(Receiver_Thread* w,int fd,int ed_store_blocknum,int* send_i
                 if(errno==EAGAIN||errno==EWOULDBLOCK){       //发送缓冲满
 
                     if(fd_ob->need_wr==0){ EpollChangeReAndWr(w->epfd,send_fd); fd_ob->need_wr=1; }
-                    TimerReset(w->my_Timer,send_fd,w);
+                    TimerReset(w->my_Timer,send_fd,fd_ob->onlyId,w);
 
                     return 1;
                 }
@@ -168,7 +169,7 @@ int ResponseSendMain(Receiver_Thread* w,int fd,int ed_store_blocknum,int* send_i
             if(sent==0&&fd_ob->send_pointer_pool->store[next].offset<size_file){
 
                 if(fd_ob->need_wr==0){ EpollChangeReAndWr(w->epfd,send_fd); fd_ob->need_wr=1; }
-                TimerReset(w->my_Timer,send_fd,w);
+                TimerReset(w->my_Timer,send_fd,fd_ob->onlyId,w);
 
                 return 1;
             }
@@ -176,7 +177,7 @@ int ResponseSendMain(Receiver_Thread* w,int fd,int ed_store_blocknum,int* send_i
             if(fd_ob->send_pointer_pool->store[next].offset<size_file){   //文件没写完
 
                 if(fd_ob->need_wr==0){ EpollChangeReAndWr(w->epfd,send_fd); fd_ob->need_wr=1; }
-                TimerReset(w->my_Timer,send_fd,w);
+                TimerReset(w->my_Timer,send_fd,fd_ob->onlyId,w);
 
                 return 1;
             }
@@ -198,7 +199,7 @@ int ResponseSendMain(Receiver_Thread* w,int fd,int ed_store_blocknum,int* send_i
 
  //暂存池里没有包了.可以回收暂存池
 
-    TimerReset(w->my_Timer,send_fd,w);
+    TimerReset(w->my_Timer,send_fd,fd_ob->onlyId,w);
 
     //一组包发完了：如果这个连接还有"因在途窗口满而暂存"的请求，就续着处理
     //（否则那些已经读进暂存区的流水线请求会一直没人投递 → 客户端卡住）

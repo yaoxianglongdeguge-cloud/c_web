@@ -3,10 +3,11 @@
 typedef struct Task_Queue_Entry{
 
     Receiver_Thread* w;
+    char* http;
+    uint64_t onlyId;
     int fd;
     int serial;
     int error_reason;
-    char* http;
     int h_size;
 
 }Task_Queue_Entry;
@@ -39,7 +40,7 @@ typedef struct Task_Queue{
 int TasKQueueInit(Task_Queue** sq,int size);
 
 //非阻塞：1=入队成功，0=队列满（调用方放回 Temp_Pack，稍后重试）
-int TasKQueuePush(Task_Queue* sq,Receiver_Thread* w,int fd,int serial,int error_reason,char* h,int h_size);
+int TasKQueuePush(Task_Queue* sq,Receiver_Thread* w,int fd,uint64_t onlyId,int serial,int error_reason,char* h,int h_size);
 
 //非阻塞取一条：*error=1 成功，0 为空
 Task_Queue_Entry TasKQueueTopAndPop(Task_Queue* sq,int* error);

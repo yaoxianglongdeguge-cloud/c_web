@@ -3,6 +3,7 @@
 typedef struct Timer_Entry 
 {
     int fd;
+    uint64_t onlyId;
     time_t time;
 
 }Timer_Entry;
@@ -18,7 +19,7 @@ typedef struct Prior_Queue_Timer{
 
 int PriorQueueTimerInit(Prior_Queue_Timer** p,int num);
 
-int PriorQueueTimerInsert(Prior_Queue_Timer* p,int fd,time_t time);
+int PriorQueueTimerInsert(Prior_Queue_Timer* p,int fd,uint64_t onlyId,time_t time);
 
 int PriorQueueTimerPop(Prior_Queue_Timer* p);
 

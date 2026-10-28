@@ -24,11 +24,14 @@ int FdConnect(Receiver_Thread* w,int Listen_fd)
         //挂载epoll
         EpollReadMount(w->epfd,client_fd);
 
-        //挂载连接计时器
-        TimerAlloc(w->my_Timer,client_fd,w);
-
         //挂载连接管理表
         FdTableInsert(w->fd_table,client_fd);
+
+        //挂载连接计时器
+        Fd_Entry* fd_ob=NULL;
+        if(FdTableFind(w->fd_table,client_fd,&fd_ob)==1&&fd_ob!=NULL){
+            TimerAlloc(w->my_Timer,client_fd,fd_ob->onlyId,w);
+        }
 
         
     }
@@ -65,6 +68,18 @@ int FdClose(Receiver_Thread* w,int client_fd,int error_reason)
     close(client_fd);
 
     return 1;
+}
+
+//这个是给那些没有实现判断连接是否是同一代就关闭的操作特供的
+//比如计时器删除节点就不会先判断有没有这个连接是不是同一代
+int FdCloseChecked(Receiver_Thread* w,int client_fd,uint64_t onlyId,int error_reason)
+{
+    Fd_Entry* fd_ob=NULL;
+    FdTableFind(w->fd_table,client_fd,&fd_ob);
+
+    if(fd_ob==NULL||fd_ob->onlyId!=onlyId) return 1;
+
+    return FdClose(w,client_fd,error_reason);
 }
 
 char* StatusText(int error_reason)

@@ -1,55 +1,6 @@
 #include "../Include/Include.h"
 #include <sys/eventfd.h>  
 
-int TempPackInit(Temp_Pack** tempPack){
-
-    (*tempPack)=malloc(sizeof(Temp_Pack));
-    if((*tempPack)==NULL) return -1;
-
-    (*tempPack)->head=0;
-    (*tempPack)->tail=0;
-    (*tempPack)->count=0;
-
-    return 1;
-}
-
-//入队：1=成功，0=队列满
-int TempPackPush(Temp_Pack* tempPack,int fd,char* h,int h_size,int error_reason,int serial){
-
-    if(tempPack->count>=TEMP_PACK_MAX) return 0;
-
-    Temp_Pack_Entry* e=&tempPack->e[tempPack->tail];
-    e->fd=fd;
-    e->h=h;
-    e->h_size=h_size;
-    e->error_reason=error_reason;
-    e->serial=serial;
-
-    tempPack->tail++;
-    if(tempPack->tail>=TEMP_PACK_MAX) tempPack->tail=0;
-    tempPack->count++;
-
-    return 1;
-}
-
-//出队：1=成功，0=空
-int TempPackPop(Temp_Pack* tempPack,int* fd,char** h,int* h_size,int* error_reason,int* serial){
-
-    if(tempPack->count<=0) return 0;
-
-    Temp_Pack_Entry* e=&tempPack->e[tempPack->head];
-    *fd=e->fd;
-    *h=e->h;
-    *h_size=e->h_size;
-    *error_reason=e->error_reason;
-    *serial=e->serial;
-
-    tempPack->head++;
-    if(tempPack->head>=TEMP_PACK_MAX) tempPack->head=0;
-    tempPack->count--;
-
-    return 1;
-}
 
 int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id,int workersNum)
 {
@@ -100,12 +51,12 @@ int ReceiverNotify(Receiver_Thread* w)
     return 1;
 }
 
-int ReceiverToWorker(Receiver_Thread* w,int fd,char* h,int h_size,int error_reason,int serial)
+int ReceiverToWorker(Receiver_Thread* w,int fd,uint64_t onlyId,char* h,int h_size,int error_reason,int serial)
 {
     //投到本组接待线程自己的任务队列，不再投全局队列
-    int e0=TasKQueuePush(w->taskQueue,w,fd,serial,error_reason,h,h_size);
+    int e0=TasKQueuePush(w->taskQueue,w,fd,onlyId,serial,error_reason,h,h_size);
     if(e0!=1){
-        if(TempPackPush(w->tempPack,fd,h,h_size,error_reason,serial)!=1) return -1;   //环也满
+        if(TempPackPush(w->tempPack,fd,onlyId,h,h_size,error_reason,serial)!=1) return -1;   //环也满
         return 0;                                                                     //先放环里，下次再投
     }
     return 1;
@@ -145,9 +96,9 @@ int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_bl
             if(n>0&&w->tempPack->count==0)  break;
             else{
                 //把积压的请求尽量投递出去；队列还满就下次再试（失败的那条已由 ReceiverToWorker 放回环里）
-                int fd_t; char* h_t; int hs_t, er_t, se_t;
-                while(TempPackPop(w->tempPack,&fd_t,&h_t,&hs_t,&er_t,&se_t)==1){
-                    int put = ReceiverToWorker(w,fd_t,h_t,hs_t,er_t,se_t);
+                int fd_t; uint64_t oi_t; char* h_t; int hs_t, er_t, se_t;
+                while(TempPackPop(w->tempPack,&fd_t,&oi_t,&h_t,&hs_t,&er_t,&se_t)==1){
+                    int put = ReceiverToWorker(w,fd_t,oi_t,h_t,hs_t,er_t,se_t);
                     if(put == 1) continue;
                     break;
                 }
@@ -181,7 +132,10 @@ int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_bl
             { int e0=FdConnect(w,handle_fd); }
             else{
 
-                TimerReset(w->my_Timer,handle_fd,w);
+                Fd_Entry* fd_ob=NULL;
+                if(FdTableFind(w->fd_table,handle_fd,&fd_ob)==1&&fd_ob!=NULL){
+                    TimerReset(w->my_Timer,handle_fd,fd_ob->onlyId,w);
+                }
                 if(events[i].events & EPOLLIN){
                     int e1=RequestComeMain(handle_fd,w,ed_store_blocknum);//错误包已经通过发送程序发了，所以这里的返回值不验证
                 }

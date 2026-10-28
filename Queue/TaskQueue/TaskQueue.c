@@ -4,6 +4,7 @@ static void TaskQueueEntryClear(Task_Queue_Entry* e){
 
     e->w=NULL;
     e->fd=-1;
+    e->onlyId=0;
     e->serial=-1;
     e->error_reason=-1;
     e->http=NULL;
@@ -50,7 +51,7 @@ int TasKQueueInit(Task_Queue** sq,int blocknum)
     return 1;
 }
 
-int TasKQueuePush(Task_Queue* sq,Receiver_Thread* w,int fd,int serial,int error_reason,char* h,int h_size)
+int TasKQueuePush(Task_Queue* sq,Receiver_Thread* w,int fd,uint64_t onlyId,int serial,int error_reason,char* h,int h_size)
 {
     if(sq==NULL) return 0;
 
@@ -67,6 +68,7 @@ int TasKQueuePush(Task_Queue* sq,Receiver_Thread* w,int fd,int serial,int error_
     e->error_reason=error_reason;
     e->http=h;
     e->fd=fd;
+    e->onlyId=onlyId;
     e->serial=serial;
     e->h_size=h_size;
 

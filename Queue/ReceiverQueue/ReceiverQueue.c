@@ -4,6 +4,7 @@ static void ReceiverQueueEntryClear(Receiver_Queue_Entry* s){
 
     s->m_queue=NULL;
     s->fd=-1;
+    s->onlyId=0;
     s->serial=-1;
     s->error_reason=-1;
     s->char_ptr=NULL;
@@ -23,6 +24,7 @@ void ReceiverQueueEntryCopy(Receiver_Queue_Entry* s1,Receiver_Queue_Entry* s2){
     s1->char_ptr = s2->char_ptr;
     s1->error_reason = s2->error_reason;
     s1->fd = s2->fd;
+    s1->onlyId = s2->onlyId;
     s1->m_queue = s2->m_queue;
     s1->off = s2->off;
     s1->offset = s2->offset;
@@ -77,7 +79,7 @@ int ReceiverQueueLen(Receiver_Queue* sq)
     return n;
 }
 
-int ReceiverQueuePush(Receiver_Queue* sq,Worker_Queue* m_queue,int fd,int serial,int error_reason,
+int ReceiverQueuePush(Receiver_Queue* sq,Worker_Queue* m_queue,int fd,uint64_t onlyId,int serial,int error_reason,
     int resp_size,int off,off_t file_size,char*char_ptr,int send_fd,off_t offset,void* httpNeedFree,int httpSize)
 {
 
@@ -91,6 +93,7 @@ int ReceiverQueuePush(Receiver_Queue* sq,Worker_Queue* m_queue,int fd,int serial
     e->m_queue=m_queue;
     e->error_reason=error_reason;
     e->fd=fd;
+    e->onlyId=onlyId;
     e->size_file=file_size;
     e->size_resp=resp_size;
     e->send_fd=send_fd;

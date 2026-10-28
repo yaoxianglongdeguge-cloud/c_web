@@ -1,24 +1,6 @@
 
 #include "../Include/Variate.h"
 
-#define TEMP_PACK_MAX 1024
-
-typedef struct Temp_Pack_Entry{
-    int fd;
-    char* h;
-    int h_size;
-    int error_reason;
-    int serial;
-}Temp_Pack_Entry;
-
-//任务队列满时，把请求先放进这个环形队列（原来是单槽位，会被后来的覆盖 ⇒ 整条连接丢响应）
-typedef struct Temp_Pack{
-    int head;
-    int tail;
-    int count;
-    Temp_Pack_Entry e[TEMP_PACK_MAX];
-}Temp_Pack;
-
 typedef struct Receiver_Thread{
    
     int id;
@@ -51,7 +33,7 @@ typedef struct Receiver_Thread{
 
 int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id,int workersNum);
 
-int ReceiverToWorker(Receiver_Thread* w,int fd,char* h,int h_size,int error_reason,int serial);
+int ReceiverToWorker(Receiver_Thread* w,int fd,uint64_t onlyId,char* h,int h_size,int error_reason,int serial);
 
 int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_blocknum);
 

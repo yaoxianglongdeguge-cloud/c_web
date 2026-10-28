@@ -4,6 +4,7 @@
 typedef struct Fd_Entry{
     
     int fd;
+    uint64_t onlyId;
 
     int ser_fina_send;//下一个请求要打的序号，也是目前最后一个包序号的后一位
     int ser_nex_send;//下一个要发的包的序号
@@ -24,6 +25,7 @@ typedef struct Fd_Table
    int bu_num;
    int elem_num;
    Fd_Entry* Elem;
+   int fdSeq;
 
 }Fd_Table;
 

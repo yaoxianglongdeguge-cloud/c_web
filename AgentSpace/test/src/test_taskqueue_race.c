@@ -91,7 +91,7 @@ static void* producer(void* a)
 
         int r = 0, tries = 0;
         for (;;) {
-            r = TasKQueuePush(g_tq, (Receiver_Thread*)0x1, 1000 + serial,
+            r = TasKQueuePush(g_tq, (Receiver_Thread*)0x1, 1000 + serial, 0,
                               serial, 200, (char*)0x5, 64);
             if (r == 1) break;
             if (++tries > RETRY_BUDGET) { atomic_fetch_add(&g_giveup, 1); break; }
@@ -160,17 +160,17 @@ int main(void)
     Task_Queue* tqa = NULL;
     CHECK(TasKQueueInit(&tqa, 4) == 1, "A. TasKQueueInit(4) 成功");
 
-    CHECK(TasKQueuePush(tqa, (Receiver_Thread*)0x1, 10, 0, 200, NULL, 0) == 1,
+    CHECK(TasKQueuePush(tqa, (Receiver_Thread*)0x1, 10, 0, 0, 200, NULL, 0) == 1,
           "A. push 第 1 个任务");
     CHECK(tqa->num == 1, "A. push 1 个后 num==1（计数不得翻倍）");
 
-    CHECK(TasKQueuePush(tqa, (Receiver_Thread*)0x1, 11, 1, 200, NULL, 0) == 1,
+    CHECK(TasKQueuePush(tqa, (Receiver_Thread*)0x1, 11, 0, 1, 200, NULL, 0) == 1,
           "A. push 第 2 个任务");
     CHECK(tqa->num == 2, "A. push 2 个后 num==2");
 
     int cap_ok = 1;
     for (int i = 2; i < 4; i++)
-        if (TasKQueuePush(tqa, (Receiver_Thread*)0x1, 10 + i, i, 200, NULL, 0) != 1)
+        if (TasKQueuePush(tqa, (Receiver_Thread*)0x1, 10 + i, 0, i, 200, NULL, 0) != 1)
             cap_ok = 0;
     CHECK(cap_ok == 1, "A. 容量 4 能装下 4 个任务（容量不得被砍半）");
 
@@ -183,15 +183,15 @@ int main(void)
     TasKQueueInit(&tqb, 3);
     int acc = 0;
     for (int i = 0; i < 3; i++)
-        acc += (TasKQueuePush(tqb, (Receiver_Thread*)0x1, 20 + i, i, 200, NULL, 0) == 1);
+        acc += (TasKQueuePush(tqb, (Receiver_Thread*)0x1, 20 + i, 0, i, 200, NULL, 0) == 1);
     CHECK(acc == 3 && tqb->num == 3, "A. 容量 3 恰好接纳 3 个任务");
-    CHECK(TasKQueuePush(tqb, (Receiver_Thread*)0x1, 99, 9, 200, NULL, 0) == 0,
+    CHECK(TasKQueuePush(tqb, (Receiver_Thread*)0x1, 99, 0, 9, 200, NULL, 0) == 0,
           "A. 第 4 个任务被拒（闸门位置正确，非假满）");
     CHECK(tqb->num == 3, "A. 被拒后 num 仍为 3（计数不被污染）");
     int ea2 = 0;
     Task_Queue_Entry ta = TasKQueueTopAndPop(tqb, &ea2);
     CHECK(ea2 == 1 && ta.fd == 20, "A. 取出的仍是第 1 个任务（被拒的插入未覆盖数据）");
-    CHECK(TasKQueuePush(tqb, (Receiver_Thread*)0x1, 99, 9, 200, NULL, 0) == 1,
+    CHECK(TasKQueuePush(tqb, (Receiver_Thread*)0x1, 99, 0, 9, 200, NULL, 0) == 1,
           "A. 让出空位后可入队");
 
     /*================ 阶段 B：多生产者 / 多消费者压力 ================*/
@@ -258,7 +258,7 @@ int main(void)
     CHECK(num_end == 0, "I4 排空后 num==0（计数无残留）");
 
     /*================ 阶段 C：压力后的可恢复性 ================*/
-    int rec_push = TasKQueuePush(g_tq, (Receiver_Thread*)0x1, 7, 7, 200, NULL, 0);
+    int rec_push = TasKQueuePush(g_tq, (Receiver_Thread*)0x1, 7, 0, 7, 200, NULL, 0);
     int ec = 0;
     Task_Queue_Entry tc = TasKQueueTopAndPop(g_tq, &ec);
     CHECK(rec_push == 1 && ec == 1 && tc.fd == 7,

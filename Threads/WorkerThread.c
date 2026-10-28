@@ -181,6 +181,7 @@ int WorkerMain(Worker_Thread* profes){
         //拿到请求
         int Error_reason=t.error_reason;
         int Fd=t.fd;
+        uint64_t OnlyId=t.onlyId;
         int Serial=t.serial;
         Receiver_Thread* W=t.w;
         char* Http=t.http;
@@ -233,7 +234,7 @@ int WorkerMain(Worker_Thread* profes){
             
             { char* C=NULL; PackBackHead(&C,&Rsp); }
             
-            ReceiverQueuePush(W->Thing_queue, NULL,Fd,Serial,Rsp.error_reason,0,0,0,NULL,-1, 0,(void*)Http,Size);
+            ReceiverQueuePush(W->Thing_queue, NULL,Fd,OnlyId,Serial,Rsp.error_reason,0,0,0,NULL,-1, 0,(void*)Http,Size);
             ReceiverNotify(W);   
         }else{
             
@@ -248,10 +249,10 @@ int WorkerMain(Worker_Thread* profes){
                 if(C!=NULL) WorkerQueuePush(profes->memory_queue,allocsize,C);
                 { char* C2=NULL; PackBackHead(&C2,&Rsp); }
                 
-                ReceiverQueuePush(W->Thing_queue, NULL,Fd,Serial,(Rsp.error_reason!=200)?Rsp.error_reason:503,0,0,0,NULL,-1,0,(void*)Http,Size);
+                ReceiverQueuePush(W->Thing_queue, NULL,Fd,OnlyId,Serial,(Rsp.error_reason!=200)?Rsp.error_reason:503,0,0,0,NULL,-1,0,(void*)Http,Size);
             }else{
                 
-                ReceiverQueuePush(W->Thing_queue, profes->memory_queue,Fd,Serial,200,allocsize,0,
+                ReceiverQueuePush(W->Thing_queue, profes->memory_queue,Fd,OnlyId,Serial,200,allocsize,0,
                     file_size,C,Rsp.send_fd,Rsp.offset,(void*)Http,Size);
                 }
                 ReceiverNotify(W);   

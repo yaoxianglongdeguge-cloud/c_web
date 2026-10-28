@@ -65,7 +65,7 @@ int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknu
             RequestTempPoolStateReset(fd_ob->request_temp_pool);
 
             fd_ob->ser_fina_send++;
-            int put = ReceiverToWorker(Receiver_Thread,fd,hptr,h_size,error_reason,serial);
+            int put = ReceiverToWorker(Receiver_Thread,fd,fd_ob->onlyId,hptr,h_size,error_reason,serial);
             if(put != 1){
                 if(put == -1){ MemoryPoolFree(Receiver_Thread->http_pool,hptr); FdClose(Receiver_Thread,fd,503); return 1; }
                 fd_ob->pending=1; break;
@@ -114,7 +114,7 @@ int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknu
             if(nf==0){ FdClose(Receiver_Thread,fd,503); return 1; }
 
             fd_ob->ser_fina_send++;
-            ReceiverToWorker(Receiver_Thread,fd,(char*)ptr,0,error_reason,serial);
+            ReceiverToWorker(Receiver_Thread,fd,fd_ob->onlyId,(char*)ptr,0,error_reason,serial);
             fd_ob->pack_in_path++;
             error_reason=200;
             serial++;

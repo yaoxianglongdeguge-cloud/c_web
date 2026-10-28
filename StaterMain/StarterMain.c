@@ -100,7 +100,7 @@ int StartThread(char* IPaddr,int PORT){
     int group=ReceiverGroupNum();
     int started=0;
     
-    printf("[WebStater] 组数=%d，每组接待线程=1，每组工作线程=%d\n",group,workers);
+    printf("[WebStater] 组数=%d，每组接待线程=1，每组工作线程=%d\n",group,PER_RECEIVER_WORKER);
     fflush(stdout);
     
     for(int i=0;i<group;i++){

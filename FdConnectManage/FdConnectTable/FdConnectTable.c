@@ -1,5 +1,12 @@
 #include "../../Include/Include.h"
 
+uint64_t nextSeq(Fd_Table* t) {
+
+    t->fdSeq++;
+    uint32_t r = rand();          // 或更好的随机源
+    return ((uint64_t)t->fdSeq << 32) | r;
+
+}
 
 static const int PRIME_BUCKET_SIZES_3[5] = {
     7,
@@ -11,9 +18,9 @@ static const int PRIME_BUCKET_SIZES_3[5] = {
 };//用于哈希表扩容
 
 
-Fd_Entry* FdEntryCreat(int fd);
+Fd_Entry* FdEntryCreat(Fd_Table* t,int fd);
 Fd_Entry* FdEntryFind(Fd_Entry* head,int url,int* Error);
-int FdEntryInsert(Fd_Entry* head,int url);
+int FdEntryInsert(Fd_Table* t,Fd_Entry* head,int url);
 int FdEntryDelete(Fd_Entry* head,int url);
 int FdTableAllocate(Fd_Table* h,int size_h);
 int bucket_site_3(int bucket_size,int url);
@@ -32,6 +39,7 @@ int FdTableInit(Fd_Table** h,int init)//1成功，0已存在，-1过程错误
 
    (*h)->bu_num=bu_size;
    (*h)->elem_num=0;
+   (*h)->fdSeq=1;
 
     return 1;
 
@@ -66,7 +74,7 @@ int FdTableInsert(Fd_Table* h,int fd)
 
     Fd_Entry* head=&(h->Elem[b_site]);
 
-    int e=FdEntryInsert(head,fd);
+    int e=FdEntryInsert(h,head,fd);
 
     if(e!=1) return -1;
 
@@ -98,12 +106,15 @@ int FdTableDelete(Fd_Table* h,int fd)
     return 1;
 }
 
-Fd_Entry* FdEntryCreat(int fd)
+
+
+Fd_Entry* FdEntryCreat(Fd_Table* t,int fd)
 {
     Fd_Entry* e=(Fd_Entry*)malloc(sizeof(Fd_Entry));
     if(e==NULL) return NULL;
     
     e->fd=fd;
+    e->onlyId=nextSeq(t);
     e->ser_fina_send=0;
     e->ser_nex_send=0;
     e->pack_in_path=0;
@@ -130,15 +141,17 @@ Fd_Entry* FdEntryFind(Fd_Entry* head,int url,int* Error)
     return h;
 }
 
-int FdEntryInsert(Fd_Entry* head,int url)//返回1插入成功，0已经有该节点，-1过程中失败
+int FdEntryInsert(Fd_Table* t,Fd_Entry* head,int url)//返回1插入成功，0已经有该节点，-1过程中失败
 {
     int e;
     Fd_Entry* i=FdEntryFind(head,url,&e);
     
     if(i->next==NULL)
     {
-        i->next=FdEntryCreat(url);
-        if(i->next!=NULL) return 1;
+        i->next=FdEntryCreat(t,url);
+        if(i->next!=NULL){
+            return 1;
+        }
         else return -1;
         
     }
@@ -178,6 +191,7 @@ int FdTableAllocate(Fd_Table* h,int size_h)
     for(int i=0;i<size_h;i++)
     {
         h->Elem[i].fd=-1;
+        h->Elem[i].onlyId=0;
         h->Elem[i].ser_fina_send=-1;
         h->Elem[i].ser_nex_send=-1;
         h->Elem[i].pack_in_path=-1;
