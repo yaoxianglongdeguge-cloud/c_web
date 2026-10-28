@@ -15,11 +15,28 @@ int FdConnect(Receiver_Thread* w,int Listen_fd)
     {
         client_fd=accept(Listen_fd,NULL,NULL);
         if (client_fd < 0) {
-            if (errno == EAGAIN) break;
-            else  return -1;
+            if (errno == EAGAIN||errno == EWOULDBLOCK) break;
+
+            //fd 用尽是 accept 失败最常见的原因，限流打印避免刷屏
+            static int accept_warned=0;
+            if(accept_warned<3){
+                accept_warned++;
+                if(errno==EMFILE||errno==ENFILE)
+                    fprintf(stderr,"[Net] accept 失败：fd 用尽（errno=%d，%s）；检查 ulimit -n / cgroup 限制\n",
+                            errno,strerror(errno));
+                else
+                    fprintf(stderr,"[Net] accept 失败：errno=%d (%s)\n",errno,strerror(errno));
+            }
+            return -1;
         }
         int one=1;                                                   
-        setsockopt(client_fd,IPPROTO_TCP,TCP_NODELAY,&one,sizeof(one));
+        if(setsockopt(client_fd,IPPROTO_TCP,TCP_NODELAY,&one,sizeof(one))!=0){
+            static int nodelay_warned=0;
+            if(nodelay_warned<3){
+                nodelay_warned++;
+                fprintf(stderr,"[Net] setsockopt(TCP_NODELAY) 失败：errno=%d (%s)\n",errno,strerror(errno));
+            }
+        }
         
         //挂载epoll
         EpollReadMount(w->epfd,client_fd);

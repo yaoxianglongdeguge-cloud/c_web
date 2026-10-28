@@ -6,6 +6,10 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id,int workersNum)
 {
 
     *w=(Receiver_Thread*)malloc(sizeof(Receiver_Thread));
+    if(*w==NULL){
+        fprintf(stderr,"[Recv] 组%d malloc Receiver_Thread 失败\n",id);
+        return 0;
+    }
 
 
     MemoryPoolInit(&((*w)->http_pool),g_cfg.pool_recv_http_kb*1024,1);
@@ -22,17 +26,39 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id,int workersNum)
 
 
     (*w)->id = id;
-    (*w)->epfd = epoll_create1(0);
     (*w)->notified = 0;
     (*w)->isFull = 0;
+
+    (*w)->epfd = epoll_create1(0);
+    if((*w)->epfd < 0){
+        fprintf(stderr,"[Recv] 组%d epoll_create1 失败：errno=%d (%s)\n",id,errno,strerror(errno));
+        return 0;
+    }
     EpollReadMount((*w)->epfd,Listen_fd);
 
     (*w)->wakeup_fd=eventfd(0,EFD_NONBLOCK);
+    if((*w)->wakeup_fd < 0){
+        fprintf(stderr,"[Recv] 组%d eventfd 失败：errno=%d (%s)（内核需 >=2.6.27）\n",
+                id,errno,strerror(errno));
+        return 0;
+    }
     EpollReadMount((*w)->epfd,(*w)->wakeup_fd);
 
-    if(TempPackInit(&((*w)->tempPack),g_cfg.temp_pack_capacity)!=1) return 0;
+    if(TempPackInit(&((*w)->tempPack),g_cfg.temp_pack_capacity)!=1){
+        fprintf(stderr,"[Recv] 组%d TempPackInit 失败（temp_pack.capacity=%d）\n",
+                id,g_cfg.temp_pack_capacity);
+        return 0;
+    }
 
-    ThreadPoolInit((*w),workersNum);
+    if(ThreadPoolInit((*w),workersNum)!=1){
+        fprintf(stderr,"[Recv] 组%d 线程池初始化失败（worker.per_group=%d，要求 >=2）\n",
+                id,workersNum);
+        return 0;
+    }
+
+    printf("[Recv] 组%d 就绪：epfd=%d wakeup_fd=%d worker=%d\n",
+           id,(*w)->epfd,(*w)->wakeup_fd,workersNum);
+    fflush(stdout);
 
     return 1;
 
@@ -71,7 +97,19 @@ int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_bl
         int n=-1;
         while(1){
             n=epoll_wait(w->epfd,events,1024,g_cfg.epoll_tick_ms);  
+            if(n<0&&errno!=EINTR){
+                static int err_logged=0;
+                if(err_logged<3){
+                    err_logged++;
+                    fprintf(stderr,"[Recv] 组%d epoll_wait 失败：errno=%d (%s)（epoll.tick_ms=%d）\n",
+                            w->id,errno,strerror(errno),g_cfg.epoll_tick_ms);
+                }
+            }
             Thread_Pool* t = w->threadPool;
+            if(t==NULL){
+                fprintf(stderr,"[Recv] 组%d threadPool 为空，事件循环退出（检查 worker.per_group）\n",w->id);
+                return 0;
+            }
             Worker_Thread* main = t->workers[t->mainThread];
 
             // 结束时间在开始时间前面说明在业务中没出来，如果是在任务队列那里阻塞的话，那开始时间是在结束时间前面的

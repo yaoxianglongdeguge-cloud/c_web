@@ -18,7 +18,15 @@ char ThreadState(pid_t tid) {
     snprintf(path, sizeof(path), "/proc/self/task/%d/stat", (int)tid);
 
     int fd = open(path, O_RDONLY);
-    if (fd < 0) return '?';
+    if (fd < 0) {
+        static int proc_warned=0;
+        if(proc_warned<1){
+            proc_warned=1;
+            fprintf(stderr,"[Pool] 读不到 %s（errno=%d，%s）：/proc 不可用或被限制，worker.stall_ms 换线程将失效\n",
+                    path,errno,strerror(errno));
+        }
+        return '?';
+    }
     ssize_t n = read(fd, buf, sizeof(buf) - 1);
     close(fd);
     if (n <= 0) return '?';
@@ -40,20 +48,34 @@ int wakeThread(Worker_Thread* worker){
 
 int ThreadPoolInit(Receiver_Thread* receiver,int totalNum){
     if(totalNum <= 1){
+        fprintf(stderr,"[Pool] worker.per_group=%d（要求 >=2），线程池未初始化\n",totalNum);
         return 0;
     }
     receiver->threadPool = NULL;
     Thread_Pool* t = malloc(sizeof(Thread_Pool));
+    if(t==NULL){
+        fprintf(stderr,"[Pool] malloc Thread_Pool 失败\n");
+        return 0;
+    }
     t->totalNum = totalNum;
     t->workers = malloc(totalNum*sizeof(Worker_Thread*));
+    if(t->workers==NULL){
+        fprintf(stderr,"[Pool] malloc workers[] 失败（totalNum=%d）\n",totalNum);
+        free(t);
+        return 0;
+    }
     pthread_t tid;
     for(int i = 0;i<totalNum;i++){
         
-        WorkerThreadInit(&(t->workers[i]),i);
+        if(WorkerThreadInit(&(t->workers[i]),i)!=1)
+            fprintf(stderr,"[Pool] worker%d 初始化失败（队列/内存池资源），后续可能异常\n",i);
         t->workers[i]->taskQueue=receiver->taskQueue;
         main_t2* m2=(main_t2*)malloc(sizeof(main_t2));
         m2->p=t->workers[i];
-        pthread_create(&tid, NULL, StartWorker, m2);
+        int cr=pthread_create(&tid, NULL, StartWorker, m2);
+        if(cr!=0)
+            fprintf(stderr,"[Pool] worker%d pthread_create 失败：%d (%s)；该组实际 worker 会少于配置\n",
+                    i,cr,strerror(cr));
         
     }
     
@@ -106,6 +128,14 @@ int ThreadPoolChange(Receiver_Thread* receiver,int* isSuccess){
                 i++;
                 k = (k+1)%(t->totalNum);
             }
+        }
+    }
+
+    if(state=='?'){
+        static int state_warned=0;
+        if(state_warned<1){
+            state_warned=1;
+            fprintf(stderr,"[Pool] 读不到 worker%d 的线程状态（/proc 受限），本次不换线程\n",t->mainThread);
         }
     }
 

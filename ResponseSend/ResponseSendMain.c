@@ -143,6 +143,15 @@ int ResponseSendMain(Receiver_Thread* w,int fd,int ed_store_blocknum,int* send_i
                 }
                 if(errno==EINTR) return 1;                   //被信号打断：等 epoll 再触发
 
+                //EPIPE/ECONNRESET 是正常断开，不刷屏；其它错误打出来
+                if(errno!=EPIPE&&errno!=ECONNRESET){
+                    static int wr_warned=0;
+                    if(wr_warned<3){
+                        wr_warned++;
+                        fprintf(stderr,"[Send] write 失败：errno=%d (%s)\n",errno,strerror(errno));
+                    }
+                }
+
                 FdClose(w,send_fd,200);                      //EPIPE/ECONNRESET/EBADF…
                 return 1;
             }
@@ -162,6 +171,14 @@ int ResponseSendMain(Receiver_Thread* w,int fd,int ed_store_blocknum,int* send_i
             }
             if(sent<0&&errno==EINTR) return 1;                 //被信号打断：等 epoll 再触发
             if(sent<0&&errno!=EAGAIN&&errno!=EWOULDBLOCK){     //其它错误
+                static int sf_warned=0;
+                if(sf_warned<3){
+                    sf_warned++;
+                    fprintf(stderr,"[Send] sendfile 失败：errno=%d (%s)（offset=%lld，size=%lld）\n",
+                            errno,strerror(errno),
+                            (long long)fd_ob->send_pointer_pool->store[next].offset,
+                            (long long)size_file);
+                }
                 FdClose(w,send_fd,200);  close(send_ed_fd);  return 1;
             }
 

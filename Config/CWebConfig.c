@@ -186,7 +186,7 @@ int CWebConfigLoadFile(CWebConfig* c,const char* path)
 
     FILE* f=fopen(path,"r");
     if(f==NULL){
-        printf("[Config] 打开配置文件失败：%s\n",path);
+        fprintf(stderr,"[Config] 打开配置文件失败：%s\n",path);
         return 0;
     }
 
@@ -201,7 +201,7 @@ int CWebConfigLoadFile(CWebConfig* c,const char* path)
 
         size_t len=strlen(line);
         if(len>0&&line[len-1]!='\n'&&!feof(f)){
-            printf("[Config] %s:%d 行过长（>%d 字节），已忽略\n",path,lineno,(int)sizeof(line)-2);
+            fprintf(stderr,"[Config] %s:%d 行过长（>%d 字节），已忽略\n",path,lineno,(int)sizeof(line)-2);
             int ch=0;
             while((ch=fgetc(f))!='\n'&&ch!=EOF){}
             bad++;
@@ -214,7 +214,7 @@ int CWebConfigLoadFile(CWebConfig* c,const char* path)
 
         char* eq=strchr(s,'=');
         if(eq==NULL){
-            printf("[Config] %s:%d 缺少 '='，已忽略：%s\n",path,lineno,s);
+            fprintf(stderr,"[Config] %s:%d 缺少 '='，已忽略：%s\n",path,lineno,s);
             continue;
         }
 
@@ -225,29 +225,33 @@ int CWebConfigLoadFile(CWebConfig* c,const char* path)
 
         int r=CfgAssign(c,key,val);
         if(r<0){
-            printf("[Config] %s:%d 未知键 %s（已忽略）\n",path,lineno,key);
+            fprintf(stderr,"[Config] %s:%d 未知键 %s（已忽略）\n",path,lineno,key);
             continue;
         }
         if(r==0){
-            printf("[Config] %s:%d 键 %s 的值非法：%s\n",path,lineno,key,val);
+            fprintf(stderr,"[Config] %s:%d 键 %s 的值非法：%s\n",path,lineno,key,val);
             bad++;
             continue;
         }
 
         if(CfgMarkedSince(key,marked_from))
-            printf("[Config] %s:%d 键 %s 重复，后值覆盖前值\n",path,lineno,key);
+            fprintf(stderr,"[Config] %s:%d 键 %s 重复，后值覆盖前值\n",path,lineno,key);
 
         CfgMarkSet(key);
     }
 
     fclose(f);
 
+    /* 一个已知键都没认出来：多半是第一行带 UTF-8 BOM，或键名拼错（CRLF 已自动处理） */
+    if(g_set_num==marked_from&&bad==0)
+        fprintf(stderr,"[Config] 提示：%s 里没有识别到任何已知键（检查是否带 UTF-8 BOM / 键名拼写）\n",path);
+
     return bad==0?1:0;
 }
 
 static int CfgFail(const char* key,const char* why)
 {
-    printf("[Config] 非法配置 %s：%s\n",key,why);
+    fprintf(stderr,"[Config] 非法配置 %s：%s\n",key,why);
     return 0;
 }
 
@@ -349,10 +353,14 @@ int CWebConfigInit(const char* path)
 
     if(access(file,F_OK)==0){
         if(CWebConfigLoadFile(&g_cfg,file)!=1) return 0;
+        printf("[Config] 已加载配置文件：%s\n",file);
     }else if(explicit_path){
-        printf("[Config] 配置文件不存在：%s\n",file);
+        fprintf(stderr,"[Config] 配置文件不存在：%s\n",file);
         return 0;
+    }else{
+        printf("[Config] 未找到默认配置文件 %s，全部使用内置默认值\n",file);
     }
+    fflush(stdout);
 
     /* 配置值只来自文件；这里不再读 CWEB_xxx 环境变量 */
 

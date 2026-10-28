@@ -123,6 +123,11 @@ int GetFromTaskQueue(Task_Queue_Entry* t,Worker_Thread* profes){
            CleanMemoryQueue(profes);
 
            if(profes->taskQueue==NULL){
+               static int bind_warned=0;
+               if(bind_warned<1){
+                   bind_warned=1;
+                   fprintf(stderr,"[Worker] worker%d 未绑定任务队列，将空转睡眠（检查线程池初始化）\n",profes->id);
+               }
                usleep(g_cfg.worker_idle_sleep_us);          //还没绑定队列：先睡一会，别空转
                continue;
            }
@@ -132,7 +137,15 @@ int GetFromTaskQueue(Task_Queue_Entry* t,Worker_Thread* profes){
            clock_gettime(CLOCK_REALTIME,&wait_ts);
            wait_ts.tv_nsec+=g_cfg.worker_sem_wait_ms*1000000;
            if(wait_ts.tv_nsec>=1000000000){ wait_ts.tv_nsec-=1000000000; wait_ts.tv_sec++; }
-           sem_timedwait(&(profes->taskQueue->sem_task_notempty),&wait_ts);
+           int wr=sem_timedwait(&(profes->taskQueue->sem_task_notempty),&wait_ts);
+           if(wr!=0&&errno!=ETIMEDOUT&&errno!=EINTR){
+               static int sem_warned=0;
+               if(sem_warned<3){
+                   sem_warned++;
+                   fprintf(stderr,"[Worker] worker%d sem_timedwait 失败：errno=%d (%s)（worker.sem_wait_ms=%d）\n",
+                           profes->id,errno,strerror(errno),g_cfg.worker_sem_wait_ms);
+               }
+           }
         }else{
             break;
         }
@@ -144,7 +157,12 @@ int GetFromTaskQueue(Task_Queue_Entry* t,Worker_Thread* profes){
 
 int WorkerMain(Worker_Thread* profes){
 
-    atomic_store(&(profes->tid), (pid_t)syscall(SYS_gettid));
+    //tid 每轮都会重新取（原逻辑），这里只在第一次写入时打一行，便于把 /proc 里的 tid 对上
+    pid_t mytid=(pid_t)syscall(SYS_gettid);
+    if(atomic_exchange(&(profes->tid),mytid)==0){
+        printf("[Worker] 线程就绪：id=%d tid=%d\n",profes->id,(int)mytid);
+        fflush(stdout);
+    }
 
     while(1){
 
