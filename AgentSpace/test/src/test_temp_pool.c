@@ -27,6 +27,8 @@ static void temp_pool_recycle(Request_Temp_Pool* tp)
 
 int main(void)
 {
+    CWebConfigInit(NULL);   /* 载入默认配置（测试里不读配置文件） */
+
     printf("== test_temp_pool : 请求暂存区 + 完整性判断（半包/粘包）==\n");
 
     CHECK(MemoryPoolInit(&g_store, 1024*1024, 1) == 1, "初始化 store_area 内存池");

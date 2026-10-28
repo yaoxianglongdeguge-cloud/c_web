@@ -100,11 +100,11 @@ int WorkerThreadInit(Worker_Thread** profes,int id)
     if(WorkerQueueInit(&((*profes)->memory_queue))!=1) return 0;
     //txt_pool：响应头块 4KB + 响应体（<=8KB 在池内，>8KB 走 malloc）。
     //  队列 100 深时最多约 1.2MB 在途，保留 2MB。
-    MemoryPoolInit(&((*profes)->txt_pool),2048*1024,1);
+    MemoryPoolInit(&((*profes)->txt_pool),g_cfg.pool_worker_txt_kb*1024,1);
 
     //http_pool：请求解析对象，1KB/个。每个 worker 同时处理的请求上限就是队列深度 100，
     //  256KB（256 个）留 2.5 倍余量。
-    MemoryPoolInit(&((*profes)->http_pool),256*1024,1);
+    MemoryPoolInit(&((*profes)->http_pool),g_cfg.pool_worker_http_kb*1024,1);
     return 1;
 }
 
@@ -123,14 +123,14 @@ int GetFromTaskQueue(Task_Queue_Entry* t,Worker_Thread* profes){
            CleanMemoryQueue(profes);
 
            if(profes->taskQueue==NULL){
-               usleep(100000);          //还没绑定队列：先睡一会，别空转
+               usleep(g_cfg.worker_idle_sleep_us);          //还没绑定队列：先睡一会，别空转
                continue;
            }
 
            //每次进入沉睡都增加沉睡时间
            struct timespec wait_ts;
            clock_gettime(CLOCK_REALTIME,&wait_ts);
-           wait_ts.tv_nsec+=100000000;
+           wait_ts.tv_nsec+=g_cfg.worker_sem_wait_ms*1000000;
            if(wait_ts.tv_nsec>=1000000000){ wait_ts.tv_nsec-=1000000000; wait_ts.tv_sec++; }
            sem_timedwait(&(profes->taskQueue->sem_task_notempty),&wait_ts);
         }else{

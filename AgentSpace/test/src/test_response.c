@@ -87,6 +87,7 @@ int main(void)
     //--------------- 文件响应 ---------------
     int fd = open("README.md", O_RDONLY);
     if (fd < 0) fd = open("../README.md", O_RDONLY);
+    if (fd < 0) fd = open("../../README.md", O_RDONLY);
     CHECK(fd >= 0, "打开静态文件用于文件响应测试");
     CHECK(ResponseFileSet(&r, fd, 0) == 1, "ResponseFileSet 记录文件 fd 与偏移");
     CHECK(r.send_fd == fd && r.offset == 0, "send_fd / offset 字段正确（框架据此 sendfile）");

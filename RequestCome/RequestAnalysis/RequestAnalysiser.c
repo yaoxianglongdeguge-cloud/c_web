@@ -1,7 +1,5 @@
 #include "../../Include/Include.h"
 
-#define MAX_URL_LEN 8192         // 8KB
-#define MAX_HEADER_LEN 16384     // 16KB
 #define HTTP_HEAD_END_LEN 4
 
 
@@ -91,7 +89,7 @@ int DealUrlAndQuery(Request_Analysiser* h,char* urlAndQuery,int* failReason){
 
         h->Url=urlAndQuery;
         size_t lenu = strlen(h->Url);
-        if(lenu>MAX_URL_LEN){  *failReason=414;  return 0;  }
+        if(lenu>g_cfg.req_max_url){  *failReason=414;  return 0;  }
 
     }else{//要切的话首先要有查询条件，如果没有就会返回NULL，如果不特殊处理就会导致对着一个NULL指针操作，得不到url
         
@@ -101,7 +99,7 @@ int DealUrlAndQuery(Request_Analysiser* h,char* urlAndQuery,int* failReason){
         
 
         size_t lenu = strlen(h->Url);
-        if(lenu>MAX_URL_LEN){  *failReason=414;  return 0;  }
+        if(lenu>g_cfg.req_max_url){  *failReason=414;  return 0;  }
         
         //创建查询条件hash
         h->Query=(Analysiser_Hash*)h->ptr;
@@ -149,7 +147,7 @@ int DealHeaders(Request_Analysiser* h,char** save,int* failReason){
             while(*m==' ') m++;
             
             size_t lenm = strlen(m);
-            if(lenm>MAX_HEADER_LEN){  *failReason=431;  return 0;  }
+            if(lenm>g_cfg.req_max_header){  *failReason=431;  return 0;  }
 
             int e1=AnalysiserHashInsert(h->Headers,h,line,m);
             if(e1!=1){  *failReason=400;  return -1;  }

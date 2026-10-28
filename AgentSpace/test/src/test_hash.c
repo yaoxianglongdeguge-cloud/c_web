@@ -15,6 +15,8 @@ static void h_route2(Request* r, Response* w) { (void)r; (void)w; }
 //哈希表：路由表 hash_1（DJB2+盐值，桶数组扩容）与请求解析表 hash_2（内存池内分配）
 int main(void)
 {
+    CWebConfigInit(NULL);   /* 载入默认配置（测试里不读配置文件） */
+
     printf("== test_hash : 路由哈希表 / 解析哈希表 ==\n");
 
     //------------ 1.RouterHash：插入 / 查找 / 重复 / 扩容 ------------

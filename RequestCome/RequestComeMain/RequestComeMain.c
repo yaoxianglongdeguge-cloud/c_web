@@ -6,7 +6,7 @@ static int RequestOverLimit(Fd_Entry* fd_ob)
 {
     if(fd_ob->request_temp_pool==NULL||fd_ob->request_temp_pool->begin==NULL) return 0;
 
-    return (fd_ob->request_temp_pool->ptr_e - fd_ob->request_temp_pool->begin) > HTTP_MAX_REQUEST_BYTES;
+    return (fd_ob->request_temp_pool->ptr_e - fd_ob->request_temp_pool->begin) > g_cfg.req_max_total;
 }
 
 int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknum)
@@ -25,7 +25,7 @@ int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknu
     
     //如果请求暂存池不存在则分配
     if(fd_ob->request_temp_pool->begin==NULL){
-        int n=RequestTempPoolAlloc(fd_ob->request_temp_pool,Receiver_Thread->store_area,2);
+        int n=RequestTempPoolAlloc(fd_ob->request_temp_pool,Receiver_Thread->store_area,g_cfg.req_temp_init_kb);
         if(n!=1) {  FdClose(Receiver_Thread,fd,503);  return 1;} 
     }
     
@@ -51,7 +51,7 @@ int RequestComeMain(int fd,Receiver_Thread* Receiver_Thread,int ed_store_blocknu
         if(state==1){
 
             int h_size=RECEIVER_H_SIZE_EXTRA+(source_end-fd_ob->request_temp_pool->begin+1);
-            if(h_size>HTTP_MAX_REQUEST_BYTES){ FdClose(Receiver_Thread,fd,413); return 1; }
+            if(h_size>g_cfg.req_max_total){ FdClose(Receiver_Thread,fd,413); return 1; }
 
             void* ptr=NULL;
             int notfull=0;

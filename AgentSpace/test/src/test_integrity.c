@@ -149,6 +149,8 @@ static void child_url_delim_only(void)  { url_raw_check("/?&", "/"); }
 
 int main(void)
 {
+    CWebConfigInit(NULL);   /* 载入默认配置（测试里不读配置文件） */
+
     printf("== test_integrity : 请求完整性判定（方法识别 / Content-Length / 查询串）==\n");
 
     CHECK(MemoryPoolInit(&g_pool, 1024*1024, 1) == 1, "初始化解析用内存池");

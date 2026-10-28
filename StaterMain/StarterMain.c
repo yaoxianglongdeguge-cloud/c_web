@@ -1,8 +1,5 @@
 #include "../Include/Include.h"
 
-#define RECEIVER_GROUP_NUM_DEFAULT 1
-#define RECEIVER_GROUP_NUM_MAX     32
-#define PER_RECEIVER_WORKER 4
 
 long long now_ns() {
     struct timespec ts;
@@ -76,7 +73,7 @@ int DriveListen(int* Fd,char* IPaddr,int PORT){
         *Fd=-1;
         return -1;
     }
-    if(listen(*Fd, 100)!=0){
+    if(listen(*Fd, g_cfg.listen_backlog)!=0){
         close(*Fd);
         *Fd=-1;
         return -1;
@@ -88,23 +85,13 @@ int DriveListen(int* Fd,char* IPaddr,int PORT){
 }
 
 
-static int ReceiverGroupNum(void){
-
-    char* s=getenv("CWEB_GROUP_NUM");
-    int n=(s!=NULL)?atoi(s):RECEIVER_GROUP_NUM_DEFAULT;
-
-    if(n<1) n=1;
-    if(n>RECEIVER_GROUP_NUM_MAX) n=RECEIVER_GROUP_NUM_MAX;
-
-    return n;
-}
-
 int StartThread(char* IPaddr,int PORT){
     pthread_t tid;
-    int group=ReceiverGroupNum();
+    int group=g_cfg.group_num;
+    int workers=g_cfg.worker_per_group;
     int started=0;
     
-    printf("[WebStater] 组数=%d，每组接待线程=1，每组工作线程=%d\n",group,PER_RECEIVER_WORKER);
+    printf("[WebStater] 组数=%d，每组接待线程=1，每组工作线程=%d\n",group,workers);
     fflush(stdout);
     
     for(int i=0;i<group;i++){
@@ -119,13 +106,13 @@ int StartThread(char* IPaddr,int PORT){
         
         //接待线程：任务队列是它私有的
         Receiver_Thread* w;
-        ReceiverThreadInit(&w,fd,i+1,PER_RECEIVER_WORKER);
+        ReceiverThreadInit(&w,fd,i+1,workers);
         
         main_t* m1=(main_t*)malloc(sizeof(main_t));
         m1->w=w;
         m1->fd=fd;
-        m1->time=60;
-        m1->ed_store_blocknum=100;
+        m1->time=g_cfg.recv_idle_timeout_s;
+        m1->ed_store_blocknum=g_cfg.send_pipeline_window;
         pthread_create(&tid, NULL, func1, m1);
     }
     
@@ -144,13 +131,22 @@ int WebStater(char* IPaddr,int PORT, RouterFunc Handler)
     //忽略信号
     IgnoreSignal();
 
-    cweb_listen_port=PORT;
+    if(CWebConfigInit(NULL)!=1) return -1;
 
-    //初始化全局资源，加载路由函数（任务队列容量也在这里配置）
+    if(IPaddr!=NULL&&IPaddr[0]!='\0'&&CWebConfigIsSet("listen.addr")==0)
+        snprintf(g_cfg.listen_addr,sizeof(g_cfg.listen_addr),"%s",IPaddr);
+
+    if(PORT>0&&CWebConfigIsSet("listen.port")==0) g_cfg.listen_port=PORT;
+
+    cweb_listen_port=g_cfg.listen_port;
+
+    CWebConfigDump(&g_cfg);
+
+    //初始化全局资源，加载路由函数
     GlobalResourceInit(Handler);
     
     //按组数启动：接待线程 + 工作线程，监听 socket 在 StartThread 里按组建
-    if(StartThread(IPaddr,PORT)!=1) return -1;
+    if(StartThread(g_cfg.listen_addr,g_cfg.listen_port)!=1) return -1;
     
     return 1;
     

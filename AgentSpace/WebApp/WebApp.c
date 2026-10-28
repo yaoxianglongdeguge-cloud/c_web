@@ -1,5 +1,6 @@
 #include "foo.h"
 #include "WebApp.h"
+#include "../../Config/CWebConfig.h"
 
 //=====================================================================
 //  c_web 示例网站应用
@@ -23,7 +24,6 @@
 //=====================================================================
 
 // 网站根目录：相对进程工作目录。请在仓库根目录启动 ./main
-#define WEB_ROOT "WebSite"
 
 #define MEM_BODY_SIZE (256 * 1024)
 static char g_mem_body[MEM_BODY_SIZE + 1]; // 注册阶段填充，运行期只读（BSS，无并发写）
@@ -124,19 +124,21 @@ static void SendFile(Response* w, char* path, char* ctype)
 }
 
 // 静态文件路由：统一只允许 GET
-#define FILE_ROUTE(fn, file, ctype)                                       \
-    static void fn(Request* r, Response* w)                               \
-    {                                                                     \
-        if (MethodIs(r, "GET") != 1) { ResponseErrorSet(w, 405); return; } \
-        SendFile(w, file, ctype);                                         \
+#define FILE_ROUTE(fn, relpath, ctype)                                        \
+    static void fn(Request* r, Response* w)                                   \
+    {                                                                         \
+        if (MethodIs(r, "GET") != 1) { ResponseErrorSet(w, 405); return; }    \
+        char path[512];                                                       \
+        snprintf(path, sizeof(path), "%s%s", g_cfg.web_root, relpath);        \
+        SendFile(w, path, ctype);                                             \
     }
 
-FILE_ROUTE(HIndex,   WEB_ROOT "/index.html",      "text/html; charset=utf-8")
-FILE_ROUTE(HAbout,   WEB_ROOT "/about.html",      "text/html; charset=utf-8")
-FILE_ROUTE(HCss,     WEB_ROOT "/style.css",       "text/css; charset=utf-8")
-FILE_ROUTE(HJs,      WEB_ROOT "/app.js",          "application/javascript; charset=utf-8")
-FILE_ROUTE(HDown10M, WEB_ROOT "/static/10mb.bin", "application/octet-stream")
-FILE_ROUTE(HFavicon, WEB_ROOT "/favicon.ico",     "image/x-icon")
+FILE_ROUTE(HIndex,   "/index.html",      "text/html; charset=utf-8")
+FILE_ROUTE(HAbout,   "/about.html",      "text/html; charset=utf-8")
+FILE_ROUTE(HCss,     "/style.css",       "text/css; charset=utf-8")
+FILE_ROUTE(HJs,      "/app.js",          "application/javascript; charset=utf-8")
+FILE_ROUTE(HDown10M, "/static/10mb.bin", "application/octet-stream")
+FILE_ROUTE(HFavicon, "/favicon.ico",     "image/x-icon")
 
 //------------------------------ 动态接口 ------------------------------
 
@@ -258,5 +260,5 @@ void WebAppRegisterRoutes(void)
     // 大文件（sendfile）
     Reg("/download/10mb", HDown10M);
 
-    printf("[WebApp] 已注册 14 条路由，网站目录 %s/\n", WEB_ROOT);
+    printf("[WebApp] 已注册 14 条路由，网站目录 %s/\n", g_cfg.web_root);
 }

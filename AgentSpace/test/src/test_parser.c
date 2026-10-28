@@ -32,6 +32,8 @@ static Request_Analysiser* do_parse(const char* raw, int* error_reason)
 
 int main(void)
 {
+    CWebConfigInit(NULL);   /* 载入默认配置（测试里不读配置文件） */
+
     printf("== test_parser : HTTP 请求头/URL/Query/Body 解析 ==\n");
 
     CHECK(MemoryPoolInit(&g_pool, 1024*1024, 1) == 1, "初始化业务线程内存池（1KB~64KB 类）");

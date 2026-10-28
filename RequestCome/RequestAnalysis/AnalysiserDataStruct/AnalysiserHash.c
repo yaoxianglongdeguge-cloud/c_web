@@ -66,7 +66,7 @@ int AnalysiserHashMemOverhead(void)
     int per = (int)sizeof(Analysiser_Hash) + CWEB_ANALYSISER_HASH_BUCKETS * (int)sizeof(Analysiser_Hash_Entry);
 
     //Query 一块 + Headers 一块 + 允许的溢出条目
-    return 2 * per + CWEB_ANALYSISER_SPILL_MAX * (int)sizeof(Analysiser_Hash_Entry);
+    return 2 * per + g_cfg.req_max_header_fields * (int)sizeof(Analysiser_Hash_Entry);
 }
 
 int AnalysiserHashAlloc(Analysiser_Hash* h,int size_h,Request_Analysiser* Http)

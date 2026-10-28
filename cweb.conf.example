@@ -1,0 +1,77 @@
+######################################################################
+# cweb.conf 示例
+#
+# 用法：
+#   ./main                     → 读 /etc/cweb.conf（不存在就用内置默认值）
+#   CWEB_CONF=./my.conf ./main → 读指定文件（文件不存在会启动失败）
+#
+# 优先级：本文件  >  WebStater 入参  >  内置默认值
+#   （文件里写了的键以文件为准；没写的才用 WebStater 入参/默认值）
+#   · 不支持用 CWEB_xxx 环境变量注入配置值，改配置请直接改本文件
+#     （CWEB_CONF 只用来指定读哪个配置文件）
+#   · 改容量类（池/队列/timer/fd 表）必须重启；本版本没有热重载
+#
+# 格式：key = value，一行一个；整行 # 开头是注释
+#      数字不要带单位后缀（单位已写在键名里：_kb / _ms / _s / _us / _bytes）
+######################################################################
+
+#---------------- 监听 / 站点 ----------------
+listen.addr     = 127.0.0.1
+listen.port     = 5343
+# 建议 <= /proc/sys/net/core/somaxconn
+listen.backlog  = 512
+# 静态站点根目录；相对路径是相对启动时的 CWD，容器里建议写绝对路径
+web.root        = WebSite
+
+#---------------- 线程模型 ----------------
+# 一组 = 1 个接待线程 + N 个 worker；总线程数 = group.num × (1 + worker.per_group) + 1
+group.num         = 1
+# 必须 >= 2（ThreadPoolInit 要求 >1），否则那条未初始化指针路径会踩到
+worker.per_group  = 4
+
+#---------------- 接待线程 ----------------
+receiver.idle_timeout_s = 60
+receiver.send_batch     = 100
+# 计时器节点数：必须 >= 单组最大连接数，否则连接挂不上计时器（永不超时）
+timer.capacity          = 5000
+# 1..5（对应连接表桶数阶梯 7/17/31/59/113）
+fd_table.init_level     = 4
+
+#---------------- 队列 / 背压 ----------------
+task_queue.capacity   = 100
+# 建议 >= task_queue.capacity，否则队列一满就直接 503
+temp_pack.capacity    = 1024
+send.pipeline_window  = 100
+
+#---------------- 内存池配额（单位 KB） ----------------
+# 注意：MemoryPool 当前是 malloc 薄封装，这几个值只进统计，不是硬上限
+pool.recv_http_kb    = 1024
+pool.recv_store_kb   = 2048
+pool.worker_txt_kb   = 2048
+pool.worker_http_kb  = 256
+
+#---------------- HTTP 限额（单位字节） ----------------
+# 413 阈值
+request.max_body_bytes       = 1048576
+# 414 / 431 阈值
+request.max_url_bytes        = 8192
+request.max_header_bytes     = 16384
+# 必须 >= max_header_bytes + max_body_bytes
+request.max_total_bytes      = 1114112
+# 单个 hash 允许的头字段数（影响解析块大小）
+request.max_header_fields    = 128
+# 每连接初始暂存区（KB）与扩容走 malloc 的阈值
+request.temp_init_kb         = 2
+request.temp_pool_max_bytes  = 1048576
+
+#---------------- worker ----------------
+# 主 worker 超过这么久没结束就认为卡住 → 换线程
+worker.stall_ms        = 4
+# 队列空时在信号量上等的时长、未绑定队列时的休眠
+worker.sem_wait_ms     = 100
+worker.idle_sleep_us   = 100000
+# 1 = 同组所有 worker 并行消费；0 = 只唤醒 worker[0]（1 主 + N 备）
+worker.parallel        = 0
+
+#---------------- 其它 ----------------
+epoll.tick_ms = 2

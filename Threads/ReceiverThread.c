@@ -1,14 +1,6 @@
 #include "../Include/Include.h"
 #include <sys/eventfd.h>
 
-#define TASK_QUEUE_NUM 100
-#define ONE_TASK_TIME 4
-
-// epoll 检查粒度：超时想比它更小时，需要把这个 tick 一起调小，或改用 timerfd
-#ifndef CWEB_EPOLL_TICK_MS
-#define CWEB_EPOLL_TICK_MS 2
-#endif
-
 
 int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id,int workersNum)
 {
@@ -16,17 +8,17 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id,int workersNum)
     *w=(Receiver_Thread*)malloc(sizeof(Receiver_Thread));
 
 
-    MemoryPoolInit(&((*w)->http_pool),1024*1024,1);
+    MemoryPoolInit(&((*w)->http_pool),g_cfg.pool_recv_http_kb*1024,1);
 
-    MemoryPoolInit(&((*w)->store_area),2048*1024,1);
+    MemoryPoolInit(&((*w)->store_area),g_cfg.pool_recv_store_kb*1024,1);
     ReceiverQueueInit(&((*w)->Thing_queue));
     ReceiverQueueTempInit(&((*w)->sendTemp));
 
     //任务队列改成接待线程私有：每个组一条，组内的工作线程和替补工作线程都取这一条
-    TasKQueueInit(&((*w)->taskQueue),TASK_QUEUE_NUM);
+    TasKQueueInit(&((*w)->taskQueue),g_cfg.task_queue_capacity);
 
-    TimerInit(&((*w)->my_Timer),5000);
-    FdTableInit(&((*w)->fd_table),4);
+    TimerInit(&((*w)->my_Timer),g_cfg.timer_capacity);
+    FdTableInit(&((*w)->fd_table),g_cfg.fd_table_init_level);
 
 
     (*w)->id = id;
@@ -38,7 +30,7 @@ int ReceiverThreadInit(Receiver_Thread** w,int Listen_fd,int id,int workersNum)
     (*w)->wakeup_fd=eventfd(0,EFD_NONBLOCK);
     EpollReadMount((*w)->epfd,(*w)->wakeup_fd);
 
-    if(TempPackInit(&((*w)->tempPack),CWEB_TEMP_PACK_CAP)!=1) return 0;
+    if(TempPackInit(&((*w)->tempPack),g_cfg.temp_pack_capacity)!=1) return 0;
 
     ThreadPoolInit((*w),workersNum);
 
@@ -78,7 +70,7 @@ int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_bl
     {
         int n=-1;
         while(1){
-            n=epoll_wait(w->epfd,events,1024,CWEB_EPOLL_TICK_MS);  
+            n=epoll_wait(w->epfd,events,1024,g_cfg.epoll_tick_ms);  
             Thread_Pool* t = w->threadPool;
             Worker_Thread* main = t->workers[t->mainThread];
 
@@ -86,14 +78,14 @@ int ReveiverThreadMain(Receiver_Thread* w,int Listen_fd,int time,int ed_store_bl
             // 所以不会误触发换线程
             if(main->taskStart != 0 && main->taskEnd <= main->taskStart){
        
-                if(now_ns() - main->taskStart >= ONE_TASK_TIME*1000000){
+                if(now_ns() - main->taskStart >= g_cfg.worker_stall_ms*1000000){
           
                     int isSuccess = 0;
                     ThreadPoolChange(w,&isSuccess);
                 }
             }
     
-            for(int i=0;i<100;i++)
+            for(int i=0;i<g_cfg.recv_send_batch;i++)
             {
                 int send_info=0;
                 int e2=ResponseSendMain(w,-2,ed_store_blocknum,&send_info);

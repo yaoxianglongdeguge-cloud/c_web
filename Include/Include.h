@@ -1,6 +1,7 @@
 //对外接口
 #include "../AgentSpace/foo.h"
 #include "CWEBCommon.h"
+#include "../Config/CWebConfig.h"
 
 //GlobalResource
 #include "../GlobalResource/GlobalResource.h"

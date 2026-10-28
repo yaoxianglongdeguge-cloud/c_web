@@ -1,7 +1,5 @@
 #include "../../Include/Include.h"
 
-//暂存块超过这个大小就改用 malloc（大请求扩容时，池里同时存在旧块+新块会超过 2MB 子池）
-#define REQUEST_TEMP_POOL_MAX (1024*1024)
 
 
 int RequestTempPoolInit(Request_Temp_Pool** h)//分配整个存储大小，单位是字节
@@ -99,7 +97,7 @@ int RequestTempPoolExpendTo(Request_Temp_Pool* h,Memory_Pool* pool,int needSize,
     int newFromMalloc=0;
 
     //超过 REQUEST_TEMP_POOL_MAX 时走 malloc：避免"旧块 + 新块"同时占子池把 2MB 撑爆
-    if(newsize<=REQUEST_TEMP_POOL_MAX){
+    if(newsize<=g_cfg.req_temp_pool_max){
         MemoryPoolAlloc(pool,newsize,&ptr,&notfull);
         if(notfull!=0) newFromMalloc=0;
         else ptr=NULL;

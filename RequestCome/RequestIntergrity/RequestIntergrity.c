@@ -150,7 +150,7 @@ int RequestIntergrityJudge(Request_Temp_Pool* hs,char** ptr,int* fail,int* fail_
             int len=0;
             BodyLength(&len,body_length);
 
-            if(len>HTTP_MAX_BODY_BYTES){  *fail_reason=413;  *fail=0;  return 0;  }
+            if(len>g_cfg.req_max_body){  *fail_reason=413;  *fail=0;  return 0;  }
 
             target=target+4+len;
             if(target<hs->ptr_e){ *fail=1; } else { *fail=-1; }
