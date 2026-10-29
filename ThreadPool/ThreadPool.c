@@ -105,8 +105,13 @@ int ThreadPoolChange(Receiver_Thread* receiver,int* isSuccess){
     if(main->isOut == 0){ *isSuccess = 1; return 1; }
     char state = ThreadState((pid_t)atomic_load(&(main->tid)));
 #ifdef CWEB_DEBUG_SWITCH
-    fprintf(stderr,"[change] main=%d isOut=%d state=%c next=%d\n",
-            t->mainThread, (int)main->isOut, state, t->nextWake);
+    //调试输出：最多 50 条，避免主 worker 长期卡住时刷屏
+    static int dbg_logged=0;
+    if(dbg_logged<50){
+        dbg_logged++;
+        fprintf(stderr,"[Pool] 换线程调试：main=%d isOut=%d state=%c next=%d\n",
+                t->mainThread,(int)main->isOut,state,t->nextWake);
+    }
 #endif
     if (state == 'R') {  *isSuccess = 1; return 1; }
     if (state == 'S' || state == 'D') { 
@@ -116,6 +121,14 @@ int ThreadPoolChange(Receiver_Thread* receiver,int* isSuccess){
         int k = t->nextWake;
         while(i < t->totalNum){
             if(t->workers[k]->isOut == 0){
+                //正常构建下也记录换线程（限流 10 次）
+                static int switch_warned=0;
+                if(switch_warned<10){
+                    switch_warned++;
+                    fprintf(stderr,"[Pool] 主 worker %d 卡住（state=%c），切换到 worker %d\n",
+                            t->mainThread,state,k);
+                }
+
                 atomic_store(&(main->isMain),0);
                 wakeThread(t->workers[k]);
                 t->nextWake = (k+1)%(t->totalNum);

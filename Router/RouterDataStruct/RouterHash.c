@@ -237,7 +237,7 @@ int RouterHashInsert(Router_Hash**hm,Router_Hash* h,char* url,Handler func)
         static int warned=0;
         if(RouterHashExpend(hm)==0&&warned==0){
             warned=1;
-            printf("[RouterHash] 路由表已达扩容上限，停止扩容（%d 桶 / %d 条）\n",h->bu_num,h->elem_num);
+            fprintf(stderr,"[RouterHash] 路由表已达扩容上限，停止扩容（%d 桶 / %d 条）\n",h->bu_num,h->elem_num);
         }
     }
     

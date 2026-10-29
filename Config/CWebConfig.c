@@ -6,9 +6,14 @@ CWebConfig g_cfg;
 
 #define CWEB_CFG_SET_MAX 64
 
+//逐行解析告警最多打印的条数（其余在末尾汇总一行）
+#define CFG_WARN_MAX 20
+
+//记录已经注入字段，用来指示可能的重复注入
 static char g_set_keys[CWEB_CFG_SET_MAX][64];
 static int  g_set_num;
 
+//去掉首尾空白或者特殊字符
 static char* CfgTrim(char* s)
 {
     while(*s==' '||*s=='\t'||*s=='\r'||*s=='\n') s++;
@@ -19,7 +24,7 @@ static char* CfgTrim(char* s)
 
     return s;
 }
-
+//注入整型字段
 static int CfgParseInt(const char* s,int* out)
 {
     if(s==NULL||*s=='\0') return 0;
@@ -36,7 +41,7 @@ static int CfgParseInt(const char* s,int* out)
     *out=(int)v;
     return 1;
 }
-
+//注入字符串类型字段
 static int CfgSetStr(char* dst,size_t dstsz,const char* val)
 {
     if(dst==NULL||dstsz==0||val==NULL) return 0;
@@ -54,8 +59,8 @@ static int CfgSetInt(int* dst,const char* val)
 }
 
 /*
- * 配置注入：读到的键名和哪个字段对上，就直接写给哪个字段。
- * 返回 1 = 写入成功；0 = 值非法；-1 = 未知键（调用方只告警、不中断）
+ 配置注入：读到的键名和哪个字段对上，就直接写给哪个字段。
+ 返回 1 = 写入成功；0 = 值非法；-1 = 未知键（调用方只告警、不中断）
  */
 static int CfgAssign(CWebConfig* c,const char* key,const char* val)
 {
@@ -109,7 +114,7 @@ static int CfgAssign(CWebConfig* c,const char* key,const char* val)
     return -1;
 }
 
-/* 记录“这个键被配置文件显式设置过”，供 CWebConfigIsSet 查询 */
+// 记录“这个键被配置文件显式设置过” 
 static void CfgMarkSet(const char* key)
 {
     if(key==NULL||*key=='\0') return;
@@ -125,7 +130,7 @@ static void CfgMarkSet(const char* key)
     g_set_num++;
 }
 
-/* 本次 LoadFile 里这个键是否已经出现过（重复键告警用；from = 开读时的 g_set_num） */
+// 本次 LoadFile 里这个键是否已经出现过（重复键告警用；from = 开读时的 g_set_num）
 static int CfgMarkedSince(const char* key,int from)
 {
     for(int i=from;i<g_set_num;i++){
@@ -134,6 +139,7 @@ static int CfgMarkedSince(const char* key,int from)
     return 0;
 }
 
+//配置默认值
 int CWebConfigSetDefaults(CWebConfig* c)
 {
     if(c==NULL) return 0;
@@ -180,6 +186,7 @@ int CWebConfigSetDefaults(CWebConfig* c)
     return 1;
 }
 
+//逐行解析文件，进行每一行清洗，并调用函数进行字段注入
 int CWebConfigLoadFile(CWebConfig* c,const char* path)
 {
     if(c==NULL||path==NULL) return 0;
@@ -190,71 +197,103 @@ int CWebConfigLoadFile(CWebConfig* c,const char* path)
         return 0;
     }
 
+    //读进一行缓存区
     char line[512];
+    //行号记录
     int  lineno=0;
     int  bad=0;
-    int  marked_from=g_set_num;   /* 本次开读前已经记过的键数（重复键只在本次文件内判断） */
+    int  noisy=0;                 //已产生的告警条数（前 CFG_WARN_MAX 条打印明细）
+    int  marked_from=g_set_num;   
 
     while(fgets(line,sizeof(line),f)!=NULL){
 
         lineno++;
 
         size_t len=strlen(line);
+        //判断一行是否过长
+        //如果读的一行没有到换行，也不是文件结束，说明这行过长
         if(len>0&&line[len-1]!='\n'&&!feof(f)){
-            fprintf(stderr,"[Config] %s:%d 行过长（>%d 字节），已忽略\n",path,lineno,(int)sizeof(line)-2);
+            if(noisy<CFG_WARN_MAX)
+                fprintf(stderr,"[Config] %s:%d 行过长（>%d 字节），已忽略\n",path,lineno,(int)sizeof(line)-2);
+            noisy++;
             int ch=0;
+            //于是这里直接吃掉剩下的,防止本行参与字节被当作下一行解析
             while((ch=fgetc(f))!='\n'&&ch!=EOF){}
             bad++;
             continue;
         }
 
+        //去掉首尾空白或者特殊字符
         char* s=CfgTrim(line);
 
+        //如果去除后本行结束或者是注释，不再解析本行
         if(*s=='\0'||*s=='#') continue;
 
+        //找每个配置的等号
         char* eq=strchr(s,'=');
         if(eq==NULL){
-            fprintf(stderr,"[Config] %s:%d 缺少 '='，已忽略：%s\n",path,lineno,s);
+            if(noisy<CFG_WARN_MAX)
+                fprintf(stderr,"[Config] %s:%d 缺少 '='，已忽略：%s\n",path,lineno,s);
+            noisy++;
             continue;
         }
 
+        //在等号处截断
         *eq='\0';
 
+        //分别拿到key和value
         char* key=CfgTrim(s);
         char* val=CfgTrim(eq+1);
 
+        //注入
         int r=CfgAssign(c,key,val);
         if(r<0){
-            fprintf(stderr,"[Config] %s:%d 未知键 %s（已忽略）\n",path,lineno,key);
+            if(noisy<CFG_WARN_MAX)
+                fprintf(stderr,"[Config] %s:%d 未知键 %s（已忽略）\n",path,lineno,key);
+            noisy++;
             continue;
         }
         if(r==0){
-            fprintf(stderr,"[Config] %s:%d 键 %s 的值非法：%s\n",path,lineno,key,val);
+            if(noisy<CFG_WARN_MAX)
+                fprintf(stderr,"[Config] %s:%d 键 %s 的值非法：%s\n",path,lineno,key,val);
+            noisy++;
             bad++;
             continue;
         }
 
-        if(CfgMarkedSince(key,marked_from))
-            fprintf(stderr,"[Config] %s:%d 键 %s 重复，后值覆盖前值\n",path,lineno,key);
+        //判断本字段是不是被注入过了
+        if(CfgMarkedSince(key,marked_from)){
+            if(noisy<CFG_WARN_MAX)
+                fprintf(stderr,"[Config] %s:%d 键 %s 重复，后值覆盖前值\n",path,lineno,key);
+            noisy++;
+        }
 
+        //记录已经解析的字段
         CfgMarkSet(key);
     }
 
     fclose(f);
 
-    /* 一个已知键都没认出来：多半是第一行带 UTF-8 BOM，或键名拼错（CRLF 已自动处理） */
+    if(noisy>CFG_WARN_MAX)
+        fprintf(stderr,"[Config] 其余 %d 条配置告警已省略（共 %d 条）\n",
+                noisy-CFG_WARN_MAX,noisy);
+
+    //一个已知键都没认出来：多半是第一行带 UTF-8 BOM，或键名拼错（CRLF 已自动处理）
     if(g_set_num==marked_from&&bad==0)
         fprintf(stderr,"[Config] 提示：%s 里没有识别到任何已知键（检查是否带 UTF-8 BOM / 键名拼写）\n",path);
 
+    //是否有某行解析失败，如果有返回非一，之后会中断
     return bad==0?1:0;
 }
 
+//打印哪个字段除了什么问题
 static int CfgFail(const char* key,const char* why)
 {
     fprintf(stderr,"[Config] 非法配置 %s：%s\n",key,why);
     return 0;
 }
 
+//对于注入字段进行合法性检查
 int CWebConfigValidate(const CWebConfig* c)
 {
     if(c==NULL) return 0;
@@ -303,6 +342,7 @@ int CWebConfigValidate(const CWebConfig* c)
     return 1;
 }
 
+//注入完成，检查完成，打印配置信息
 void CWebConfigDump(const CWebConfig* c)
 {
     if(c==NULL) return;
@@ -324,6 +364,7 @@ void CWebConfigDump(const CWebConfig* c)
            c->worker_stall_ms,c->worker_sem_wait_ms,c->worker_idle_sleep_us,c->worker_parallel,c->epoll_tick_ms);
 }
 
+//判断某个字段是否被注入
 int CWebConfigIsSet(const char* key)
 {
     if(key==NULL) return 0;
@@ -334,11 +375,13 @@ int CWebConfigIsSet(const char* key)
     return 0;
 }
 
+//配置初始化
 int CWebConfigInit(const char* path)
 {
     if(CWebConfigSetDefaults(&g_cfg)!=1) return 0;
 
     const char* file=path;
+    //用户是否指定了配置文件路径
     int explicit_path=0;
 
     if(file==NULL){

@@ -348,17 +348,32 @@ int ResponseErrorSet(Response* r, int error);                /* 错误码 */
 
 ## 日志与排障
 
-启动信息走 **stdout**（启动期会 `fflush`），告警/错误走 **stderr**；高频错误限流打印 1~3 次。
+> 完整的日志清单（文件 / 行号 / 作用 / 限流次数）见仓库根 [`LOG_REPORT.md`](LOG_REPORT.md)。
 
-| 前缀 | 来源 | 典型内容 |
-|---|---|---|
-| `[Config]` | `Config/CWebConfig.c` | 用了哪个配置文件 / 全部默认值、未知键、值非法、重复键、校验失败、BOM 提示 |
-| `[WebStater]` | `StaterMain/StarterMain.c` | 启动摘要（组数/worker/线程数）、某组监听或建线程失败、组数未完全生效 |
-| `[Net]` | `StarterMain` / `FdConnectOrClose` | `socket/setsockopt/bind/listen/accept/TCP_NODELAY` 失败、backlog 被截断、fd 用尽 |
-| `[Recv]` | `Threads/ReceiverThread.c` | `epoll_create1/eventfd/线程池` 初始化失败、组就绪、`epoll_wait` 失败 |
-| `[Worker]` | `Threads/WorkerThread.c` | 线程就绪（id + tid）、`sem_timedwait` 失败、未绑定任务队列 |
-| `[Pool]` | `ThreadPool/ThreadPool.c` | `/proc` 不可用导致换线程失效、`malloc/pthread_create` 失败 |
-| `[Send]` | `ResponseSend/ResponseSendMain.c` | `write/sendfile` 失败（正常断连不打印） |
+**统一规则**：
+
+- **信息** → `stdout`：启动摘要、配置生效值、组/线程就绪。启动期在 `CWebConfig.c`、`StarterMain.c`、
+  `ReceiverThread.c`、`WorkerThread.c` 各有一处 `fflush(stdout)`，重定向到文件也能立刻看到。
+- **告警/错误** → `stderr`（无缓冲，进程被 kill 也不会丢）。
+- 格式统一为 `[标签] 说明：详情`，每条以 `\n` 结尾。
+- 同类高频日志用 `static` 计数限流（1 / 3 / 5 / 10 / 20 / 50 次），避免故障时刷屏。
+- `[Config]` 的逐行明细最多 20 条，其余在末尾汇总一行。
+- 调试日志受 `-DCWEB_DEBUG_SWITCH` 控制，发布构建不输出。
+
+| 前缀 | 来源 | 内容 | 限流 |
+|---|---|---|---|
+| `[Config]` | `Config/CWebConfig.c` | 配置文件来源、未知键/值非法/重复键、校验失败、BOM 提示、生效配置 | 明细 20 + 汇总 |
+| `[WebStater]` | `StaterMain/StarterMain.c` | 启动摘要、某组监听/建线程失败、组数未完全生效 | 启动期一次 |
+| `[Net]` | `StarterMain` / `FdConnectOrClose` | `socket/setsockopt/bind/listen/accept/TCP_NODELAY` 失败、backlog 截断、fd 用尽 | accept / NODELAY 各 3 |
+| `[Recv]` | `Threads/ReceiverThread.c` | `epoll_create1/eventfd/线程池` 初始化失败、组就绪、`epoll_wait` 失败 | `epoll_wait` 3 |
+| `[Worker]` | `Threads/WorkerThread.c` | 线程就绪（id+tid）、`sem_timedwait` 失败、未绑定任务队列 | 3 / 1 |
+| `[Pool]` | `ThreadPool/ThreadPool.c` | `/proc` 不可用、`malloc/pthread_create` 失败、卡住换线程（含 `CWEB_DEBUG_SWITCH` 调试） | 1 / 10 / 50 |
+| `[Epoll]` | `FdConnectManage/EpollOperate` | `epoll_ctl` / `fcntl(O_NONBLOCK)` 失败 | 5 |
+| `[Fd]` | `FdConnectOrClose.c` | 非 200 关闭连接的原因（408/413/414/431/503） | 10 |
+| `[Mem]` | `MemoryPool/MemoryPool.c` | 初始化参数非法 / `calloc` 失败 / `malloc` 失败 | 5 |
+| `[Router]` | `Router/Router.c` | 路由表初始化失败、注册失败（重复 URL） | 20 |
+| `[RouterHash]` | `Router/RouterDataStruct/RouterHash.c` | 路由表达扩容上限，停止扩容 | 1 |
+| `[Send]` | `ResponseSend/ResponseSendMain.c` | `write/sendfile` 失败（正常断连不打印） | 3 |
 
 典型输出：
 
@@ -376,6 +391,7 @@ int ResponseErrorSet(Response* r, int error);                /* 错误码 */
 - 端口起不来：看 `[Net] bind(ip:port) 失败` 的 `errno`，以及 `[WebStater] 只有 x/N 组启动成功`。
 - 配置没生效：看 `[Config] 未知键 …` / `提示：没有识别到任何已知键`（多为 BOM 或拼错）。
 - 压测上不去：确认 `[Net] listen.backlog … 超过内核 somaxconn …`，再调 `worker.per_group`。
+- 连接被服务端关掉：看 `[Fd] 关闭连接 … 原因=408/413/414/431/503` 定位是哪条限额触发。
 - 卡死连接不超时：`timer.capacity` 是否小于并发连接数。
 
 ---
@@ -408,11 +424,3 @@ int ResponseErrorSet(Response* r, int error);                /* 错误码 */
 - `MemoryPool` 尚未换成自研分配器，配额只用于统计/告警。
 - 无优雅退出：进程收到的终止信号按系统默认行为处理。
 
----
-
-## 变更记录
-
-- **2026-10**：配置解析简化为「读键名 → if 注入结构体」，配置只来自文件（不再读 `CWEB_xxx` 环境变量，
-  `CWEB_CONF` 仅指定文件路径）；新增启动/错误日志与失败分支（`[Config] [Net] [Recv] [Worker] [Pool] [Send]`）；
-  README 按当前库结构重写，修正了旧文档中的目录、环境变量和默认值描述。
-- 更早的修复与压测记录请查看 git 历史。

@@ -60,6 +60,14 @@ int FdClose(Receiver_Thread* w,int client_fd,int error_reason)
 {
     if(error_reason!=200)
     {
+        //非正常关闭记一条（限流 10 次），用于排查 408/413/414/431/503
+        static int close_warned=0;
+        if(close_warned<10){
+            close_warned++;
+            fprintf(stderr,"[Fd] 关闭连接 fd=%d 原因=%d（%s）\n",
+                    client_fd,error_reason,StatusText(error_reason));
+        }
+
         if(error_reason == 503){ atomic_store(&(w->isFull),1); }
         char re[1024]={0};
         int len=BuildErrorResponse(re,1024,error_reason);
